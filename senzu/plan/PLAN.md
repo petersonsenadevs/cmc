@@ -297,16 +297,17 @@
 
 ## Tareas ad hoc (fuera del plan original)
 
-### X-T1 · Revisar y corregir la portabilidad entre sistemas operativos  [M] [doing]
+### X-T1 · Revisar y corregir la portabilidad entre sistemas operativos  [M] [done]
 - Para qué: que el plugin funcione igual en Windows, macOS y Linux; Peterson lo pidió el 2026-11-21 («cuidado con las barras y las rutas»).
 - Skill: sin skill: revisión de rutas, renombrados y permisos (subagente)
 - Archivos: lib/atomic-write.mjs, lib/queue.mjs, lib/session-state.mjs, lib/sessions.mjs, scripts/e2e.mjs, tests
 - Hecho cuando: los renombrados atómicos reintentan en Windows; las carpetas se comparan por ruta real y sin distinguir mayúsculas donde toca; el cerrojo no confunde un error de permisos con «ocupado» fuera de Windows; `scripts/e2e.mjs` respeta `CLAUDE_CONFIG_DIR` y `CLAUDE_BIN`; los ejecutables llevan el bit de ejecución en git; revisado el resto del código en busca de supuestos de un solo sistema.
 - Verificar: `npm test` y `npm run lint`; lista de lo que no se ha podido ejecutar fuera de Windows.
 - Depende de: —
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 135 pass, 0 fail (18 nuevos); `npm run lint` → 31 modules checked, 0 failed; `git ls-files -s` → 100755 en bin/cmc.mjs y los cuatro hooks; sesión real con hooks, CLI y `;;end` → `guava mango`. No ejecutado en macOS ni Linux: las ramas de esas plataformas solo están cubiertas con la plataforma inyectada en los tests
+- Cumple: corregidos los supuestos de un solo sistema que se encontraron (renombrados, rutas reales, cerrojo, stdin), que era el «Para qué»; falta la prueba real en macOS y Linux
+- Devlog: senzu/devlog/2026-11-21/014-x-t1-portabilidad-multi-os.md
+- Notas: correcciones hechas por un subagente y revisadas. Extra: lectura de stdin de los hooks, fichero suelto en sessions/, renombrado de spike/fork-test.mjs a fork-probe.mjs. Pendiente: suite en macOS y Linux (CI en F4).
 
 ## Cambios al plan
 | Fecha | Cambio | Motivo |

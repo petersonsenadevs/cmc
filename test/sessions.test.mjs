@@ -1,15 +1,15 @@
 // cmc — session registry and the command line from another terminal. Author: Peterson Sena (r3v3rs3).
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, parse } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { sessionDir } from '../lib/paths.mjs';
 import { listMessages } from '../lib/queue.mjs';
 import { handleStop } from '../lib/release.mjs';
-import { candidateDataDirs, handleSessionEnd, handleSessionStart, listSessions, resolveSession } from '../lib/sessions.mjs';
+import { candidateDataDirs, handleSessionEnd, handleSessionStart, listSessions, openSessionsIn, resolveSession } from '../lib/sessions.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FIRST = 'd0546eba-c080-415b-b5e2-863787cb5937';
@@ -129,6 +129,90 @@ describe('resolveSession', () => {
   });
 });
 
+/**
+ * Makes `path` a link to the folder `target`: a symbolic link on POSIX, a
+ * junction on Windows (which needs no privilege). Returns false where the
+ * platform refuses, so the test can be skipped instead of failing.
+ */
+function linkFolder(target, path) {
+  try {
+    symlinkSync(target, path, 'junction');
+    return true;
+  } catch (error) {
+    if (['EPERM', 'EACCES', 'ENOSYS', 'EINVAL'].includes(error.code)) return false;
+    throw error;
+  }
+}
+
+describe('one folder, several spellings', () => {
+  it('finds the session when it was started through a link to the folder', (t) => {
+    const link = join(base, 'link');
+    if (!linkFolder(project, link)) return t.skip('this platform does not allow creating a link here');
+    assert.equal(realpathSync.native(link), realpathSync.native(project));
+
+    start(FIRST, link);
+    assert.equal(find(project).id, FIRST);
+    assert.equal(find(join(project, 'src', 'deep')).id, FIRST);
+    assert.equal(find(link).id, FIRST);
+  });
+
+  it('finds the session from a link when it was started in the real folder', (t) => {
+    const link = join(base, 'link');
+    if (!linkFolder(project, link)) return t.skip('this platform does not allow creating a link here');
+
+    start(FIRST);
+    assert.equal(find(link).id, FIRST);
+    assert.equal(find(join(link, 'src', 'deep')).id, FIRST);
+    start(SECOND, join(link, 'src'));
+    assert.equal(find(join(project, 'src', 'deep')).id, SECOND, 'the closest session wins whatever the spelling');
+  });
+
+  it('lets the command line find a session started through a link', (t) => {
+    const link = join(base, 'link');
+    if (!linkFolder(project, link)) return t.skip('this platform does not allow creating a link here');
+
+    // As on macOS, where the hook can be told /var/… while the terminal is in /private/var/….
+    start(FIRST, link);
+    assert.equal(cmc(['hold', 'through the link'], { cwd: realpathSync.native(project) }).stdout, 'Held (1 queued).\n');
+    assert.equal(cmc(['hold', 'from the link'], { cwd: join(link, 'src') }).stdout, 'Held (2 queued).\n');
+    assert.deepEqual(held(FIRST), ['through the link', 'from the link']);
+  });
+
+  it('still tells apart a folder that no longer exists from its neighbours', () => {
+    const gone = join(project, 'gone');
+    mkdirSync(gone);
+    start(FIRST, gone);
+    rmSync(gone, { recursive: true });
+    assert.equal(find(gone).id, FIRST);
+    assert.equal(find(join(gone, 'below')).id, FIRST);
+    assert.throws(() => find(`${gone}-other`), { code: 'NO_SESSION' });
+    assert.throws(() => find(project), { code: 'NO_SESSION' });
+  });
+
+  it('treats a session started at the file system root as above every folder of that drive', () => {
+    const { root: fsRoot } = parse(realpathSync.native(project));
+    const record = { id: FIRST, cwd: fsRoot, startedAt: '', lastActiveAt: '', endedAt: null, dir: '' };
+    assert.deepEqual(openSessionsIn([record], project), [record]);
+    assert.deepEqual(openSessionsIn([record], fsRoot), [record]);
+    const closer = { ...record, id: SECOND, cwd: project };
+    assert.deepEqual(openSessionsIn([record, closer], join(project, 'src')), [closer]);
+  });
+
+  it('ignores case where the file system does (Windows, macOS)', (t) => {
+    if (process.platform !== 'win32' && process.platform !== 'darwin') return t.skip('case-sensitive file system');
+    start(FIRST);
+    assert.equal(find(project.toUpperCase()).id, FIRST);
+    assert.equal(find(join(project, 'SRC', 'Deep')).id, FIRST);
+  });
+
+  it('does not trip over a stray file among the session folders', () => {
+    start(FIRST);
+    writeFileSync(join(dataDir, 'sessions', '.DS_Store'), '');
+    assert.deepEqual(listSessions([dataDir]).map((record) => record.id), [FIRST]);
+    assert.equal(find(project).id, FIRST);
+  });
+});
+
 describe('candidateDataDirs', () => {
   it('scans the Claude config directory for data directories marked by cmc', () => {
     const config = join(base, 'config');
@@ -138,7 +222,10 @@ describe('candidateDataDirs', () => {
     mkdirSync(other, { recursive: true });
     writeFileSync(join(mine, 'cmc.json'), '{"plugin":"cmc"}');
 
-    const saved = { ...process.env };
+    // Restored one by one: replacing process.env with a plain object would lose
+    // its case-insensitive lookup on Windows for the rest of the run.
+    const names = ['CMC_DATA_DIR', 'CLAUDE_PLUGIN_DATA', 'CLAUDE_CONFIG_DIR'];
+    const saved = names.map((name) => [name, process.env[name]]);
     delete process.env.CMC_DATA_DIR;
     delete process.env.CLAUDE_PLUGIN_DATA;
     process.env.CLAUDE_CONFIG_DIR = config;
@@ -149,7 +236,10 @@ describe('candidateDataDirs', () => {
       process.env.CLAUDE_CONFIG_DIR = join(base, 'missing');
       assert.deepEqual(candidateDataDirs(), []);
     } finally {
-      process.env = saved;
+      for (const [name, value] of saved) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
     }
   });
 });

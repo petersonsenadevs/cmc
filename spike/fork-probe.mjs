@@ -2,14 +2,14 @@
 // Forks a Claude Code session while it is in the middle of a turn and reports
 // what the fork knows, what it costs and whether the origin is disturbed.
 //
-//   node spike/fork-test.mjs <scratchDir>
+//   node spike/fork-probe.mjs <scratchDir>
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const scratch = resolve(process.argv[2] ?? '');
 if (!process.argv[2]) {
-  process.stderr.write('usage: node spike/fork-test.mjs <scratchDir>\n');
+  process.stderr.write('usage: node spike/fork-probe.mjs <scratchDir>\n');
   process.exit(2);
 }
 const repo = join(scratch, 'repo');

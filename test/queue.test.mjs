@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { CmcError } from '../lib/errors.mjs';
 import { resolveDataDir, sessionDir } from '../lib/paths.mjs';
-import { addMessage, drainMessages, listMessages, MAX_TEXT_LENGTH } from '../lib/queue.mjs';
+import { addMessage, drainMessages, isLockHeld, listMessages, MAX_TEXT_LENGTH } from '../lib/queue.mjs';
 
 const worker = join(dirname(fileURLToPath(import.meta.url)), '..', 'test-support', 'queue-worker.mjs');
 
@@ -96,6 +96,20 @@ describe('queue', () => {
     utimesSync(lock, old, old);
     assert.equal(addMessage(dir, { text: 'after' }).messages.length, 2);
     assert.equal(existsSync(lock), false);
+  });
+
+  it('reads EPERM as "lock held" only on Windows; elsewhere it is a real error', () => {
+    for (const platform of ['win32', 'linux', 'darwin']) assert.equal(isLockHeld({ code: 'EEXIST' }, platform), true);
+    assert.equal(isLockHeld({ code: 'EPERM' }, 'win32'), true);
+    assert.equal(isLockHeld({ code: 'EPERM' }, 'linux'), false);
+    assert.equal(isLockHeld({ code: 'EPERM' }, 'darwin'), false);
+    for (const platform of ['win32', 'linux', 'darwin']) assert.equal(isLockHeld({ code: 'EACCES' }, platform), false);
+  });
+
+  it('fails at once, not as a busy queue, when the lock cannot be created at all', () => {
+    const started = Date.now();
+    assert.throws(() => addMessage(join(dir, 'no-such-folder'), { text: 'x' }), { code: 'ENOENT' });
+    assert.ok(Date.now() - started < 2000);
   });
 
   it('never hands a message to two drainers running at the same time', async () => {

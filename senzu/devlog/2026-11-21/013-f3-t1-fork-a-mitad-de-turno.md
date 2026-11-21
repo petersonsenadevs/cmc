@@ -7,7 +7,7 @@
 - **Stack:** node (plugin de Claude Code, ESM sin dependencias)
 
 ## Qué se hizo
-- `spike/fork-test.mjs`: crea un repositorio git de prueba, arranca una sesión origen (leer un fichero y tres pasos `sleep 8; echo`) y, a los dos segundos del segundo paso, lanza cuatro forks con `claude -p --resume <id> --fork-session`: en la misma carpeta, en otra carpeta, con `--worktree` y desacoplado desde un proceso lanzador que termina enseguida. Después mide una sesión nueva con un paquete de contexto de tres líneas.
+- `spike/fork-probe.mjs`: crea un repositorio git de prueba, arranca una sesión origen (leer un fichero y tres pasos `sleep 8; echo`) y, a los dos segundos del segundo paso, lanza cuatro forks con `claude -p --resume <id> --fork-session`: en la misma carpeta, en otra carpeta, con `--worktree` y desacoplado desde un proceso lanzador que termina enseguida. Después mide una sesión nueva con un paquete de contexto de tres líneas.
 - ADR `senzu/arquitectura/adr/002-derivacion-y-contexto.md` con la evidencia y el diseño de la derivación.
 
 ## Resultados
@@ -27,7 +27,7 @@
 
 ## Verificación
 ```
-$ node spike/fork-test.mjs <scratch>
+$ node spike/fork-probe.mjs <scratch>
  13.4s  ORIGIN-TOOL  #3 sleep 8; echo step2
  15.4s  FORK         origin 10448be4-… is mid-turn; starting forks
  15.5s  DETACHED     launcher exited 0 after starting pid 28772

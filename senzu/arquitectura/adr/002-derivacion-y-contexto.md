@@ -1,7 +1,7 @@
 # ADR 002 — Dispatching to a second agent: how it gets its context
 
 - **Status:** accepted · **Date:** 2026-11-21 · **Author:** Peterson Sena (r3v3rs3)
-- **Task:** F3-T1 · **Evidence:** `spike/fork-test.mjs`
+- **Task:** F3-T1 · **Evidence:** `spike/fork-probe.mjs`
 
 ## Context
 
@@ -102,5 +102,5 @@ discount when the cache has expired or the fork uses another model; the pack's c
 ## How to reproduce
 
 ```
-node spike/fork-test.mjs <scratchDir>
+node spike/fork-probe.mjs <scratchDir>
 ```

@@ -12,6 +12,12 @@
 //            second tool call starts (for example: --cli "hold also say hello")
 //   --after  typed once the turn has ended, one per following turn (repeatable)
 //   --keep   keep the scratch working directory
+//
+// Environment:
+//   CLAUDE_BIN         the Claude Code executable to start (default: `claude` from PATH). It is
+//                      started without a shell, so on Windows it has to be a real executable
+//                      (claude.exe), not the claude.cmd shim that npm installs.
+//   CLAUDE_CONFIG_DIR  honoured as Claude Code does, to find the plugin data directory.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -45,22 +51,46 @@ const stamp = () => `${((Date.now() - started) / 1000).toFixed(1).padStart(5)}s`
 const print = (label, text = '') => process.stdout.write(`${stamp()}  ${label.padEnd(10)} ${text}\n`);
 const oneLine = (text, max = 300) => String(text).replace(/\s+/g, ' ').slice(0, max);
 
-const child = spawn(
-  'claude',
-  [
-    '-p',
-    '--input-format', 'stream-json',
-    '--output-format', 'stream-json',
-    '--verbose',
-    '--replay-user-messages',
-    '--model', options.model,
-    '--allowedTools', 'Bash',
-    // Only this plugin: the user's own hooks and plugins stay out of the measurement.
-    '--setting-sources', 'project',
-    '--plugin-dir', pluginDir,
-  ],
-  { cwd: workDir, stdio: ['pipe', 'pipe', 'inherit'] },
-);
+const claudeBin = process.env.CLAUDE_BIN || 'claude';
+
+/** Stops before anything is typed: Claude Code itself could not be started. */
+function cannotStart(error) {
+  if (!options.keep) rmSync(workDir, { recursive: true, force: true });
+  process.stderr.write(
+    [
+      `e2e: could not start Claude Code as "${claudeBin}" (${error.code ?? error.message}).`,
+      'Set the CLAUDE_BIN environment variable to the full path of the Claude Code executable.',
+      'It is started without a shell, so on Windows it must be a real executable (claude.exe),',
+      'not a .cmd or .bat shim such as the claude.cmd that npm installs.',
+      '',
+    ].join('\n'),
+  );
+  process.exit(2);
+}
+
+function startClaude(claudeArgs) {
+  try {
+    // A missing executable is reported through the 'error' event; a .cmd or .bat on Windows throws here.
+    return spawn(claudeBin, claudeArgs, { cwd: workDir, stdio: ['pipe', 'pipe', 'inherit'] }).on('error', cannotStart);
+  } catch (error) {
+    return cannotStart(error);
+  }
+}
+
+const child = startClaude([
+  '-p',
+  '--input-format', 'stream-json',
+  '--output-format', 'stream-json',
+  '--verbose',
+  '--replay-user-messages',
+  '--model', options.model,
+  '--allowedTools', 'Bash',
+  // Only this plugin: the user's own hooks and plugins stay out of the measurement.
+  '--setting-sources', 'project',
+  '--plugin-dir', pluginDir,
+]);
+// The task may be written before a failed start is reported; that report is the one that matters.
+child.stdin.on('error', () => {});
 
 function type(text) {
   print('TYPED', text);
@@ -71,7 +101,7 @@ let sessionId;
 let midSent = false;
 let toolCalls = 0;
 // With --plugin-dir, Claude Code names the data directory "<plugin>-inline".
-const dataDir = join(homedir(), '.claude', 'plugins', 'data', 'cmc-inline');
+const dataDir = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'), 'plugins', 'data', 'cmc-inline');
 
 function runCli() {
   // Like a second terminal opened in the same folder: no session id, no data directory.

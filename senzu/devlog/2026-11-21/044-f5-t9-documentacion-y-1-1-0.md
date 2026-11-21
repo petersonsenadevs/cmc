@@ -40,3 +40,6 @@ $ MSYS_NO_PATHCONV=1 node scripts/e2e.ts --mid ";; also say the word pineapple" 
 - Comprobado: mismo árbol de ficheros antes y después (`f33bf42`); 116 de 116 commits con el correo personal como autor y committer; remoto `feat/typescript` = local `d878f91`.
 - **Los identificadores de commit citados en el devlog y el plan hasta la entrada 044 son los de antes de reescribir**: el contenido de cada commit es el mismo, el hash no. Para encontrar uno, buscar por su mensaje (`git log --grep`).
 - Pendiente: `main` en el remoto sigue apuntando a la historia vieja (`39238c3`); Peterson la actualiza con `git push --force-with-lease origin feat/typescript:main`.
+
+## Publicación
+- `main` en GitHub = `6c0d3f3` (igual que `feat/typescript`), subida por Peterson. Etiqueta `v1.1.0` publicada por Peterson, apuntando a `67cbc87` (el commit anterior: sin `repository`/`homepage` en plugin.json; se deja así, una etiqueta publicada no se mueve). Lo que se instala con `/plugin marketplace add petersonsenadevs/cmc` es `main`, que ya los lleva.

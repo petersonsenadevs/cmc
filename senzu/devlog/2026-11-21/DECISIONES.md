@@ -146,3 +146,10 @@
 - **Elección:** D-031 `config.json` en `${CLAUDE_PLUGIN_DATA}`, validado por cmc, con `cmc config` y `cmc config init`.
 - **Motivo:** lo leen igual los hooks y la CLI desde otra terminal (que no recibe `userConfig`), admite listas (`dispatch.tools`) y sobrevive a las actualizaciones del plugin como el resto del estado.
 - **Consecuencias:** el usuario edita JSON a mano; los errores no paran nada y se avisan al arrancar la sesión.
+
+## dev-026 — Herramientas del agente derivado
+- **Contexto:** la revisión de seguridad (F3) mostró que `--allowedTools` solo preaprueba: el derivado heredaba los permisos del proyecto y el usuario.
+- **Opciones:** solo `--allowedTools`; `--disallowedTools` con una lista negra; `--tools` con la lista configurada.
+- **Elección:** D-032 `--tools` con las herramientas integradas de `dispatch.tools`, y el ajuste `dispatch.restrictTools` (por defecto `true`) para quitar la restricción.
+- **Motivo:** una lista blanca no depende de conocer todas las herramientas que habría que prohibir; probado en real (el derivado no tiene Bash).
+- **Consecuencias:** el fork pierde la caché del prompt y cuesta mucho más (0,003 $ → 0,156 $ en una prueba con haiku). Las herramientas MCP no se restringen con `--tools`.

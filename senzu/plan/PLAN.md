@@ -280,18 +280,19 @@
 - Devlog: senzu/devlog/2026-11-21/026-f4-t1-configuracion.md
 - Notas: `config.json` en el directorio de datos (D-031), con `cmc config` e `init`. Corregido de paso: una lista JSON pasaba por objeto válido.
 
-### F4-T2 · Revisar la seguridad del plugin  [M] [doing]
+### F4-T2 · Revisar la seguridad del plugin  [M] [done]
 - Para qué: que un mensaje o un transcript no puedan ejecutar nada por su cuenta.
 - Skill: `security` (pasada OWASP con evidencia, `/seguridad`)
 - Archivos: senzu/seguridad/ (informe), correcciones donde toque
 - Hecho cuando: revisados inyección de comandos en el lanzador, rutas (ids de sesión como nombres de carpeta), permisos del derivado, contenido de terceros tratado como datos y logs sin secretos; hallazgos corregidos o aceptados por escrito.
 - Verificar: informe con evidencia por hallazgo; `npm test` en verde tras las correcciones.
 - Depende de: F4-T1
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: informe `senzu/seguridad/2026-11-21-revision-cmc.md` con evidencia por hallazgo; `npm test` → 241 pass, 0 fail (13 tests de seguridad, uno por arreglo); `npm audit` → 0; prueba real: el derivado no tiene Bash («NO-BASH-TOOL»), y el worktree limpio se sigue retirando con `--ignored`
+- Cumple: ni un mensaje ni un transcript pueden ejecutar nada por su cuenta ni salirse de su sitio, y el agente derivado no tiene más permisos de los configurados, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/027-f4-t2-revision-de-seguridad.md
+- Notas: 3 medios y 5 bajos corregidos; S1 y S2 corregidas, S3 aceptada. Contrapartida: restringir herramientas encarece el fork (D-032, ajuste `dispatch.restrictTools`).
 
-### F4-T3 · Documentar e instalar desde un marketplace local  [M] [todo]
+### F4-T3 · Documentar e instalar desde un marketplace local  [M] [doing]
 - Para qué: instalarlo en cualquier proyecto y que otra persona sepa usarlo.
 - Skill: sin skill: README (qué hace, instalación, uso, límites conocidos, cómo probar)
 - Archivos: README.md, .claude-plugin/marketplace.json, CHANGELOG.md, LICENSE

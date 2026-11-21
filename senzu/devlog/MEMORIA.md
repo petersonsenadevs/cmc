@@ -47,6 +47,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-029 · El resultado de un derivado vuelve a la cola como mensaje «de agente»; con `--auto` lo entrega `Stop` al terminar un turno, nunca a mitad de turno · ver 024
 - D-030 · Nada se entrega a mitad de turno: `;;now` es inmediato solo con el agente parado y si trabaja espera al final del turno; `cmc release` siempre al final; sin hook `PostToolUse` · ver 025
 - D-031 · Los ajustes están en `config.json` del directorio de datos, validados; un valor malo cae a su defecto con aviso; nunca `bypassPermissions` · ver 026
+- D-032 · El derivado tiene solo las herramientas integradas configuradas (`--tools`); `dispatch.restrictTools: false` lo quita a cambio de coste (el fork pierde la caché) · ver 027
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012
@@ -60,6 +61,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - El modo «ya» a mitad de turno (`;;now`, `cmc release --now`) NO es fiable: con `haiku` el modelo obedeció 5 de 12 veces, igual en JavaScript que en TypeScript; lo ignorado se pierde de la cola. Fiables: `;;end` y `;;now` en reposo · ver 020
 - Editar ficheros con `node -e` y cadenas con `\n` o `\0` desde la shell mete saltos de línea o bytes nulos literales en el código: usar Write/Edit o un script en fichero · ver 021
 - La respuesta de un derivado no es el último `result`: los hooks Stop del usuario lo hacen seguir; se guarda el texto anterior al primer «Stop hook feedback» · ver 023
+- `--allowedTools` solo preaprueba herramientas, no las limita: para restringir hay que pasar `--tools`; y cambiar las herramientas rompe la caché de un fork · ver 027
 
 ## Pendientes abiertos
 - [desde 2026-11-21] El «types» de `verify-build` falla porque Senzu se instaló con stack `node-api` (lanza `tsc`): reinstalar Senzu con los comandos reales · ver 017

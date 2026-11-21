@@ -20,3 +20,10 @@
 - **Elección:** D-009 cerrojo por directorio (`mkdir` atómico, caduca a los 10 s) en todas las operaciones, más reescritura atómica.
 - **Motivo:** con solo renombrar, un `add` que escribe mientras otro proceso vacía puede caer en el fichero ya leído y perderse; además F2 necesita editar, borrar y reordenar, que son leer-modificar-escribir.
 - **Consecuencias:** las operaciones son síncronas y cortas; si el cerrojo no se obtiene en 5 s se devuelve `QUEUE_BUSY`.
+
+## dev-006 — Cómo se pide la entrega al terminar el turno
+- **Contexto:** un `/comando` escrito a mitad de turno no se procesa hasta que el turno acaba (ADR 001), así que no sirve para pedir «entrégalo al terminar».
+- **Opciones:** un modo persistente en la configuración; un argumento de `/cmc:release`; una palabra de control tras el prefijo.
+- **Elección:** D-010 la palabra de control `;;end` (pegada al prefijo, sin espacio) arma una entrega de un solo uso que ejecuta el hook `Stop`. `;; end` con espacio es un mensaje normal.
+- **Motivo:** `UserPromptSubmit` sí se dispara a mitad de turno, y es el mismo gesto que retener.
+- **Consecuencias:** el modo por defecto configurable queda para F4-T1; `;;now` (F2-T2) seguirá el mismo patrón.

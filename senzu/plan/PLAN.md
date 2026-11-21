@@ -80,18 +80,19 @@
 - Devlog: senzu/devlog/2026-11-21/005-f1-t4-captura-por-prefijo.md
 - Notas: archivos extra: lib/capture.mjs, lib/hook-io.mjs, lib/log.mjs, scripts/e2e.mjs. Sesión real en modo headless.
 
-### F1-T5 · Soltar la cola con `/cmc:release` y al terminar el turno  [M] [doing]
+### F1-T5 · Soltar la cola con `/cmc:release` y al terminar el turno  [M] [done]
 - Para qué: decidir tú cuándo recibe el agente lo retenido.
 - Skill: `code-quality §references/security-owasp "Prompt injection y seguridad de LLM"`
 - Archivos: commands/release.md, hooks/stop-release.mjs, bin/cmc.mjs (subcomando `drain`), test/stop-release.test.mjs
 - Hecho cuando: `/cmc:release` entrega todos los mensajes en orden, marcados como mensajes del usuario retenidos, y vacía la cola; con el modo «al terminar» activo, el hook `Stop` los entrega al acabar el turno y no entra en bucle (`stop_hook_active`); con la cola vacía, ninguno de los dos hace nada.
 - Verificar: `npm test` y sesión real: retener 2 mensajes, comprobar que el agente termina su tarea sin verlos y que los recibe al soltar.
 - Depende de: F1-T4
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 48 pass, 0 fail; `npm run lint` → 18 modules checked, 0 failed; sesión real: 2 mensajes retenidos a mitad de turno, el agente responde `step1, step2, step3` sin verlos y tras `/cmc:release` responde `pineapple mango`; con `;;end` el hook `Stop` entrega `[cmc] The user released their held message with ";;end"` y el agente responde `papaya`; cola vacía al final en ambos
+- Cumple: el usuario decide cuándo recibe el agente lo retenido (a mano o al terminar el turno), que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/006-f1-t5-soltar-la-cola.md
+- Notas: el modo «al terminar» se activa con `;;end` (D-010), adelantado de F2-T2. Archivos extra: lib/release.mjs, lib/session-state.mjs.
 
-### F1-T6 · Cerrar la fase con prueba de extremo a extremo  [S] [todo]
+### F1-T6 · Cerrar la fase con prueba de extremo a extremo  [S] [doing]
 - Para qué: confirmar que el esqueleto cumple lo pedido antes de ampliarlo.
 - Skill: sin skill: cierre de fase (resumen en devlog)
 - Archivos: senzu/devlog/<fecha>/NNN-cierre-f1.md, README.md (uso básico)

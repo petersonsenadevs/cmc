@@ -33,6 +33,14 @@ export interface AgentRecord {
   cwd: string;
   /** Name of its git worktree, if it has one. */
   worktree: string | null;
+  /** Commit the repository was on when the agent started (agents with a worktree). */
+  baseCommit?: string | null;
+  /** Branch of the worktree; set once the agent has ended. */
+  branch?: string | null;
+  /** Folder of the worktree when it was kept because the agent changed something. */
+  worktreePath?: string | null;
+  /** Files the agent changed in its worktree. */
+  changedFiles?: string[];
   /** Executable and arguments, as an array. */
   command: string[];
   /** Process that supervises the agent. */
@@ -53,7 +61,7 @@ export interface AgentRecord {
 }
 
 /** What the caller decides about a new agent; the rest of the record starts empty. */
-export type NewAgentFields = Pick<AgentRecord, 'task' | 'mode' | 'cwd' | 'worktree' | 'command'>;
+export type NewAgentFields = Pick<AgentRecord, 'task' | 'mode' | 'cwd' | 'worktree' | 'command' | 'baseCommit'>;
 
 /** Whether a process with this pid exists. */
 export function isAlive(pid: unknown): boolean {

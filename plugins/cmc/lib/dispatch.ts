@@ -22,6 +22,7 @@ import {
 } from './agents-registry.ts';
 import { CmcError, errorCode } from './errors.ts';
 import { MAX_TEXT_LENGTH } from './queue.ts';
+import { headCommit, isGitRepo, settleWorktree, worktreeName } from './worktree.ts';
 
 const RUNNER = join(dirname(fileURLToPath(import.meta.url)), 'agent-runner.ts');
 
@@ -53,7 +54,12 @@ export interface DispatchOptions {
   mode?: AgentMode;
   /** Full prompt; by default the fork prompt for the task. */
   prompt?: string;
-  /** Name of the git worktree to run in, or how to name it after the agent id. */
+  /**
+   * Git worktree the agent runs in. Left out, the agent gets its own worktree
+   * (`cmc-<id>`) when the folder is a git repository, and works in the folder
+   * itself when it is not. `null` turns the isolation off; a string or a
+   * function of the agent id names the worktree.
+   */
   worktree?: string | null | ((id: string) => string | null);
   permissionMode?: string;
   tools?: readonly string[];
@@ -106,7 +112,7 @@ export function dispatch({
   cwd,
   mode = 'fork',
   prompt,
-  worktree = null,
+  worktree,
   permissionMode = DEFAULT_PERMISSION_MODE,
   tools = DEFAULT_TOOLS,
   claude = [process.env.CMC_CLAUDE_BIN || 'claude'],
@@ -117,15 +123,31 @@ export function dispatch({
     throw new CmcError('TASK_TOO_LONG', `A dispatched task can be at most ${MAX_TEXT_LENGTH} characters long.`);
   }
   const id = newAgentId();
-  const worktreeName = typeof worktree === 'function' ? worktree(id) : worktree;
-  const command = buildCommand({ claude, mode, sessionId, worktree: worktreeName, permissionMode, tools });
-  const record = createAgent(sessionDir, { task: task.trim(), mode, cwd, worktree: worktreeName, command }, id);
+  const repository = isGitRepo(cwd);
+  // Without git there is no worktree: the agent shares the folder (the caller warns the user).
+  const chosen = worktree === undefined ? (repository ? worktreeName(id) : null) : typeof worktree === 'function' ? worktree(id) : worktree;
+  const worktreeOfAgent = repository ? chosen : null;
+  const command = buildCommand({ claude, mode, sessionId, worktree: worktreeOfAgent, permissionMode, tools });
+  const baseCommit = worktreeOfAgent === null ? null : headCommit(cwd);
+  const record = createAgent(sessionDir, { task: task.trim(), mode, cwd, worktree: worktreeOfAgent, baseCommit, command }, id);
   writeFileSync(join(record.dir, PROMPT_FILE), prompt ?? forkPrompt(task.trim()));
 
   // The supervisor outlives this process (a hook that must return at once).
   const runner = spawn(process.execPath, [RUNNER, record.dir], { cwd, env, detached: true, stdio: 'ignore', windowsHide: true });
   runner.unref();
   return updateAgentAt(record.dir, { runnerPid: runner.pid ?? null });
+}
+
+/**
+ * Settles the worktree of an agent that has ended and notes the outcome in
+ * its record: removed when the agent changed nothing, kept with its branch
+ * and the list of changed files when it did.
+ * @param dir Agent folder.
+ * @param cwd Folder the agent was started in.
+ */
+export function recordWorktree(dir: string, cwd: string, worktree: string, baseCommit: string | null): AgentRecord {
+  const outcome = settleWorktree(cwd, worktree, baseCommit);
+  return updateAgentAt(dir, { branch: outcome.kept ? outcome.branch : null, worktreePath: outcome.path, changedFiles: outcome.files });
 }
 
 /** Ends a process and everything it started. */
@@ -156,6 +178,8 @@ export function cancelAgent(sessionDir: string, id: string): AgentRecord {
   const cancelled = updateAgentAt(record.dir, { state: 'cancelled', endedAt: new Date().toISOString() });
   killTree(record.runnerPid);
   killTree(record.pid);
+  // The supervisor was killed with the agent, so its worktree is settled here.
+  if (record.worktree !== null) recordWorktree(record.dir, record.cwd, record.worktree, record.baseCommit ?? null);
   // Read again for what the supervisor wrote meanwhile; if the record is gone, what was just saved stands.
   return readAgentAt(agentDir(sessionDir, record.id)) ?? cancelled;
 }

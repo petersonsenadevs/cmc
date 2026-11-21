@@ -9,6 +9,7 @@ import { spawn } from 'node:child_process';
 import { closeSync, openSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { OUTPUT_FILE, PROMPT_FILE, readAgentAt, STDERR_FILE, updateAgentAt } from './agents-registry.ts';
+import { recordWorktree } from './dispatch.ts';
 import { errorCode } from './errors.ts';
 import { describeError, logEvent } from './log.ts';
 import { isRecord } from './types.ts';
@@ -64,6 +65,8 @@ function finish(dir: string, exitCode: number | null, failure: string | null): v
     agentSessionId: typeof result?.session_id === 'string' ? result.session_id : null,
     costUsd: typeof result?.total_cost_usd === 'number' ? result.total_cost_usd : null,
   });
+  // The agent is gone: its worktree can be removed if it is clean, or described if it holds work.
+  if (current.worktree !== null) recordWorktree(dir, current.cwd, current.worktree, current.baseCommit ?? null);
 }
 
 function main(dir: string): void {

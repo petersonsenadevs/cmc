@@ -142,18 +142,19 @@
 - Devlog: senzu/devlog/2026-11-21/009-f2-t2-soltar-selectivo-y-ya.md
 - Notas: la selección va por palabras de control (`;;now N`, `;;end N`), no por `/cmc:release 2` (D-011). `cmc release --now` usa `PostToolUse` y, si no hay más pasos, el fin de turno. Archivo extra: hooks/tool-release.mjs; la lógica vive en lib/release.mjs.
 
-### F2-T3 · Escribir desde otra terminal con la CLI `cmc`  [M] [doing]
+### F2-T3 · Escribir desde otra terminal con la CLI `cmc`  [M] [done]
 - Para qué: retener mensajes sin tocar el prompt de Claude Code (y plan B si S2 falla).
 - Skill: `code-quality §references/security-owasp "Validación en servidor"`
 - Archivos: bin/cmc.mjs, lib/sessions.mjs, hooks/session-register.mjs, test/sessions.test.mjs
 - Hecho cuando: un hook `SessionStart` registra la sesión (id, carpeta, última actividad); `cmc hold "texto"` desde otra terminal la encuentra por carpeta y encola; con varias sesiones en la misma carpeta, pide elegir; sin sesión activa, lo dice y no guarda nada.
 - Verificar: `npm test` y prueba real con dos terminales.
 - Depende de: F2-T1
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 104 pass, 0 fail; `npm run lint` → 26 modules checked, 0 failed; prueba real con la CLI lanzada como segunda terminal en la carpeta de la sesión, sin id ni directorio de datos: `cmc hold reply with the word guava` → `Held (1 queued).`, el agente responde `step1, step2, step3` y tras `/cmc:release` responde `guava`; al cerrar, `cmc sessions --all` la muestra `closed`
+- Cumple: se retienen mensajes sin tocar el prompt de Claude Code, desde otra terminal, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/010-f2-t3-cli-desde-otra-terminal.md
+- Notas: con varias sesiones en la carpeta la CLI las lista y pide `--session <id>` (no hay selector interactivo). El hook registra también `SessionEnd`. Comando extra: `cmc sessions`.
 
-### F2-T4 · Mostrar el indicador de mensajes retenidos  [M] [todo]
+### F2-T4 · Mostrar el indicador de mensajes retenidos  [M] [doing]
 - Para qué: saber de un vistazo que hay mensajes esperando.
 - Skill: `plugin-authoring` (mods: banda o línea de estado) — skill de Claude Code, no de Senzu
 - Archivos: mods/ o statusline/cmc-status.mjs (según lo que permita el sistema de mods), README.md

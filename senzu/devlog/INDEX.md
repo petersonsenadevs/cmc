@@ -13,3 +13,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 007 | 2026-11-21 | F1-T6: cierre de la fase 1                 | docs     | —        | F1-T6 |
 | 008 | 2026-11-21 | F2-T1: gestionar la cola                   | feature  | —        | F2-T1 |
 | 009 | 2026-11-21 | F2-T2: soltar selectivo y modo «ya»        | feature  | —        | F2-T2 |
+| 010 | 2026-11-21 | F2-T3: CLI `cmc` desde otra terminal       | feature  | —        | F2-T3 |

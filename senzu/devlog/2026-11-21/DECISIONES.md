@@ -41,3 +41,10 @@
 - **Elección:** D-012 `cmc release --now` deja la selección en el estado de la sesión; el hook `PostToolUse` la entrega como `additionalContext` con la cabecera factual y, si el agente no da más pasos, la entrega el hook `Stop`.
 - **Motivo:** medido en sesión real: con la cabecera factual el modelo sí obedece lo que llega por `PostToolUse` (el fallo del spike era la redacción imperativa).
 - **Consecuencias:** un proceso de Node por herramienta; se entrega una sola vez por cualquiera de las dos vías.
+
+## dev-010 — Cómo encuentra la CLI el directorio de datos
+- **Contexto:** fuera de Claude Code no existe `CLAUDE_PLUGIN_DATA`, y el nombre del directorio de datos depende de cómo se instaló el plugin (`cmc-inline` con `--plugin-dir`).
+- **Opciones:** un fichero puntero en la carpeta del usuario (`~/.cmc`); o una marca dentro del propio directorio de datos y que la CLI recorra `~/.claude/plugins/data/*`.
+- **Elección:** D-013 el hook `SessionStart` deja `cmc.json` en el directorio de datos y la CLI busca esa marca; `--data-dir` o `CMC_DATA_DIR` lo fijan a mano.
+- **Motivo:** no se escribe estado fuera de `${CLAUDE_PLUGIN_DATA}`, como pide el brief.
+- **Consecuencias:** la CLI no ve una sesión hasta que su `SessionStart` se ha ejecutado con el plugin cargado.

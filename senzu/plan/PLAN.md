@@ -25,7 +25,7 @@
 |---|---|---|
 | F1 | Esqueleto: escribes `;; texto` con el agente trabajando, no se interrumpe, y `/cmc:release` o el fin del turno se lo entrega | doing |
 | F2 | Control completo: ver, editar, borrar y soltar de forma selectiva, modo «ya», indicador visible y CLI `cmc` desde otra terminal | done |
-| F3 | Derivar: `>> tarea` arranca un segundo agente con contexto en su worktree, en paralelo; se ve, se cancela y su resultado vuelve a la cola (retenido o automático) | todo |
+| F3 | Derivar: `>> tarea` arranca un segundo agente con contexto en su worktree, en paralelo; se ve, se cancela y su resultado vuelve a la cola (retenido o automático) | doing |
 | F4 | Entrega: configuración, revisión de seguridad, README e instalación desde marketplace local | todo |
 
 ---
@@ -192,7 +192,7 @@
 - Devlog: senzu/devlog/2026-11-21/013-f3-t1-fork-a-mitad-de-turno.md
 - Notas: S4 confirmado. Modo por defecto: fork (D-016). El worktree lo crea `--worktree` de Claude Code (D-017), lo que simplifica F3-T3. Una ejecución válida, solo Windows.
 
-### F3-T2 · Implementar el lanzador de agentes derivados  [M] [todo]
+### F3-T2 · Implementar el lanzador de agentes derivados  [M] [doing]
 - Para qué: arrancar el segundo agente sin bloquear ni interrumpir al principal.
 - Skill: `code-quality §references/security-owasp "Inyección (SQL, comandos, plantillas)"` + `code-quality §references/jobs-and-queues "Anatomía de un job bien hecho"`
 - Archivos: lib/dispatch.mjs, lib/agents-registry.mjs, test/dispatch.test.mjs

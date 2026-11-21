@@ -1,6 +1,6 @@
 # 014 — X-T1: portabilidad entre Windows, macOS y Linux
 
-- **Fecha/hora:** 2026-11-21 01:54
+- **Fecha/hora:** 2026-11-21 01:48
 - **Tipo:** fix
 - **Mejora a:** 004, 010
 - **Tarea:** X-T1

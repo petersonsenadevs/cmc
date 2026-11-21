@@ -1,6 +1,6 @@
 # 013 — F3-T1: el fork de sesión a mitad de turno, medido
 
-- **Fecha/hora:** 2026-11-21 01:52
+- **Fecha/hora:** 2026-11-21 01:46
 - **Tipo:** decisión
 - **Mejora a:** —
 - **Tarea:** F3-T1

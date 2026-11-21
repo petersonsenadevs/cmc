@@ -170,7 +170,7 @@ describe('release armed from outside the session (cmc release)', () => {
 describe('tool-release hook script', () => {
   it('prints the context for a pending release and nothing otherwise', () => {
     const run = () =>
-      spawnSync(process.execPath, [join(root, 'hooks', 'tool-release.ts')], {
+      spawnSync(process.execPath, [join(root, 'hooks', 'run.js'), 'tool-release'], {
         input: JSON.stringify({ session_id: SESSION, tool_name: 'Bash' }),
         encoding: 'utf8',
         env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir },

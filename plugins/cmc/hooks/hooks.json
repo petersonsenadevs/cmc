@@ -8,7 +8,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-register.ts\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run.js\" session-register",
             "timeout": 10
           }
         ]
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-register.ts\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run.js\" session-register",
             "timeout": 10
           }
         ]
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prompt-capture.ts\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run.js\" prompt-capture",
             "timeout": 10
           }
         ]
@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/tool-release.ts\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run.js\" tool-release",
             "timeout": 10
           }
         ]
@@ -52,7 +52,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-release.ts\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/run.js\" stop-release",
             "timeout": 10
           }
         ]

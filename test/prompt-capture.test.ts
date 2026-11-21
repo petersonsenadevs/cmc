@@ -11,7 +11,7 @@ import { sessionDir } from '../plugins/cmc/lib/paths.ts';
 import { listMessages, MAX_TEXT_LENGTH } from '../plugins/cmc/lib/queue.ts';
 import { blocked } from '../test-support/expect.ts';
 
-const hook = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc', 'hooks', 'prompt-capture.ts');
+const hook = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc', 'hooks', 'run.js');
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
 
 let dataDir: string;
@@ -26,7 +26,7 @@ const held = () => listMessages(sessionDir(dataDir, SESSION)).messages.map((mess
 const submit = (prompt: string) => handlePrompt({ hook_event_name: 'UserPromptSubmit', session_id: SESSION, prompt }, { dataDir });
 
 function runHookScript(stdin: string, env: NodeJS.ProcessEnv = { CLAUDE_PLUGIN_DATA: dataDir }) {
-  return spawnSync(process.execPath, [hook], { input: stdin, encoding: 'utf8', env: { ...process.env, ...env } });
+  return spawnSync(process.execPath, [hook, 'prompt-capture'], { input: stdin, encoding: 'utf8', env: { ...process.env, ...env } });
 }
 
 describe('handlePrompt', () => {

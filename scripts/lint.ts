@@ -15,7 +15,7 @@ function modulesIn(dir: string): string[] {
   return entries.flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) return modulesIn(path);
-    return entry.name.endsWith('.ts') ? [path] : [];
+    return (entry.name.endsWith('.ts') || entry.name.endsWith('.js')) ? [path] : [];
   });
 }
 

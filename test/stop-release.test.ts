@@ -135,7 +135,7 @@ describe('release at the end of the turn', () => {
 
 describe('stop-release hook script', () => {
   const runHookScript = (input: Record<string, unknown>) =>
-    run('hooks/stop-release.ts', [], { input: JSON.stringify(input), env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir } });
+    run('hooks/run.js', ['stop-release'], { input: JSON.stringify(input), env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir } });
 
   it('prints the block decision when delivery was requested', () => {
     type(';; from the hook');

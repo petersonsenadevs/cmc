@@ -321,7 +321,7 @@ describe('cmc from another terminal', () => {
 
 describe('session-register hook script', () => {
   const run = (input: Record<string, unknown>) =>
-    spawnSync(process.execPath, [join(root, 'hooks', 'session-register.ts')], {
+    spawnSync(process.execPath, [join(root, 'hooks', 'run.js'), 'session-register'], {
       input: JSON.stringify(input),
       encoding: 'utf8',
       env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir },

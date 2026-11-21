@@ -1,6 +1,6 @@
 # 012 — F2-T5: la cola se conserva al reiniciar, reanudar o compactar
 
-- **Fecha/hora:** 2026-11-21 01:50
+- **Fecha/hora:** 2026-11-21 01:41
 - **Tipo:** feature
 - **Mejora a:** 010
 - **Tarea:** F2-T5

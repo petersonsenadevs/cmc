@@ -315,7 +315,7 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Para qué: antes de construirlo hay que ver en el terminal de Peterson que un panel del motor se abre junto al chat, que un clic en un botón actúa y que se repinta cuando cambia la cola.
 - Skill: `plugin-authoring` (`examples/pane.tsx`, `reference.md §ui.render`; en los tipos: `PaneOpenArgs`, `ButtonProps`, `atom`/`update`)
 - Archivos: plugins/cmc/hooks/panel.tsx, plugins/cmc/hooks/module.ts, plugins/cmc/types/index.d.ts, plugins/cmc/.claude-plugin/plugin.json
-- Hecho cuando: `/cmc` abre un panel con el número de mensajes retenidos y un botón «Send all»; un clic lo envía; retener otro mensaje lo repinta en menos de un segundo; con la terminal estrecha (menos de 110 columnas) se sabe qué pasa y está documentado.
+- Hecho cuando: `/cmc` abre un panel con el número de mensajes retenidos y un botón «Send all»; un clic lo envía; retener otro mensaje lo repinta en menos de un segundo; con la terminal estrecha (menos de 110 columnas) se sabe qué pasa y está documentado. Con el panel cerrado, la sesión se comporta y se ve igual que antes (no regresión: mismos avisos, mismo tiempo de los hooks).
 - Verificar: `claude plugin validate ./plugins/cmc`; `tsc`; test del panel con `claude plugin test`; guion corto que pasa Peterson (clic y repintado) con captura.
 - Depende de: —
 
@@ -371,7 +371,7 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Para qué: que el panel esté cuando hace falta y no estorbe cuando no.
 - Skill: `plugin-authoring` (`PaneOpenArgs`: `focus`, `closeOnEscape`; `$.ui.close`) + `code-quality §references/typescript`
 - Archivos: plugins/cmc/hooks/panel.tsx, plugins/cmc/hooks/interface.ts, plugins/cmc/lib/config.ts, test/panel.test.tsx
-- Hecho cuando: `/cmc` lo abre y lo cierra; ajuste `panel.autoOpen` (abrirse al retener el primer mensaje o al derivar), por defecto el que decida el ADR; Escape lo cierra; `/held` y los avisos siguen para quien no use el panel; sin panel disponible, `/cmc` dice por qué y sugiere `/held`.
+- Hecho cuando: usa solo mecanismos nativos del motor (panel, botones, diálogo); no regresión: con el panel cerrado o sin motor, `;;`, `/held`, `/send`, `/cmc:release`, `>>` y la CLI funcionan igual y los tests de antes siguen en verde; `/cmc` lo abre y lo cierra; ajuste `panel.autoOpen` (abrirse al retener el primer mensaje o al derivar), por defecto el que decida el ADR; Escape lo cierra; `/held` y los avisos siguen para quien no use el panel; sin panel disponible, `/cmc` dice por qué y sugiere `/held`.
 - Verificar: `npm test`; guion de Peterson.
 - Depende de: F5-T3
 

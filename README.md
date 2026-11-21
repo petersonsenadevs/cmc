@@ -9,7 +9,8 @@ works, and release it when you want, without interrupting the turn.
 ## Requirements
 
 - Claude Code 2.1.330 or newer
-- Node.js 20 or newer (no npm dependencies, no build step)
+- Node.js 22.18 or newer. The plugin is written in TypeScript and Node runs the `.ts` files directly: there is
+  no build step and nothing to install besides the plugin folder (no runtime npm dependencies)
 
 ## Install
 
@@ -116,6 +117,8 @@ Things worth knowing:
 
 ```
 npm test        # node --test
+npm install     # development only: TypeScript and the Node type definitions
+npm run types   # tsc --noEmit, strict
 npm run lint    # syntax check of every module
 claude plugin validate .              # the marketplace
 claude plugin validate ./plugins/cmc  # the plugin

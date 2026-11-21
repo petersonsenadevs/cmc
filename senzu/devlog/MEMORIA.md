@@ -50,7 +50,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - En Windows, la carpeta que fue directorio de trabajo de un proceso sigue bloqueada un rato tras su salida: los tests no lanzan procesos dentro de su carpeta temporal · ver 015
 
 ## Pendientes abiertos
-- [desde 2026-11-21] Peterson borra `senzu/conventions.md` y `senzu/conventions.json` (sellados con «sin TypeScript») para poder migrar y volver a ejecutar /adoptar · ver 018
+- [desde 2026-11-21] Volver a ejecutar /adoptar con TypeScript al terminar X-T3 (las convenciones selladas se borraron) · ver 018
 - [desde 2026-11-21] El «types» de `verify-build` falla porque Senzu se instaló con stack `node-api` (lanza `tsc`): reinstalar Senzu con los comandos reales · ver 017
 - [desde 2026-11-21] F1-T6b: Peterson pasa la parte B de `docs/manual-test.md` en la interfaz interactiva
 - [desde 2026-11-21] Ejecutar la suite en macOS y Linux (solo se ha corrido en Windows) · ver 014

@@ -2,7 +2,7 @@
 
 - **Objetivo:** retener los mensajes y soltarlos cuando el usuario quiera, sin interrumpir al agente, y derivar un mensaje a otro agente que hereda el contexto y trabaja en paralelo.
 - **Estado:** en curso · **Actualizado:** 2026-11-21
-- **Stack / perfil:** a medida · plugin de Claude Code · Node 24 ESM (`.mjs`) sin dependencias ni build · `node --test`
+- **Stack / perfil:** a medida · plugin de Claude Code · TypeScript ejecutado directamente por Node ≥ 22.18 (sin build ni dependencias en lo que se instala; `typescript` solo en desarrollo) · `node --test` · antes del 2026-11-21: ESM `.mjs`
 - **Brief:** `senzu/plan/brief.md` · **Design system:** no aplica (sin interfaz web) · **Devlog:** `senzu/devlog/INDEX.md`
 - **Definición de hecho global:** `node --test` en verde, `claude plugin validate .` limpio, probado en sesión real con `claude --plugin-dir .`, sin secretos, cabecera de autoría (Peterson Sena · r3v3rs3) en el core, devlog al día, sin push ni publicación sin aprobación
 - **Idioma:** producto en inglés (código, comentarios, textos del plugin, nombres de comandos, README, documentación y ADR); devlog y este plan en castellano
@@ -300,7 +300,7 @@
 
 ## Tareas ad hoc (fuera del plan original)
 
-### X-T3 · Migrar el plugin a TypeScript ejecutado por Node  [M] [blocked]
+### X-T3 · Migrar el plugin a TypeScript ejecutado por Node  [M] [doing]
 - Para qué: Peterson quería el plugin en TypeScript; el agente lo dejó en JavaScript por un malentendido.
 - Skill: `code-quality §references/typescript` (tipado estricto, validación en los bordes)
 - Archivos: plugins/cmc/**/*.mjs → *.ts, test/**, test-support/**, scripts/**, plugins/cmc/hooks/hooks.json, plugins/cmc/commands/*.md, package.json, tsconfig.json, README.md
@@ -310,7 +310,7 @@
 - Verificado: —
 - Cumple: —
 - Devlog: —
-- Notas: bloqueada. Necesito: que Peterson borre `senzu/conventions.md` y `senzu/conventions.json`; están selladas con «sin TypeScript» (D-022) y el muro impide al agente tocarlas. F3-T3 espera a esta tarjeta para no escribir más código en JavaScript.
+- Notas: desbloqueada el 2026-11-21 (Peterson borró las convenciones selladas). F3-T3 espera a esta tarjeta para no escribir más código en JavaScript.
 
 ### X-T2 · Convertir el repositorio en marketplace con el plugin en su carpeta  [S] [done]
 - Para qué: instalar `cmc` como quiere Peterson, añadiendo un marketplace y luego el plugin, sin que la instalación arrastre `senzu/`, tests ni configuración del proyecto.

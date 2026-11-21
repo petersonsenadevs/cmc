@@ -23,6 +23,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-006 · Liberar: `/cmc:release` (a mitad de turno actúa al terminar) y `Stop` con `decision: block` en una sola continuación · ver 002
 - D-007 · Modo «ya»: prompt `;;now` + `additionalContext` con cabecera «[cmc] The user released their held messages…» · ver 002
 - D-008 · Los comandos pasan `${CLAUDE_PLUGIN_DATA}` y `${CLAUDE_SESSION_ID}` como argumentos y llevan `disable-model-invocation: true` · ver 002
+- D-009 · La cola se toca siempre bajo cerrojo por directorio y se reescribe con temporal + renombrado · ver 004
 
 ## Reglas del cliente y del proyecto
 

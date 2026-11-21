@@ -56,18 +56,19 @@
 - Devlog: senzu/devlog/2026-11-21/003-f1-t2-esqueleto-plugin.md
 - Notas: `git init` hecho antes (entrada 001). Archivos extra: scripts/lint.mjs, .gitattributes. Licencia sin fijar hasta F4-T3.
 
-### F1-T3 · Implementar la cola por sesión en el core  [M] [doing]
+### F1-T3 · Implementar la cola por sesión en el core  [M] [done]
 - Para qué: que los mensajes retenidos no se pierdan ni se entreguen dos veces.
 - Skill: `code-quality §references/testing "TDD pragmático"` + `code-quality §references/jobs-and-queues "Idempotencia (el job llegará dos veces)"`
 - Archivos: lib/queue.mjs, lib/paths.mjs, test/queue.test.mjs
 - Hecho cuando: `add`, `list`, `drain` (todos o por id) sobre JSONL en el directorio de datos; `drain` es atómico (renombrado) y dos vaciados simultáneos no entregan el mismo mensaje; un fichero corrupto no rompe: se aparta y se avisa.
 - Verificar: `npm test` → tests de cola en verde, incluido el de dos procesos vaciando a la vez.
 - Depende de: F1-T2
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 13 pass, 0 fail, incluido «never hands a message to two drainers running at the same time» (2 procesos añadiendo 120 mensajes y 3 vaciando: cada uno entregado una vez); `npm run lint` → 7 modules checked, 0 failed
+- Cumple: los mensajes retenidos persisten en disco y ningún vaciado simultáneo los pierde ni los duplica, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/004-f1-t3-cola-por-sesion.md
+- Notas: cerrojo por directorio además del renombrado (D-009). Archivos extra: lib/errors.mjs, test-support/queue-worker.mjs.
 
-### F1-T4 · Capturar mensajes con prefijo en `UserPromptSubmit`  [M] [todo]
+### F1-T4 · Capturar mensajes con prefijo en `UserPromptSubmit`  [M] [doing]
 - Para qué: escribir un mensaje mientras el agente trabaja sin que lo reciba.
 - Skill: `code-quality §references/errors-logging "No tragar errores"`
 - Archivos: hooks/prompt-capture.mjs, hooks/hooks.json, test/prompt-capture.test.mjs

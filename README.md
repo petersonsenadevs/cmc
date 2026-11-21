@@ -1,10 +1,10 @@
 # cmc — Claude Message Control
 
 A Claude Code plugin that lets you decide **when** your messages reach the agent: hold what you type while it
-works, and release it when you want, without interrupting the turn.
+works, and release it when you want, without interrupting the turn. It can also hand a task to a second agent that
+works in parallel, in its own git worktree, and bring its result back to you.
 
-> Status: work in progress. Holding, releasing, managing the queue, the command line, dispatching to a second
-> agent and getting its result back work; configuration, a security review and packaging are next.
+Version 1.0.0 · MIT license · see [CHANGELOG.md](CHANGELOG.md).
 
 ## Requirements
 
@@ -23,10 +23,19 @@ marketplace, then install the plugin from it:
 ```
 
 The same from a terminal: `claude plugin marketplace add /path/to/this/repository` and
-`claude plugin install cmc@r3v3rs3`. Only `plugins/cmc` is installed; the rest of the repository (tests,
+`claude plugin install cmc@r3v3rs3`. Add `--scope project` to both to enable it for one project only (it is written
+to that project's `.claude/settings.json`). Only `plugins/cmc` is installed; the rest of the repository (tests,
 development notes) stays out.
 
 To try it from a checkout without installing: `claude --plugin-dir /path/to/this/repository/plugins/cmc`.
+
+Update and remove:
+
+```
+claude plugin marketplace update r3v3rs3 && claude plugin update cmc@r3v3rs3   # held messages and settings are kept
+claude plugin uninstall cmc@r3v3rs3              # also deletes held messages and settings; add --keep-data to keep them
+claude plugin marketplace remove r3v3rs3
+```
 
 ## Use
 
@@ -63,12 +72,19 @@ slash command it goes through the agent, which then sees your held messages (sti
 Open a second terminal **in the folder where the Claude Code session was started** (a subfolder works too)
 and use the `cmc` command line. Nothing you do there shows up in the session until you release it.
 
-```
-node /path/to/this/repository/plugins/cmc/bin/cmc.ts hold also update the README
-node /path/to/this/repository/plugins/cmc/bin/cmc.ts list
-```
+Where the `cmc` command is:
 
-`npm link` in this repository puts `cmc` on your PATH, so that becomes `cmc hold …`, `cmc list`, and so on.
+- **Installed from the marketplace**, it is in Claude Code's plugin cache, under a folder named after the version:
+  `node ~/.claude/plugins/cache/r3v3rs3/cmc/1.0.0/bin/cmc.ts list`. The path changes when the plugin is updated, so
+  an alias is handy, e.g. `alias cmc='node ~/.claude/plugins/cache/r3v3rs3/cmc/1.0.0/bin/cmc.ts'`.
+- **From a checkout**: `node /path/to/this/repository/plugins/cmc/bin/cmc.ts list`, or `npm link` in the repository
+  to put `cmc` on your PATH.
+- Inside Claude Code the plugin's `bin/` is on the agent's PATH, so the agent itself can run `cmc …`.
+
+```
+cmc hold also update the README
+cmc list
+```
 
 | Command | What it does |
 |---|---|
@@ -118,8 +134,13 @@ Where it works:
   review and merge; one without changes is removed with its branch. Add `.claude/worktrees/` to your `.gitignore`.
 - **Outside git** there is no worktree: the agent works in the same folder, and the receipt says so.
 
-Its permissions are limited: `acceptEdits` and the tools `Read`, `Glob`, `Grep`, `Edit`, `Write` (no shell, no network).
-It runs with your own Claude Code setup, so your other plugins and hooks run in it too.
+Its permissions are limited: `acceptEdits`, and only the built-in tools `Read`, `Glob`, `Grep`, `Edit`, `Write` (no shell,
+no web), whatever your project or user settings allow. Tools from MCP servers are not covered by that limit. Restricting
+the tools changes the agent's prompt, so a fork cannot reuse the session's prompt cache and costs noticeably more;
+`"restrictTools": false` in the settings trades the limit for the lower cost (the tools are then only pre-approved).
+
+It runs with your own Claude Code setup, so your other plugins and hooks run in it too. If some of them write files
+(memory, notes), they write them in the agent's worktree, which then always counts as changed and is kept.
 
 ### Settings
 
@@ -139,7 +160,8 @@ cmc config           # shows the settings in force, and any problem in the file
     "context": "fork",
     "return": "held",
     "permissionMode": "acceptEdits",
-    "tools": ["Read", "Glob", "Grep", "Edit", "Write"]
+    "tools": ["Read", "Glob", "Grep", "Edit", "Write"],
+    "restrictTools": true
   },
   "retentionDays": 30
 }
@@ -151,7 +173,8 @@ cmc config           # shows the settings in force, and any problem in the file
 | `dispatch.context` | `fork` (the whole conversation) or `pack` (a short summary). `--pack` / `--fork` override it per dispatch. |
 | `dispatch.return` | `held` (the result waits in the queue) or `auto` (handed over at the end of a turn). `--auto` / `--held` override it. |
 | `dispatch.permissionMode` | `acceptEdits`, `default` or `plan`. `bypassPermissions` is never accepted. |
-| `dispatch.tools` | Tools the dispatched agent may use, as `--allowedTools` takes them, e.g. `"Bash(npm test:*)"`. |
+| `dispatch.tools` | Tools the dispatched agent may use, as `--allowedTools` takes them, e.g. `"Bash(npm test:*)"` (no commas inside a rule). |
+| `dispatch.restrictTools` | `true`: the agent has only those built-in tools. `false`: they are only pre-approved, and the fork is cheaper. |
 | `retentionDays` | Sessions inactive for longer are deleted with their queue. `0` keeps them forever. |
 
 A wrong value never stops the plugin: that setting falls back to its default, and the problem is shown when the next
@@ -176,11 +199,35 @@ Things worth knowing:
   `;;end`.
 - Held messages belong to the session they were typed in and are stored on your machine, under the plugin
   data directory (`~/.claude/plugins/data/…/sessions/<session id>/queue.jsonl`).
-- The queue survives closing the terminal: resume the session (`claude --continue` or `--resume`) and the
+- The queue survives closing the terminal: resume the session (`claude --resume <id>`, or `--continue`) and the
   held messages are still there; cmc reminds you how many. A compaction does not touch them. Sessions left
   inactive for more than 30 days are cleaned up, with whatever they still held.
 - If the plugin itself fails, your prompt goes to the agent as if the plugin were not installed, and the
   error is written to `cmc.log` in the data directory. A message is never dropped silently.
+
+## Known limits
+
+- **Terminal only.** Plugins installed from a repository do not reach Claude Code on the web (cloud sessions), so cmc
+  does not work there. The desktop app's Code tab loads plugins in local sessions but has not been tested.
+- **No delivery in the middle of a turn**, on purpose (see above). If you interrupt the agent with Esc, cmc may still
+  think it is working, and `;;now` then waits for the end of the next turn; `/cmc:release` works in that case.
+- **`--continue` and dispatched agents.** `claude --continue` resumes the most recent conversation in the folder. A
+  dispatched agent that worked in the same folder (no git, so no worktree) is more recent; use `claude --resume <id>`.
+- **Dispatched agents count as sessions.** If cmc is installed for your user, a dispatched agent loads it too, and
+  while it runs `cmc` from another terminal sees two sessions in the folder and asks for `--session`.
+- **Held-message notices.** Claude Code prints its own three-line notice for every held message; cmc cannot change it.
+- **Tested on Windows 11** with Claude Code 2.1.330 and Node 24. It is written for macOS and Linux too (paths, file
+  modes, process handling), but the test suite has not been run there yet. Node 22.18 is the documented minimum for
+  running `.ts` files; it was not tested on that exact version.
+- **Model behaviour.** What the agent does with released text is up to the model. Released messages and agent reports
+  are labelled for what they are, and in every test so far the agent acted on them as expected.
+
+## Security
+
+cmc works only on your machine: no network calls, no runtime dependencies. Held messages, logs and agent outputs are
+stored in the plugin data directory, readable by your user only (on macOS and Linux). Text the plugin quotes from the
+session transcript or from another agent is labelled and fenced, and the dispatched agent never runs with
+`bypassPermissions`. The review that checked this is in `senzu/seguridad/` in the repository.
 
 ## Development
 
@@ -194,7 +241,8 @@ claude plugin validate ./plugins/cmc  # the plugin
 ```
 
 `node scripts/e2e.ts` drives a real headless Claude Code session with this checkout loaded and types
-messages into it while it works (it spends tokens, so it is not part of `npm test`). See
+messages into it while it works (it spends tokens, so it is not part of `npm test`). `--project <dir> --installed`
+runs it in a folder where the plugin was installed from the marketplace. See
 [docs/manual-test.md](docs/manual-test.md) for the scenarios and for the checks that need the interactive
 terminal.
 

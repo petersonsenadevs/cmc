@@ -6,12 +6,16 @@
 // `npm test`.
 //
 //   node scripts/e2e.ts [--mid <text>]... [--cli <args>] [--after <text>]... [--model <name>] [--keep]
+//                       [--project <dir>] [--installed]
 //
 //   --mid    typed two seconds into the first tool call (repeatable)
 //   --cli    cmc CLI arguments, run in the session's folder as from a second terminal when the
 //            second tool call starts (for example: --cli "hold also say hello")
 //   --after  typed once the turn has ended, one per following turn (repeatable)
 //   --keep   keep the scratch working directory
+//   --project   run in this existing folder instead of a scratch one (it is never deleted)
+//   --installed use the plugin as installed for that folder (marketplace, project scope)
+//               instead of loading this checkout with --plugin-dir
 //
 // Environment:
 //   CLAUDE_BIN         the Claude Code executable to start (default: `claude` from PATH). It is
@@ -36,6 +40,8 @@ interface Options {
   cli: string | null;
   model: string;
   keep: boolean;
+  project: string | null;
+  installed: boolean;
 }
 
 /** One block of a message's content in Claude Code's stream-json output. */
@@ -53,7 +59,7 @@ type StreamMessage =
   | { type: 'result'; num_turns: number };
 
 const args = process.argv.slice(2);
-const options: Options = { mid: [], after: [], cli: null, model: 'haiku', keep: false };
+const options: Options = { mid: [], after: [], cli: null, model: 'haiku', keep: false, project: null, installed: false };
 
 /** The value that follows a flag; stops when the flag is the last argument. */
 function valueAt(index: number): string {
@@ -71,6 +77,8 @@ for (let i = 0; i < args.length; i += 1) {
   else if (args[i] === '--cli') options.cli = valueAt((i += 1));
   else if (args[i] === '--model') options.model = valueAt((i += 1));
   else if (args[i] === '--keep') options.keep = true;
+  else if (args[i] === '--project') options.project = valueAt((i += 1));
+  else if (args[i] === '--installed') options.installed = true;
   else {
     process.stderr.write(`unknown argument: ${args[i]}\n`);
     process.exit(2);
@@ -78,7 +86,9 @@ for (let i = 0; i < args.length; i += 1) {
 }
 
 const pluginDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc');
-const workDir = mkdtempSync(join(tmpdir(), 'cmc-e2e-'));
+const workDir = options.project ?? mkdtempSync(join(tmpdir(), 'cmc-e2e-'));
+// A folder the caller gave is theirs: it is never deleted.
+if (options.project !== null) options.keep = true;
 const started = Date.now();
 const stamp = () => `${((Date.now() - started) / 1000).toFixed(1).padStart(5)}s`;
 const print = (label: string, text = '') => process.stdout.write(`${stamp()}  ${label.padEnd(10)} ${text}\n`);
@@ -119,8 +129,9 @@ const child = startClaude([
   '--model', options.model,
   '--allowedTools', 'Bash',
   // Only this plugin: the user's own hooks and plugins stay out of the measurement.
+  // An installed plugin is enabled in the project settings, which stay in.
   '--setting-sources', 'project',
-  '--plugin-dir', pluginDir,
+  ...(options.installed ? [] : ['--plugin-dir', pluginDir]),
 ]);
 // The task may be written before a failed start is reported; that report is the one that matters.
 child.stdin.on('error', () => {});
@@ -133,8 +144,9 @@ function type(text: string) {
 let sessionId: string | undefined;
 let midSent = false;
 let toolCalls = 0;
-// With --plugin-dir, Claude Code names the data directory "<plugin>-inline".
-const dataDir = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'), 'plugins', 'data', 'cmc-inline');
+// With --plugin-dir, Claude Code names the data directory "<plugin>-inline"; installed
+// from the marketplace, "<plugin>-<marketplace>".
+const dataDir = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'), 'plugins', 'data', options.installed ? 'cmc-r3v3rs3' : 'cmc-inline');
 
 function runCli(cli: string) {
   // Like a second terminal opened in the same folder: no session id, no data directory.

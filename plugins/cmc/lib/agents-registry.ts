@@ -77,6 +77,9 @@ export interface AgentRecord {
   turns?: number;
   /** Folder a resumed session runs in: the worktree it worked in, when it was kept. */
   resumeCwd?: string | null;
+  /** The model and effort it runs with; `inherit`: the user's own setup. */
+  model?: string;
+  effort?: string;
   /** Process that supervises the agent. */
   runnerPid: number | null;
   /** The agent process itself. */
@@ -95,7 +98,7 @@ export interface AgentRecord {
 }
 
 /** What the caller decides about a new agent; the rest of the record starts empty. */
-export type NewAgentFields = Pick<AgentRecord, 'task' | 'mode' | 'cwd' | 'worktree' | 'command' | 'baseCommit' | 'contextWarning' | 'returnMode' | 'keepOpenMs'>;
+export type NewAgentFields = Pick<AgentRecord, 'task' | 'mode' | 'cwd' | 'worktree' | 'command' | 'baseCommit' | 'contextWarning' | 'returnMode' | 'keepOpenMs' | 'model' | 'effort'>;
 
 /** When the machine last booted, in milliseconds since the epoch. */
 export function bootTime(): number {

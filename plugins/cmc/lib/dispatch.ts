@@ -23,7 +23,7 @@ import {
   type AgentMode,
   type AgentRecord,
 } from './agents-registry.ts';
-import { DEFAULT_CONFIG, PERMISSION_MODES, TOOL_NAME, loadConfig } from './config.ts';
+import { DEFAULT_CONFIG, EFFORTS, MODEL_NAME, PERMISSION_MODES, TOOL_NAME, loadConfig } from './config.ts';
 import { buildContextPack, packPrompt } from './context-pack.ts';
 import { CmcError, errorCode } from './errors.ts';
 import { MAX_TEXT_LENGTH } from './queue.ts';
@@ -47,6 +47,10 @@ export interface BuildCommandOptions {
   tools: readonly string[];
   /** Give the agent only the built-in tools in `tools` (default), not merely pre-approve them. */
   restrictTools?: boolean;
+  /** `--model`; `inherit` or absent passes none. */
+  model?: string;
+  /** `--effort`; `inherit` or absent passes none. */
+  effort?: string;
 }
 
 export interface DispatchOptions {
@@ -77,6 +81,8 @@ export interface DispatchOptions {
   restrictTools?: boolean;
   /** How long its session stays open for the user's messages after it answers, in ms; 0 (the default) closes it at once. */
   keepOpenMs?: number;
+  model?: string;
+  effort?: string;
 }
 
 /**
@@ -99,7 +105,9 @@ export function forkPrompt(task: string): string {
  * Builds the command line of a dispatched agent. Every value is one element
  * of the array; nothing is joined into a shell string.
  */
-export function buildCommand({ claude, mode, sessionId, worktree, permissionMode, tools, restrictTools = true }: BuildCommandOptions): string[] {
+export function buildCommand({ claude, mode, sessionId, worktree, permissionMode, tools, restrictTools = true, model, effort }: BuildCommandOptions): string[] {
+  if (model !== undefined && !MODEL_NAME.test(model)) throw new CmcError('BAD_MODEL', `"${model}" is not a model name.`);
+  if (effort !== undefined && !EFFORTS.includes(effort)) throw new CmcError('BAD_EFFORT', `"${effort}" is not an effort; use one of ${EFFORTS.join(', ')}.`);
   if (!PERMISSION_MODES.includes(permissionMode)) {
     throw new CmcError('BAD_PERMISSION_MODE', `A dispatched agent cannot run with permission mode "${permissionMode}".`);
   }
@@ -116,6 +124,9 @@ export function buildCommand({ claude, mode, sessionId, worktree, permissionMode
     command.push('--tools', builtIn.join(','));
   }
   if (tools.length > 0) command.push('--allowedTools', tools.join(','));
+  // Only what the user chose: "inherit" leaves it to their own Claude Code setup.
+  if (model !== undefined && model !== 'inherit') command.push('--model', model);
+  if (effort !== undefined && effort !== 'inherit') command.push('--effort', effort);
   if (mode === 'fork') command.push('--resume', sessionId, '--fork-session');
   if (worktree) command.push('--worktree', worktree);
   return command;
@@ -141,6 +152,8 @@ export function dispatch({
   claude = [process.env.CMC_CLAUDE_BIN || 'claude'],
   env = process.env,
   keepOpenMs = 0,
+  model,
+  effort,
 }: DispatchOptions): AgentRecord {
   if (typeof task !== 'string' || task.trim() === '') throw new CmcError('EMPTY_TASK', 'There is no task to dispatch.');
   if (task.length > MAX_TEXT_LENGTH) {
@@ -151,7 +164,17 @@ export function dispatch({
   // Without git there is no worktree: the agent shares the folder (the caller warns the user).
   const chosen = worktree === undefined ? (repository ? worktreeName(id) : null) : typeof worktree === 'function' ? worktree(id) : worktree;
   const worktreeOfAgent = repository ? chosen : null;
-  const command = buildCommand({ claude, mode, sessionId, worktree: worktreeOfAgent, permissionMode, tools, restrictTools });
+  const command = buildCommand({
+    claude,
+    mode,
+    sessionId,
+    worktree: worktreeOfAgent,
+    permissionMode,
+    tools,
+    restrictTools,
+    ...(model === undefined ? {} : { model }),
+    ...(effort === undefined ? {} : { effort }),
+  });
   const baseCommit = worktreeOfAgent === null ? null : headCommit(cwd);
   // A pack is a summary read from the transcript; when it cannot be read the
   // agent still starts, knowing only the task and the folder, and the record says why.
@@ -159,7 +182,7 @@ export function dispatch({
   const text = prompt ?? (pack === null ? forkPrompt(task.trim()) : packPrompt(task.trim(), pack));
   const record = createAgent(
     sessionDir,
-    { task: task.trim(), mode, returnMode, cwd, worktree: worktreeOfAgent, baseCommit, command, contextWarning: pack?.warning ?? null, keepOpenMs },
+    { task: task.trim(), mode, returnMode, cwd, worktree: worktreeOfAgent, baseCommit, command, contextWarning: pack?.warning ?? null, keepOpenMs, model: model ?? 'inherit', effort: effort ?? 'inherit' },
     id,
   );
   writeFileSync(join(record.dir, PROMPT_FILE), text, { mode: 0o600 });

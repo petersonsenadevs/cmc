@@ -131,7 +131,7 @@ function world() {
       invalidate: () => {
         invalidations += 1;
       },
-      resolve: () => ({ Box: make('Box'), Text: make('Text'), Button: make('Button'), Input: make('Input') }) as never,
+      resolve: () => ({ Box: make('Box'), Text: make('Text'), Button: make('Button'), Input: make('Input'), Select: make('Select') }) as never,
     },
   };
   const dir = sessionDir(data, SESSION);
@@ -179,12 +179,14 @@ describe('panel: what it reads and says', () => {
   it('reads the agent state, the modes, and words the status and what happens to each message', () => {
     assert.equal(isWorking('{"turnActive":true}'), true);
     assert.equal(isWorking(''), false);
-    assert.deepEqual(readModes(''), { sendAtEnd: 'true', holdTarget: 'main', 'dispatch.context': 'fork', 'dispatch.return': 'held' });
+    assert.deepEqual(readModes(''), { sendAtEnd: 'true', holdTarget: 'main', 'dispatch.context': 'fork', 'dispatch.return': 'held', 'dispatch.model': 'inherit', 'dispatch.effort': 'inherit' });
     assert.deepEqual(readModes('{"sendAtEnd":false,"holdTarget":"subagent","dispatch":{"context":"pack","return":"auto"}}'), {
       sendAtEnd: 'false',
       holdTarget: 'subagent',
       'dispatch.context': 'pack',
       'dispatch.return': 'auto',
+      'dispatch.model': 'inherit',
+      'dispatch.effort': 'inherit',
     });
     assert.equal(sendsAtEnd('{"sendAtEnd":false}'), false);
     assert.equal(statusLine(false, true), '○ Agent idle · Send hands a message over now');

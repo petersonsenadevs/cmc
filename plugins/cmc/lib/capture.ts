@@ -64,6 +64,8 @@ function originOf(input: HookInput, dir: string, options: CaptureOptions, config
     tools: config.dispatch.tools,
     restrictTools: config.dispatch.restrictTools,
     keepOpenMs: keepOpenMsOf(config, options.env ?? process.env),
+    model: config.dispatch.model,
+    effort: config.dispatch.effort,
   };
 }
 

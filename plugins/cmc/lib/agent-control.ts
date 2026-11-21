@@ -6,6 +6,7 @@
 import { findAgent, listAgents, type AgentMode, type ReturnMode } from './agents-registry.ts';
 import { dispatchReceipt, formatAgentLog, formatAgents } from './agents-view.ts';
 import { cancelAgent, dispatch, tellAgent } from './dispatch.ts';
+import { EFFORTS, MODEL_NAME } from './config.ts';
 import { CmcError } from './errors.ts';
 import { drainMessages, listMessages } from './queue.ts';
 
@@ -20,22 +21,51 @@ const FLAGS: readonly string[] = [PACK_FLAG, FORK_FLAG, AUTO_FLAG, HELD_FLAG];
 /** What a dispatch does when the user names no flag. */
 export const DEFAULT_CHOICE: DispatchChoice = Object.freeze({ mode: 'fork', returnMode: 'held' });
 
+/** `--model <name>` and `--effort <level>`, joined into one word each (`--model=<name>`). */
+function joinValueFlags(words: readonly string[]): string[] | null {
+  const joined: string[] = [];
+  for (let i = 0; i < words.length; i += 1) {
+    const word = words[i] ?? '';
+    if (word === '--model' || word === '--effort') {
+      const value = words[i + 1];
+      if (value === undefined) return null;
+      joined.push(`${word}=${value}`);
+      i += 1;
+    } else joined.push(word);
+  }
+  return joined;
+}
+
+/** Whether a word is a dispatch flag: a switch, or a valid --model= / --effort=. */
+function isFlag(word: string): boolean {
+  if (FLAGS.includes(word)) return true;
+  if (word.startsWith('--model=')) return MODEL_NAME.test(word.slice('--model='.length));
+  if (word.startsWith('--effort=')) return EFFORTS.includes(word.slice('--effort='.length));
+  return false;
+}
+
 /** Applies flags to the defaults; a later flag wins over an earlier one. */
 function choose(flags: readonly string[], defaults: DispatchChoice): DispatchChoice {
   let { mode, returnMode } = defaults;
+  let { model, effort } = defaults;
   for (const flag of flags) {
     if (flag === PACK_FLAG) mode = 'pack';
     else if (flag === FORK_FLAG) mode = 'fork';
     else if (flag === AUTO_FLAG) returnMode = 'auto';
     else if (flag === HELD_FLAG) returnMode = 'held';
+    else if (flag.startsWith('--model=')) model = flag.slice('--model='.length);
+    else if (flag.startsWith('--effort=')) effort = flag.slice('--effort='.length);
   }
-  return { mode, returnMode };
+  return { mode, returnMode, ...(model === undefined ? {} : { model }), ...(effort === undefined ? {} : { effort }) };
 }
 
 /** How a dispatch was asked for: the context the agent gets and how its result comes back. */
 export interface DispatchChoice {
   mode: AgentMode;
   returnMode: ReturnMode;
+  /** For this agent only; absent: the settings. */
+  model?: string;
+  effort?: string;
 }
 
 /** The session a dispatch starts from. */
@@ -55,6 +85,9 @@ export interface DispatchOrigin {
   restrictTools?: boolean;
   /** How long a subagent's session stays open after it answers, in ms. */
   keepOpenMs?: number;
+  /** From the settings: the model and effort subagents run with. */
+  model?: string;
+  effort?: string;
 }
 
 export type AgentControl =
@@ -84,8 +117,9 @@ export function parseAgentControl(rest: string, defaults: DispatchChoice = DEFAU
   }
   if (name === 'dispatch') {
     if (first === undefined || !POSITION.test(first)) return null;
-    const flags = [second, ...more].filter((word): word is string => word !== undefined);
-    const known = flags.every((flag) => FLAGS.includes(flag)) && new Set(flags).size === flags.length;
+    const flags = joinValueFlags([second, ...more].filter((word): word is string => word !== undefined));
+    if (flags === null) return null;
+    const known = flags.every(isFlag) && new Set(flags).size === flags.length;
     if (!known) return null;
     return { name, position: Number(first), ...choose(flags, defaults) };
   }
@@ -101,6 +135,14 @@ export function parseDispatch(rest: string, defaults: DispatchChoice = DEFAULT_C
   const flags: string[] = [];
   // Flags come first, in any order: ">> --auto --pack task".
   for (;;) {
+    const valued = text.match(/^--(model|effort)(?:=|\s+)(\S+)(?:\s+|$)/);
+    if (valued) {
+      const flag = `--${valued[1]}=${valued[2]}`;
+      if (!isFlag(flag)) throw new CmcError('BAD_USAGE', valued[1] === 'model' ? `"${valued[2]}" is not a model name.` : `"${valued[2]}" is not an effort; use one of ${EFFORTS.join(', ')}.`);
+      flags.push(flag);
+      text = text.slice(valued[0].length).trim();
+      continue;
+    }
     const flag = FLAGS.find((candidate) => text === candidate || text.startsWith(`${candidate} `));
     if (flag === undefined) break;
     flags.push(flag);
@@ -112,7 +154,9 @@ export function parseDispatch(rest: string, defaults: DispatchChoice = DEFAULT_C
 /**
  * Dispatches a task and returns what to tell the user.
  */
-export function startAgent(origin: DispatchOrigin, task: string, { mode, returnMode }: DispatchChoice): string {
+export function startAgent(origin: DispatchOrigin, task: string, { mode, returnMode, model, effort }: DispatchChoice): string {
+  const chosenModel = model ?? origin.model;
+  const chosenEffort = effort ?? origin.effort;
   const agent = dispatch({
     sessionDir: origin.dir,
     sessionId: origin.sessionId,
@@ -127,6 +171,8 @@ export function startAgent(origin: DispatchOrigin, task: string, { mode, returnM
     ...(origin.tools === undefined ? {} : { tools: origin.tools }),
     ...(origin.restrictTools === undefined ? {} : { restrictTools: origin.restrictTools }),
     ...(origin.keepOpenMs === undefined ? {} : { keepOpenMs: origin.keepOpenMs }),
+    ...(chosenModel === undefined ? {} : { model: chosenModel }),
+    ...(chosenEffort === undefined ? {} : { effort: chosenEffort }),
   });
   return dispatchReceipt(agent);
 }

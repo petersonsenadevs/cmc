@@ -14,6 +14,13 @@ export const CONFIG_FILE = 'config.json';
 /** Where a typed held message goes. */
 export type HoldTarget = 'main' | 'subagent';
 
+/** Efforts Claude Code takes (`--effort`); `inherit` passes none, so the user's own setup decides. */
+export const EFFORTS: readonly string[] = Object.freeze(['inherit', 'low', 'medium', 'high', 'xhigh', 'max']);
+/** Model aliases the panel offers; any full model name is taken too. */
+export const MODEL_ALIASES: readonly string[] = Object.freeze(['inherit', 'fable', 'opus', 'sonnet', 'haiku']);
+/** A model as `--model` takes it: `inherit` (pass none), an alias, or a full name. */
+export const MODEL_NAME = /^[A-Za-z0-9][A-Za-z0-9._\-[\]]{0,79}$/;
+
 /** Permission modes a dispatched agent may run with; `bypassPermissions` is never one of them. */
 export const PERMISSION_MODES: readonly string[] = Object.freeze(['default', 'acceptEdits', 'plan']);
 /** A tool name as Claude Code's `--allowedTools` takes it, optionally with a rule: `Bash(npm test:*)`. */
@@ -42,6 +49,10 @@ export interface DispatchSettings {
   ignoreChanges: readonly string[];
   /** How long a subagent's session stays open for the user's messages after it answers, in minutes; 0 closes it at once. */
   keepOpenMinutes: number;
+  /** The model subagents run with (`--model`): `inherit` passes none. */
+  model: string;
+  /** Their effort (`--effort`): `inherit` passes none. */
+  effort: string;
 }
 
 export interface CmcConfig {
@@ -78,6 +89,8 @@ export const DEFAULT_CONFIG: CmcConfig = Object.freeze({
     restrictTools: true,
     ignoreChanges: Object.freeze([]),
     keepOpenMinutes: 10,
+    model: 'inherit',
+    effort: 'inherit',
   }),
   retentionDays: 30,
 }) as CmcConfig;
@@ -152,7 +165,7 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
     const dispatch = raw.dispatch;
     if (!isRecord(dispatch) || Array.isArray(dispatch)) ignored('dispatch', 'it must be an object');
     else {
-      const knownDispatch = new Set(['context', 'return', 'permissionMode', 'tools', 'restrictTools', 'ignoreChanges', 'keepOpenMinutes']);
+      const knownDispatch = new Set(['context', 'return', 'permissionMode', 'tools', 'restrictTools', 'ignoreChanges', 'keepOpenMinutes', 'model', 'effort']);
       for (const key of Object.keys(dispatch)) if (!knownDispatch.has(key)) warnings.push(`unknown setting "dispatch.${key}" ignored`);
       if (dispatch.context !== undefined) {
         if (dispatch.context === 'fork' || dispatch.context === 'pack') config.dispatch.context = dispatch.context;
@@ -172,6 +185,14 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
         const valid = Array.isArray(tools) && tools.length <= 50 && tools.every((tool): tool is string => typeof tool === 'string' && TOOL_NAME.test(tool));
         if (valid) config.dispatch.tools = Object.freeze([...tools]);
         else ignored('dispatch.tools', 'it must be a list of tool names such as "Read" or "Bash(npm test:*)"');
+      }
+      if (dispatch.model !== undefined) {
+        if (typeof dispatch.model === 'string' && MODEL_NAME.test(dispatch.model)) config.dispatch.model = dispatch.model;
+        else ignored('dispatch.model', 'it must be "inherit", an alias such as "sonnet", or a model name');
+      }
+      if (dispatch.effort !== undefined) {
+        if (typeof dispatch.effort === 'string' && EFFORTS.includes(dispatch.effort)) config.dispatch.effort = dispatch.effort;
+        else ignored('dispatch.effort', `it must be one of ${EFFORTS.join(', ')}`);
       }
       if (dispatch.keepOpenMinutes !== undefined) {
         const minutes = dispatch.keepOpenMinutes;
@@ -222,6 +243,8 @@ export const MODES: Readonly<Record<string, readonly string[]>> = Object.freeze(
   holdTarget: Object.freeze(['main', 'subagent']),
   'dispatch.context': Object.freeze(['fork', 'pack']),
   'dispatch.return': Object.freeze(['held', 'auto']),
+  'dispatch.model': MODEL_ALIASES,
+  'dispatch.effort': EFFORTS,
 });
 
 /**

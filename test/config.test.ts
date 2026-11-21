@@ -55,7 +55,7 @@ describe('validateConfig', () => {
       sendAtEnd: false,
       holdTarget: 'subagent',
       retentionDays: 0,
-      dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'], restrictTools: false, ignoreChanges: [], keepOpenMinutes: 10 },
+      dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'], restrictTools: false, ignoreChanges: [], keepOpenMinutes: 10, model: 'inherit', effort: 'inherit' },
     });
   });
 

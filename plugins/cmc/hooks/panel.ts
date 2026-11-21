@@ -53,6 +53,7 @@ export interface PanelElements {
     plain?: true;
     hotkey?: string;
   }>;
+  Select: Make<{ key: string; label?: string; value?: string; options: readonly { value: string; label?: string }[]; onSelect: (value: string) => void | Promise<unknown> }>;
   Input: Make<{
     key: string;
     placeholder?: string;
@@ -108,6 +109,8 @@ export interface AgentEntry {
   startedAt: string;
   endedAt: string | null;
   answer: string | null;
+  model?: string;
+  effort?: string;
 }
 
 /** The modes (ADR 003 §7): the setting, how the panel names it, and its two values. */
@@ -116,6 +119,12 @@ export const MODES = Object.freeze([
   { key: 'holdTarget', label: 'Typed ;; goes to', values: [['main', 'Main'], ['subagent', 'Subagent']] },
   { key: 'dispatch.context', label: 'Subagent context', values: [['fork', 'Full'], ['pack', 'Summary']] },
   { key: 'dispatch.return', label: 'Results', values: [['held', 'Hold'], ['auto', 'Auto']] },
+] as const);
+
+/** The model and effort selectors (ADR 003 §8): what each offers; "inherit" leaves it to the user's own setup. */
+export const PICKERS = Object.freeze([
+  { key: 'dispatch.model', label: 'Subagent model', values: ['inherit', 'fable', 'opus', 'sonnet', 'haiku'] },
+  { key: 'dispatch.effort', label: 'Effort', values: ['inherit', 'low', 'medium', 'high', 'xhigh', 'max'] },
 ] as const);
 
 type View = 'messages' | 'agents' | 'activity';
@@ -182,7 +191,14 @@ export function isWorking(stateText: string): boolean {
 
 /** The settings as the panel reads them (defaults when the file is missing or wrong). */
 export function readModes(configText: string): Record<string, string> {
-  const modes: Record<string, string> = { sendAtEnd: 'true', holdTarget: 'main', 'dispatch.context': 'fork', 'dispatch.return': 'held' };
+  const modes: Record<string, string> = {
+    sendAtEnd: 'true',
+    holdTarget: 'main',
+    'dispatch.context': 'fork',
+    'dispatch.return': 'held',
+    'dispatch.model': 'inherit',
+    'dispatch.effort': 'inherit',
+  };
   try {
     const value: unknown = JSON.parse(configText);
     if (typeof value !== 'object' || value === null) return modes;
@@ -192,6 +208,8 @@ export function readModes(configText: string): Record<string, string> {
     const dispatch = typeof raw.dispatch === 'object' && raw.dispatch !== null ? (raw.dispatch as Record<string, unknown>) : {};
     if (dispatch.context === 'pack') modes['dispatch.context'] = 'pack';
     if (dispatch.return === 'auto') modes['dispatch.return'] = 'auto';
+    if (typeof dispatch.model === 'string' && dispatch.model !== '') modes['dispatch.model'] = dispatch.model;
+    if (typeof dispatch.effort === 'string' && dispatch.effort !== '') modes['dispatch.effort'] = dispatch.effort;
   } catch {
     // Missing or damaged: the defaults, as the core uses them.
   }
@@ -437,7 +455,8 @@ async function clearAll($: PanelEngine): Promise<string | null> {
 
 async function setModeTo($: PanelEngine, key: string, value: string, label: string): Promise<string | null> {
   const set = await cli($, ['config', 'set', key, value]);
-  return set.exitCode === 0 ? `${label} mode on.` : firstSentence(set.stdout.trim());
+  if (set.exitCode !== 0) return firstSentence(set.stdout.trim());
+  return key.startsWith('dispatch.model') || key.startsWith('dispatch.effort') ? `${label} for new subagents.` : `${label} mode on.`;
 }
 
 /** Hands a finished subagent's result to the main agent: its message in the queue, sent like any other. */
@@ -502,14 +521,37 @@ function drawHeader(el: PanelElements, $: PanelEngine, working: boolean, atEnd: 
   });
 }
 
-/** The strip of modes: each a pair of buttons, the one in force drawn as primary. */
+/** How a model or effort value reads in its selector. */
+export function pickerLabel(value: string): string {
+  return value === 'inherit' ? 'Same as mine' : value;
+}
+
+/** The model and effort of a subagent, for its row: nothing when both follow the user's setup. */
+export function modelAndEffort(model = 'inherit', effort = 'inherit'): string {
+  const parts = [model === 'inherit' ? null : model, effort === 'inherit' ? null : `effort ${effort}`].filter((part) => part !== null);
+  return parts.length === 0 ? '' : ` · ${parts.join(' · ')}`;
+}
+
+/** The strip of modes: each a pair of buttons, the one in force drawn as primary; then the model and effort selectors. */
 function drawModes(el: PanelElements, $: PanelEngine, modes: Record<string, string>): Element {
-  const { Box, Text, Button } = el;
+  const { Box, Text, Button, Select } = el;
+  const pickers = PICKERS.map((picker) => {
+    const current = modes[picker.key] ?? 'inherit';
+    // A full model name from the settings file is offered too, so it shows as chosen.
+    const values: readonly string[] = (picker.values as readonly string[]).includes(current) ? picker.values : [...picker.values, current];
+    return Select({
+      key: `pick-${picker.key}`,
+      label: `${picker.label}:`,
+      value: current,
+      options: values.map((value) => ({ value, label: pickerLabel(value) })),
+      onSelect: (value) => act($, () => setModeTo($, picker.key, value, `${picker.label} ${pickerLabel(value)}`)),
+    });
+  });
   return Box({
     flexDirection: 'row',
     flexWrap: 'wrap',
     columnGap: 2,
-    children: MODES.map((mode) =>
+    children: [...MODES.map((mode) =>
       Box({
         key: `mode-${mode.key}`,
         flexDirection: 'row',
@@ -523,7 +565,7 @@ function drawModes(el: PanelElements, $: PanelEngine, modes: Record<string, stri
           ),
         ],
       }),
-    ),
+    ), ...pickers],
   });
 }
 
@@ -614,7 +656,10 @@ function drawAgents(el: PanelElements, $: PanelEngine, agents: AgentEntry[], hel
           plain: true,
           onPress: () => act($, () => select(agent.id)),
         }),
-        Text({ dimColor: true, children: `· ${agent.state} · ${elapsed(agent.startedAt, agent.endedAt)} · ${agent.mode === 'fork' ? 'whole conversation' : 'summary'}` }),
+        Text({
+          dimColor: true,
+          children: `· ${agent.state} · ${elapsed(agent.startedAt, agent.endedAt)} · ${agent.mode === 'fork' ? 'whole conversation' : 'summary'}${modelAndEffort(agent.model, agent.effort)}`,
+        }),
       ],
     });
     if (!isSelected) return line;

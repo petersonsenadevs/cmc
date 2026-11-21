@@ -5,7 +5,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { parseAgentControl, parseDispatch, runAgentControl, startAgent, type DispatchOrigin } from '../lib/agent-control.ts';
-import { CONFIG_FILE, loadConfig, writeDefaultConfig, type LoadedConfig, setMode, keepOpenMsOf } from '../lib/config.ts';
+import { CONFIG_FILE, loadConfig, writeDefaultConfig, type LoadedConfig, setMode, keepOpenMsOf, EFFORTS, MODEL_NAME } from '../lib/config.ts';
 import { parseControl, runControl } from '../lib/control.ts';
 import { CmcError, errorCode } from '../lib/errors.ts';
 import { describeError, logEvent } from '../lib/log.ts';
@@ -40,7 +40,7 @@ The session is the one started in the current folder; name it with --session
   take <id>…           take messages out of the queue by id (after /send's prompt was accepted)
   idle                 note that the agent is not working (the plugin calls it when a turn
                        is interrupted with Esc, which runs no Stop hook)
-  dispatch [--pack|--fork] [--auto|--held] <task> | --message <N>
+  dispatch [--pack|--fork] [--auto|--held] [--model <m>] [--effort <e>] <task> | --message <N>
                        start a second agent on a task, as ">> task" does in the session
                        (--pack: it gets a short summary instead of the whole conversation;
                        --auto: its result goes to the session by itself when a turn ends;
@@ -58,12 +58,14 @@ The session is the one started in the current folder; name it with --session
                        with every setting at its default, to edit)
   config set <mode> <value>
                        switch a mode: sendAtEnd true|false, holdTarget main|subagent,
-                       dispatch.context fork|pack, dispatch.return held|auto
+                       dispatch.context fork|pack, dispatch.return held|auto,
+                       dispatch.model inherit|fable|opus|sonnet|haiku,
+                       dispatch.effort inherit|low|medium|high|xhigh|max
   drain [--format prompt|json]
                        take every held message out of the queue and print it
 `;
 
-type ValueFlag = 'session' | 'data-dir' | 'format' | 'message';
+type ValueFlag = 'session' | 'data-dir' | 'format' | 'message' | 'model' | 'effort';
 type BooleanFlag = 'all' | 'pack' | 'fork' | 'auto' | 'held' | 'stdin' | 'now' | 'typed';
 type Flags = Partial<Record<ValueFlag, string> & Record<BooleanFlag, boolean>>;
 
@@ -78,6 +80,8 @@ const VALUE_FLAGS: ReadonlyMap<string, ValueFlag> = new Map([
   ['--data-dir', 'data-dir'],
   ['--format', 'format'],
   ['--message', 'message'],
+  ['--model', 'model'],
+  ['--effort', 'effort'],
 ]);
 const BOOLEAN_FLAGS: ReadonlyMap<string, BooleanFlag> = new Map([
   ['--all', 'all'],
@@ -226,6 +230,8 @@ function originFor(flags: Flags): DispatchOrigin {
     tools: config.dispatch.tools,
     restrictTools: config.dispatch.restrictTools,
     keepOpenMs: keepOpenMsOf(config),
+    model: config.dispatch.model,
+    effort: config.dispatch.effort,
   };
 }
 
@@ -238,13 +244,20 @@ function dispatchCommand({ flags, positional }: ParsedArgs): string {
     if (!POSITION.test(flags.message) || positional.length > 0) throw new CmcError('BAD_USAGE', 'Use dispatch --message <N> with no task text.');
     const mode = flags.pack ? 'pack' : flags.fork ? 'fork' : config.dispatch.context;
     const returnMode = flags.auto ? 'auto' : flags.held ? 'held' : config.dispatch.return;
-    return runAgentControl(origin, { name: 'dispatch', position: Number(flags.message), mode, returnMode });
+    return runAgentControl(origin, { name: 'dispatch', position: Number(flags.message), mode, returnMode, ...chosenModelAndEffort(flags) });
   }
   const { task, mode, returnMode } = parseDispatch(positional.join(' '), { mode: config.dispatch.context, returnMode: config.dispatch.return });
   if (task === '') throw new CmcError('BAD_USAGE', 'dispatch needs a task: cmc dispatch [--pack|--fork] [--auto|--held] <task>.');
   const chosenMode = flags.pack ? 'pack' : flags.fork ? 'fork' : mode;
   const chosenReturn = flags.auto ? 'auto' : flags.held ? 'held' : returnMode;
-  return startAgent(origin, task, { mode: chosenMode, returnMode: chosenReturn });
+  return startAgent(origin, task, { mode: chosenMode, returnMode: chosenReturn, ...chosenModelAndEffort(flags) });
+}
+
+/** --model and --effort of the command line, checked; absent: the settings decide. */
+function chosenModelAndEffort(flags: Flags): { model?: string; effort?: string } {
+  if (flags.model !== undefined && !MODEL_NAME.test(flags.model)) throw new CmcError('BAD_USAGE', `"${flags.model}" is not a model name.`);
+  if (flags.effort !== undefined && !EFFORTS.includes(flags.effort)) throw new CmcError('BAD_USAGE', `"${flags.effort}" is not an effort; use one of ${EFFORTS.join(', ')}.`);
+  return { ...(flags.model === undefined ? {} : { model: flags.model }), ...(flags.effort === undefined ? {} : { effort: flags.effort }) };
 }
 
 /** `tell <id> <text>` (or the text on standard input with --stdin): writes to a subagent. */
@@ -273,6 +286,8 @@ ${USAGE}`);
         startedAt: agent.startedAt,
         endedAt: agent.endedAt,
         answer: agent.summary,
+        model: agent.model ?? 'inherit',
+        effort: agent.effort ?? 'inherit',
       })),
     );
   }

@@ -68,18 +68,19 @@
 - Devlog: senzu/devlog/2026-11-21/004-f1-t3-cola-por-sesion.md
 - Notas: cerrojo por directorio además del renombrado (D-009). Archivos extra: lib/errors.mjs, test-support/queue-worker.mjs.
 
-### F1-T4 · Capturar mensajes con prefijo en `UserPromptSubmit`  [M] [doing]
+### F1-T4 · Capturar mensajes con prefijo en `UserPromptSubmit`  [M] [done]
 - Para qué: escribir un mensaje mientras el agente trabaja sin que lo reciba.
 - Skill: `code-quality §references/errors-logging "No tragar errores"`
 - Archivos: hooks/prompt-capture.mjs, hooks/hooks.json, test/prompt-capture.test.mjs
 - Hecho cuando: un prompt que empieza por `;;` se guarda en la cola y se bloquea con un aviso corto («Held (3 queued)»); un prompt sin prefijo pasa intacto; si el hook falla, el prompt pasa (nunca se pierde un mensaje) y el error queda en el log.
 - Verificar: `npm test` (JSON de entrada simulado → salida esperada) y sesión real: `;; hola` a mitad de turno no aparece en el contexto del agente.
 - Depende de: F1-T3
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 26 pass, 0 fail; `npm run lint` → 12 modules checked, 0 failed; sesión real `node scripts/e2e.mjs --mid ";; HELD-ALPHA please also say pineapple"` → aviso `Held (1 queued)` tras el paso 1, el agente responde `step1, step2, step3` sin mencionarlo y la cola queda con 1 mensaje
+- Cumple: se puede escribir un mensaje mientras el agente trabaja sin que lo reciba, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/005-f1-t4-captura-por-prefijo.md
+- Notas: archivos extra: lib/capture.mjs, lib/hook-io.mjs, lib/log.mjs, scripts/e2e.mjs. Sesión real en modo headless.
 
-### F1-T5 · Soltar la cola con `/cmc:release` y al terminar el turno  [M] [todo]
+### F1-T5 · Soltar la cola con `/cmc:release` y al terminar el turno  [M] [doing]
 - Para qué: decidir tú cuándo recibe el agente lo retenido.
 - Skill: `code-quality §references/security-owasp "Prompt injection y seguridad de LLM"`
 - Archivos: commands/release.md, hooks/stop-release.mjs, bin/cmc.mjs (subcomando `drain`), test/stop-release.test.mjs

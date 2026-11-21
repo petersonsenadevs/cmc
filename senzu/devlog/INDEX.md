@@ -8,3 +8,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 002 | 2026-11-21 | F1-T1: los hooks a mitad de turno, medidos | decisión | —        | F1-T1 |
 | 003 | 2026-11-21 | F1-T2: esqueleto del plugin                | feature  | —        | F1-T2 |
 | 004 | 2026-11-21 | F1-T3: cola por sesión en el core          | feature  | —        | F1-T3 |
+| 005 | 2026-11-21 | F1-T4: captura de mensajes con prefijo     | feature  | —        | F1-T4 |

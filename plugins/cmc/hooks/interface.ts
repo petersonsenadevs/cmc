@@ -179,6 +179,11 @@ export function reminderFor(held: number): string | null {
 /** The plugin data folder, known once the session has started. */
 let dataDir: string | undefined;
 
+/** The plugin data folder, once the session has started (the panel reads the queue there). */
+export function currentDataDir(): string | undefined {
+  return dataDir;
+}
+
 /** Starts the interface for a session: called once, from the session start of the module. */
 export async function startInterface($: InterfaceEngine): Promise<void> {
   ({ CLAUDE_PLUGIN_DATA: dataDir } = await $.process.hookEnv());
@@ -186,7 +191,7 @@ export async function startInterface($: InterfaceEngine): Promise<void> {
 }
 
 /** Runs the cmc command line for this session; `stdin` is written to its standard input. */
-async function cli($: InterfaceEngine, args: readonly string[], stdin?: string, text?: string): Promise<RunResult> {
+export async function cli($: InterfaceEngine, args: readonly string[], stdin?: string, text?: string): Promise<RunResult> {
   const sessionId = await $.session.id();
   // Options first, so a text that starts with "--" is not read as one.
   const argv = ['node', `${$.plugin.root}/bin/cmc.ts`, ...args, '--data-dir', dataDir ?? '', '--session', sessionId, ...(text === undefined ? [] : ['--', text])];
@@ -234,7 +239,7 @@ async function heldCount($: InterfaceEngine): Promise<number> {
  * while it works. A message leaves the queue only once its prompt was accepted.
  * @param positions As the person sees them; none means all.
  */
-async function sendHeld($: InterfaceEngine, positions: readonly string[]): Promise<CommandAnswer> {
+export async function sendHeld($: InterfaceEngine, positions: readonly string[]): Promise<CommandAnswer> {
   const sent = await cli($, ['send', ...positions]);
   let outcome: { mode?: string; count?: number; text?: string; ids?: string[] } = {};
   try {

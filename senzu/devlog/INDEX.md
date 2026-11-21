@@ -47,3 +47,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 041 | 2026-11-21 | X-T7: «by r3v3rs3» enlaza a su GitHub       | feature  | 040      | X-T7 |
 | 042 | 2026-11-21 | X-T8: el hub se explica solo                | feature  | 036, 040 | X-T8 |
 | 043 | 2026-11-21 | F5-T8 y F5-T5: apertura y nueva tarea       | feature  | 036, 042 | F5-T8, F5-T5 |
+| 044 | 2026-11-21 | F5-T9: documentación del hub y 1.1.0        | docs     | 028      | F5-T9 |

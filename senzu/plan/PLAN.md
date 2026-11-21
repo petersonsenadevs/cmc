@@ -28,7 +28,7 @@
 | F2 | Control completo: ver, editar, borrar y soltar de forma selectiva, modo «ya», indicador visible y CLI `cmc` desde otra terminal | done |
 | F3 | Derivar: `>> tarea` arranca un segundo agente con contexto en su worktree, en paralelo; se ve, se cancela y su resultado vuelve a la cola (retenido o automático) | done |
 | F4 | Entrega: configuración, revisión de seguridad, README e instalación desde marketplace local | done |
-| F5 | Panel de control: un panel junto al chat, manejable con el ratón, con la cola y los agentes en vivo; enviar, editar, borrar, reordenar y derivar mensajes; ver, parar y escribir a los agentes, y pasar el resultado de uno a otro | todo |
+| F5 | Panel de control: un panel junto al chat, manejable con el ratón, con la cola y los agentes en vivo; enviar, editar, borrar, reordenar y derivar mensajes; ver, parar y escribir a los agentes, y pasar el resultado de uno a otro | done |
 | F6 | Adaptadores para otros agentes: núcleo sin nada de Claude Code, adaptador de Codex y los que falten (al final, cuando todo lo de Claude esté terminado) | todo |
 
 ---
@@ -427,13 +427,17 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Devlog: senzu/devlog/2026-11-21/039-f5-t11-modelo-y-esfuerzo.md
 - Notas: por tarea desde el panel queda por la vía de los modos (por defecto para los siguientes); por tarea concreta, con >> / ;;dispatch / cmc.
 
-### F5-T9 · Cierre de la fase: documentación y prueba completa  [M] [todo]
+### F5-T9 · Cierre de la fase: documentación y prueba completa  [M] [done]
 - Para qué: que se pueda usar sin preguntarme y quede probado de punta a punta.
 - Skill: `code-quality §references/api-design` (documentación de uso) + skill `devlog`
 - Archivos: README.md, docs/manual-test.md (parte C: panel), CHANGELOG.md, manifiestos (versión 1.1.0)
 - Hecho cuando: README con el panel (captura), `/held`, `/send`, `sendAtEnd` y escribir a agentes; parte C del guion manual; versión 1.1.0; suite, tipos, lint y validación en verde; Peterson pasa la parte C.
 - Verificar: `npm test`, `npx tsc --noEmit`, `npm run lint`, `claude plugin validate .`; guion de Peterson.
 - Depende de: F5-T5, F5-T8, F5-T10, F5-T11
+- Verificado: npm test 343, tipos, lint y validate en verde; A1 del guion nuevo contra Claude Code real (pineapple entregado al acabar el turno)
+- Cumple: se puede instalar y usar sin preguntar, con el hub documentado y la versión 1.1.0, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/044-f5-t9-documentacion-y-1-1-0.md
+- Notas: sin capturas en el README (las de las pruebas muestran rutas y conversaciones personales): maqueta en texto. Falta la parte C del guion de Peterson y publicar con su aprobación.
 
 ## Tareas ad hoc (fuera del plan original)
 

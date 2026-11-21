@@ -1,10 +1,10 @@
-# Convenciones del proyecto (PROPUESTA de /adoptar, sin sellar)
-
-Analizado el 2026-11-21 sobre 38 módulos TypeScript (`plugins/cmc/**`, `test/**`, `test-support/**`, `scripts/**`) y 45 commits.
-**Pendiente del ok de Peterson para sellar**: este archivo no lleva el sello de inmutabilidad y no existe `senzu/conventions.json`.
+# Convenciones del proyecto (adoptadas con /adoptar)
+<!-- senzu:inmutable -->
+Analizado el 2026-11-21 sobre 36 módulos TypeScript (`plugins/cmc/**`, `test/**`, `test-support/**`, `scripts/**`) y 48 commits. Estas convenciones GANAN a las preferencias de Senzu.
+Selladas el 2026-11-21 con la condición de Peterson cumplida («si funciona todo igual y no empeora, sellamos»; comparación en la entrada 020 del devlog). Para cambiarlas: borrar este archivo y `senzu/conventions.json`, y volver a ejecutar `/adoptar`.
 
 ## Naming
-- Archivos en `kebab-case.ts` — ej. `plugins/cmc/lib/agents-registry.ts`, `plugins/cmc/hooks/prompt-capture.ts`.
+- Archivos en `kebab-case.ts` — ej. `plugins/cmc/lib/agents-registry.ts`, `plugins/cmc/lib/session-state.ts`.
 - Funciones y variables en `camelCase`, verbo primero — ej. `addMessage` (`lib/queue.ts`), `handlePrompt` (`lib/capture.ts`).
 - Constantes de módulo en `UPPER_SNAKE` — ej. `DEFAULT_HOLD_PREFIX` (`lib/capture.ts`), `MAX_TEXT_LENGTH`.
 - Sin clases, salvo el error propio `CmcError` (`lib/errors.ts`), con `code` estable en mayúsculas (`NO_SUCH_MESSAGE`).
@@ -14,8 +14,11 @@ Analizado el 2026-11-21 sobre 38 módulos TypeScript (`plugins/cmc/**`, `test/**
 ## Estructura
 - El repositorio es un **marketplace** (`.claude-plugin/marketplace.json`, nombre `r3v3rs3`); el plugin vive en
   `plugins/cmc/` y solo esa carpeta se instala (D-021).
-- Dentro del plugin: `lib/` core, `hooks/` adaptadores de una línea (`runHook('nombre', handle…)`), `bin/cmc.ts` CLI,
-  `commands/` comandos. Fuera, en la raíz: `test/`, `test-support/` (ayudantes: `node --test` ejecuta todo lo de `test/`),
+- Dentro del plugin: `lib/` core; `hooks/` con `hooks.json`, el lanzador `run.js` y el módulo del indicador; `bin/cmc.ts` CLI;
+  `commands/` comandos.
+- **`hooks/run.js` es el único fichero JavaScript del plugin y no lleva lógica** (D-026): activa la caché de compilación de
+  Node y carga `lib/hooks.ts`, que resuelve cada hook por nombre (`node run.js prompt-capture`). Un hook nuevo se añade en
+  la tabla de `lib/hooks.ts` y en `hooks.json`, no como script propio. Fuera, en la raíz: `test/`, `test-support/` (ayudantes: `node --test` ejecuta todo lo de `test/`),
   `scripts/`, `docs/`, `senzu/`.
 - **TypeScript ejecutado directamente por Node ≥ 22.18** (D-024): módulos ES `.ts`, sin compilación ni `dist/`, y **sin dependencias de npm en lo que se instala**. `typescript` y `@types/node` solo en desarrollo. El plugin lleva su propio `package.json` con `"type": "module"`.
 - Las importaciones relativas llevan la extensión `.ts`; lo que solo es tipo se importa con `import type` o `import { fn, type T }`.
@@ -72,7 +75,7 @@ Analizado el 2026-11-21 sobre 38 módulos TypeScript (`plugins/cmc/**`, `test/**
 - **Lenguaje: TypeScript ejecutado por Node, sin compilación** (D-024, sustituye a D-022). Claude Code ya trae Node para ejecutar los hooks.
 - **Primero Claude Code; los adaptadores para otros agentes (Codex y los que falten), después** (D-023), en la fase 5. Entonces se separará un núcleo sin nada específico de un agente y una carpeta por adaptador, y se volverá a ejecutar `/adoptar`. Hasta entonces `lib/` puede conocer Claude Code.
 
-## Reglas ejecutables propuestas (irán a `senzu/conventions.json` al sellar; hoy dan 0 coincidencias)
+## Reglas ejecutables (en `senzu/conventions.json`; al sellar dan 0 coincidencias)
 | Archivos | Veta | Por qué |
 |---|---|---|
 | `\.ts$` | `\brequire\(` | módulos ES: `import`, no `require` |

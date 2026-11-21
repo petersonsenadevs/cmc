@@ -111,3 +111,10 @@
 - **Elección:** D-026 `hooks/run.js`, único fichero JavaScript del plugin y sin lógica: llama a `enableCompileCache()` y carga `lib/hooks.ts`, que resuelve el hook por nombre. `hooks.json` invoca `node run.js <nombre>`.
 - **Motivo:** medido: 45 ms por hook, 3 ms más que en JavaScript.
 - **Consecuencias:** un fichero `.js` en un plugin por lo demás TypeScript; la caché vive en la carpeta temporal del sistema y Node la invalida sola cuando cambia el código.
+
+## dev-021 — El bloqueo que Claude Code deja en el worktree
+- **Contexto:** Claude Code bloquea el worktree de una sesión (`git worktree lock`, motivo «claude session <nombre> (pid N)») y no lo desbloquea al terminar; git se niega a retirar un worktree bloqueado.
+- **Opciones:** forzar el borrado (`remove -f -f`); dejar todos los worktrees; o levantar solo el bloqueo propio y ya muerto.
+- **Elección:** D-027 se desbloquea únicamente cuando el motivo es la sesión de ese mismo agente y su proceso ya no existe; después se retira sin forzar si no hay cambios. Un worktree con cambios se conserva, ya desbloqueado.
+- **Motivo:** nunca se pierde trabajo (git sigue negándose si hay cambios) y no se toca un bloqueo ajeno o de una sesión viva.
+- **Consecuencias:** depende del texto del motivo que escribe Claude Code; si cambiara, el worktree limpio se quedaría (bloqueado) y se informaría como conservado.

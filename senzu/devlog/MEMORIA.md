@@ -42,6 +42,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-025 · Tipado estricto sin escapes (`strict`, sin `any` ni `@ts-ignore`; entradas como `unknown`; solo sintaxis borrable); `npm run types` en cada verificación · ver 019
 - D-026 · Los hooks arrancan por `hooks/run.js` (único fichero JavaScript, sin lógica), que activa la caché de compilación de Node y carga el núcleo en TypeScript: 45 ms por hook frente a 95 ms sin ella · ver 020
 - D-026 · Los hooks arrancan por `hooks/run.js` (único fichero JavaScript, sin lógica), que activa la caché de compilación de Node y carga el núcleo en TypeScript: 45 ms por hook frente a 95 ms sin ella · ver 020
+- D-027 · Al acabar un derivado se levanta solo el bloqueo de worktree de su propia sesión ya terminada; sin cambios se retira sin forzar, con cambios se conserva · ver 021
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012
@@ -53,6 +54,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - En Windows, la carpeta que fue directorio de trabajo de un proceso sigue bloqueada un rato tras su salida: los tests no lanzan procesos dentro de su carpeta temporal · ver 015
 - El modo «ya» a mitad de turno (`;;now`, `cmc release --now`) NO es fiable: con `haiku` el modelo obedeció 5 de 12 veces, igual en JavaScript que en TypeScript; lo ignorado se pierde de la cola. Fiables: `;;end` y `;;now` en reposo · ver 020
 - El modo «ya» a mitad de turno (`;;now`, `cmc release --now`) NO es fiable: con `haiku` el modelo obedeció 5 de 12 veces, igual en JavaScript que en TypeScript; lo ignorado se pierde de la cola. Fiables: `;;end` y `;;now` en reposo · ver 020
+- Editar ficheros con `node -e` y cadenas con `\n` o `\0` desde la shell mete saltos de línea o bytes nulos literales en el código: usar Write/Edit o un script en fichero · ver 021
 
 ## Pendientes abiertos
 - [desde 2026-11-21] El «types» de `verify-build` falla porque Senzu se instaló con stack `node-api` (lanza `tsc`): reinstalar Senzu con los comandos reales · ver 017

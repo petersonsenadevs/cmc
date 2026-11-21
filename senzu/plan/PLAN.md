@@ -206,16 +206,17 @@
 - Devlog: senzu/devlog/2026-11-21/015-f3-t2-lanzador-de-agentes.md
 - Notas: supervisor desacoplado por agente (D-018). Archivo extra: lib/agent-runner.mjs, test-support/fake-claude.mjs. Cancelación solo probada en Windows.
 
-### F3-T3 · Aislar al agente derivado en un worktree  [M] [todo]
+### F3-T3 · Aislar al agente derivado en un worktree  [M] [done]
 - Para qué: que dos agentes a la vez no pisen los mismos archivos.
 - Skill: `code-quality §references/git-and-reviews "Ramas cortas"`
 - Archivos: lib/worktree.mjs, lib/dispatch.mjs, test/worktree.test.mjs
 - Hecho cuando: con repositorio git, el agente trabaja en un worktree y una rama propios (`cmc/<id>`); sin git, trabaja en la misma carpeta y se avisa; un worktree sin cambios se limpia al terminar y uno con cambios se conserva y se informa de la rama.
 - Verificar: `npm test` sobre un repositorio temporal; prueba real: el derivado edita un archivo y el principal no lo ve cambiar.
 - Depende de: F3-T2
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 161 pass, 0 fail (tres veces); `npx tsc --noEmit` → 0; prueba real en un repositorio temporal: el derivado que edita termina con `branch=worktree-cmc-792d31cd changedFiles=["notes.txt"]`, su cambio está en el worktree y `notes.txt` de la carpeta principal sigue igual; el que solo lee termina con `worktreePath=null` y `git worktree list` ya no lo muestra
+- Cumple: dos agentes a la vez no pisan los mismos archivos: el derivado edita en su worktree y el principal no ve cambiar nada, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/021-f3-t3-worktree-del-derivado.md
+- Notas: el worktree lo crea `--worktree` de Claude Code (D-017); se levanta el bloqueo que deja su sesión terminada (D-027). Solo probado en Windows. `.claude/worktrees/` queda dentro del repositorio del usuario.
 
 ### F3-T4 · Construir el paquete de contexto ligero  [M] [todo]
 - Para qué: derivar tareas pequeñas sin pagar el historial entero (y plan B si S4 falla).

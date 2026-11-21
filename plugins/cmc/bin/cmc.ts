@@ -10,6 +10,7 @@ import { parseControl, runControl } from '../lib/control.ts';
 import { CmcError, errorCode } from '../lib/errors.ts';
 import { describeError, logEvent } from '../lib/log.ts';
 import { resolveDataDir, sessionDir } from '../lib/paths.ts';
+import { listAgents } from '../lib/agents-registry.ts';
 import { addMessage, listMessages } from '../lib/queue.ts';
 import { updateState, readState } from '../lib/session-state.ts';
 import { armAtEnd, holdReceipt, release, select, sendMessages, takeMessages } from '../lib/release.ts';
@@ -46,7 +47,8 @@ The session is the one started in the current folder; name it with --session
                        --fork and --held override settings that make the others the default;
                        --message N: the task is held message N, which leaves the queue
                        once the agent has started)
-  agents               show the agents dispatched from the session
+  agents [--format json]
+                       show the agents dispatched from the session
   log <id>             show what an agent was asked and its latest steps or final answer
   cancel <id>          stop an agent
   sessions [--all]     show the open sessions started in this folder (--all: every session)
@@ -244,6 +246,25 @@ function dispatchCommand({ flags, positional }: ParsedArgs): string {
 
 /** `agents`, `log <id>` and `cancel <id>` share their grammar with the control words. */
 function agentCommand(name: string, { flags, positional }: ParsedArgs): string {
+  if (name === 'agents' && flags.format === 'json') {
+    if (positional.length > 0) throw new CmcError('BAD_USAGE', `Wrong arguments for "agents".
+
+${USAGE}`);
+    return JSON.stringify(
+      listAgents(targetDir(flags)).map((agent) => ({
+        id: agent.id,
+        task: agent.task,
+        state: agent.state,
+        mode: agent.mode,
+        branch: agent.branch ?? null,
+        worktreePath: agent.worktreePath ?? null,
+        changedFiles: agent.changedFiles ?? [],
+        startedAt: agent.startedAt,
+        endedAt: agent.endedAt,
+        answer: agent.summary,
+      })),
+    );
+  }
   const control = parseAgentControl([name, ...positional].join(' '));
   if (!control) throw new CmcError('BAD_USAGE', `Wrong arguments for "${name}".\n\n${USAGE}`);
   return runAgentControl(originFor(flags), control);

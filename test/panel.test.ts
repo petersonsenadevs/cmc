@@ -1,29 +1,37 @@
 // cmc — control panel (hooks module), driven with a stand-in engine that runs the real command line. Author: Peterson Sena (r3v3rs3).
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { after, describe, it } from 'node:test';
-import { startInterface } from '../plugins/cmc/hooks/interface.ts';
+import { after, beforeEach, describe, it } from 'node:test';
+import { clearPendingInBox, pendingIn, register as registerInterface, startInterface } from '../plugins/cmc/hooks/interface.ts';
 import {
-  drawPanel,
+  COLORS,
   dispatchToast,
+  drawPanel,
+  elapsed,
+  fateOf,
   firstSentence,
   isWorking,
+  noteActivity,
   openPanel,
   PANE_ID,
+  parseAgents,
   parseQueue,
+  readModes,
   register,
+  resetPanelState,
   rowText,
   sendsAtEnd,
   startPanel,
+  stateMark,
   statusLine,
   type PanelEngine,
 } from '../plugins/cmc/hooks/panel.ts';
 import { sessionDir } from '../plugins/cmc/lib/paths.ts';
 import { addMessage, listMessages } from '../plugins/cmc/lib/queue.ts';
-import { updateState } from '../plugins/cmc/lib/session-state.ts';
+import { readState, updateState } from '../plugins/cmc/lib/session-state.ts';
 import { present } from '../test-support/expect.ts';
 
 const ROOT = resolve('plugins/cmc');
@@ -31,6 +39,10 @@ const SESSION = '3e9b1c7a-5d2f-4a8e-b6c0-1f4d7a9e2b5c';
 const made: string[] = [];
 after(() => {
   for (const dir of made) rmSync(dir, { recursive: true, force: true });
+});
+beforeEach(() => {
+  resetPanelState();
+  clearPendingInBox();
 });
 
 /** A drawn element, as the stand-in elements build it. */
@@ -48,11 +60,20 @@ function nodes(tree: unknown): Node[] {
   const node = tree as Node;
   return [node, ...nodes(node.props.children)];
 }
-const buttons = (tree: unknown) => nodes(tree).filter((node) => node.type === 'Button');
-const texts = (tree: unknown) => nodes(tree).filter((node) => node.type === 'Text').map((node) => String(node.props.children));
+const ofType = (tree: unknown, type: string) => nodes(tree).filter((node) => node.type === type);
+const keys = (tree: unknown) => ofType(tree, 'Button').map((node) => String(node.props.key));
+const texts = (tree: unknown) => ofType(tree, 'Text').map((node) => String(node.props.children));
+const labels = (tree: unknown) => ofType(tree, 'Button').map((node) => String(node.props.label));
+function find(tree: unknown, key: string): Node {
+  const node = nodes(tree).find((one) => one.props.key === key);
+  assert.ok(node, `no element "${key}" in ${JSON.stringify(keys(tree))}`);
+  return node;
+}
 async function press(tree: unknown, key: string): Promise<void> {
-  const button = present(buttons(tree).find((node) => node.props.key === key));
-  await (button.props.onPress as () => Promise<unknown>)();
+  await (find(tree, key).props.onPress as () => Promise<unknown>)();
+}
+async function submitInput(tree: unknown, key: string, value: string): Promise<void> {
+  await (find(tree, key).props.onSubmit as (value: string) => Promise<unknown>)(value);
 }
 
 function world() {
@@ -61,7 +82,7 @@ function world() {
   const opened: unknown[] = [];
   const registered: string[] = [];
   const submitted: string[] = [];
-  const toasts: string[] = [];
+  const box = { text: '' };
   let invalidations = 0;
   let tick: (() => Promise<void>) | undefined;
   const $: PanelEngine = {
@@ -83,8 +104,10 @@ function world() {
       },
     },
     prompt: {
-      read: async () => ({ text: '', cursor: 0 }),
-      fill: async () => undefined,
+      read: async () => ({ text: box.text, cursor: box.text.length }),
+      fill: async ({ text, mode }) => {
+        box.text = mode === 'append' ? box.text + text : text;
+      },
       submit: async ({ text }) => {
         submitted.push(text);
       },
@@ -99,9 +122,7 @@ function world() {
         throw new Error('no dialog in this test');
       },
       log: () => undefined,
-      toast: (text) => {
-        toasts.push(text);
-      },
+      toast: () => undefined,
       open: async (pane) => {
         opened.push(pane);
         return { isPlaced: true };
@@ -109,20 +130,22 @@ function world() {
       invalidate: () => {
         invalidations += 1;
       },
-      resolve: () => ({ Box: make('Box'), Text: make('Text'), Button: make('Button') }) as never,
+      resolve: () => ({ Box: make('Box'), Text: make('Text'), Button: make('Button'), Input: make('Input') }) as never,
     },
   };
   const dir = sessionDir(data, SESSION);
   const draw = () => drawPanel($, { surface: 'terminal', component: 'Pane', requestId: PANE_ID });
+  const ids = () => listMessages(dir).messages.map((message) => message.id);
   return {
     $,
     data,
     dir,
     draw,
+    box,
+    ids,
     opened,
     registered,
     submitted,
-    toasts,
     held: () => listMessages(dir).messages.map((message) => message.text),
     invalidations: () => invalidations,
     tick: () => present(tick)(),
@@ -137,7 +160,7 @@ const until = async (check: () => boolean) => {
   for (let i = 0; i < 200 && !check(); i += 1) await new Promise((done) => setTimeout(done, 10));
 };
 
-describe('panel: reading the queue', () => {
+describe('panel: what it reads and says', () => {
   it('reads each message of the queue file and skips lines it cannot read', () => {
     const text = `${JSON.stringify({ id: 'a1', text: 'one', source: 'user' })}\nnot json\n\n${JSON.stringify({ id: 'b2', text: 'two' })}\n`;
     assert.deepEqual(parseQueue(text), [
@@ -146,32 +169,53 @@ describe('panel: reading the queue', () => {
     ]);
   });
 
-  it('shows one line per message, and says when it comes from an agent', () => {
-    assert.equal(rowText(1, { id: 'a', text: 'fix\nthe bug', source: 'user' }), '1. fix the bug');
-    assert.equal(rowText(2, { id: 'b', text: 'done', source: 'agent 1a2b3c4d' }), '2. done (from agent 1a2b3c4d)');
+  it('shows one line per message, and says when it comes from a subagent', () => {
+    assert.equal(rowText(1, { id: 'a', text: 'fix\nthe bug', source: 'user' }), '1  fix the bug');
+    assert.equal(rowText(2, { id: 'b', text: 'done', source: 'agent 1a2b3c4d' }), '2  done (from subagent 1a2b3c4d)');
     assert.ok(rowText(1, { id: 'c', text: 'x'.repeat(200), source: 'user' }).endsWith('…'));
   });
-});
 
-describe('panel: what it says', () => {
-  it('reads the agent state and the sendAtEnd setting, and words the status line', () => {
+  it('reads the agent state, the modes, and words the status and what happens to each message', () => {
     assert.equal(isWorking('{"turnActive":true}'), true);
-    assert.equal(isWorking('{"turnActive":false}'), false);
     assert.equal(isWorking(''), false);
-    assert.equal(sendsAtEnd(''), true);
+    assert.deepEqual(readModes(''), { sendAtEnd: 'true', holdTarget: 'main', 'dispatch.context': 'fork', 'dispatch.return': 'held' });
+    assert.deepEqual(readModes('{"sendAtEnd":false,"holdTarget":"subagent","dispatch":{"context":"pack","return":"auto"}}'), {
+      sendAtEnd: 'false',
+      holdTarget: 'subagent',
+      'dispatch.context': 'pack',
+      'dispatch.return': 'auto',
+    });
     assert.equal(sendsAtEnd('{"sendAtEnd":false}'), false);
-    assert.equal(statusLine(true, false), '● Agent working · Send hands a message over when its turn ends');
+    assert.equal(statusLine(false, true), '○ Agent idle · Send hands a message over now');
+    assert.equal(statusLine(true, false), '● Agent working · Send puts a message in the prompt box (Ctrl+Enter)');
+    const mine = { id: 'a', text: 'x', source: 'user' };
+    assert.equal(fateOf(mine, true, true), 'goes when the turn ends');
+    assert.equal(fateOf(mine, false, true), 'held until you send it');
+    assert.equal(fateOf({ ...mine, source: 'agent 1a2b3c4d' }, true, true), 'subagent result');
+  });
+
+  it('words subagents: their age, their state, and who took a message', () => {
+    assert.equal(elapsed('2026-11-21T10:00:00Z', '2026-11-21T10:00:27Z'), '27s');
+    assert.equal(elapsed('2026-11-21T10:00:00Z', '2026-11-21T10:02:05Z'), '2m 05s');
+    assert.equal(elapsed('2026-11-21T10:00:00Z', null, Date.parse('2026-11-21T10:00:09Z')), '9s');
+    assert.deepEqual(stateMark('running'), { icon: '⟳', color: COLORS.working });
+    assert.deepEqual(stateMark('finished'), { icon: '✓', color: COLORS.done });
+    assert.deepEqual(stateMark('failed'), { icon: '✗', color: COLORS.error });
     assert.equal(firstSentence('[cmc] No such message. More.\nmore'), 'No such message.');
     assert.equal(
       dispatchToast('Held message 1 left the queue. Dispatched to agent 6e3ccfc8: it gets a short summary of this conversation.'),
       'Subagent 6e3ccfc8 took the message, with a summary of the conversation as context; it works apart and its result comes back here.',
     );
     assert.match(dispatchToast('Dispatched to agent 6e3ccfc8: it inherits this conversation.'), /with the whole conversation as context/);
-    assert.equal(dispatchToast('[cmc] There is no held message 3 (the queue has 1).'), 'There is no held message 3 (the queue has 1).');
+    assert.deepEqual(parseAgents('not json'), []);
+  });
+
+  it('uses the violet palette', () => {
+    assert.equal(COLORS.accent, '#7C5CFF');
   });
 });
 
-describe('panel: in a session', () => {
+describe('panel: opening', () => {
   it('registers /cmc, which opens the pane and closes with Escape', async () => {
     const w = world();
     await w.start();
@@ -187,73 +231,165 @@ describe('panel: in a session', () => {
     assert.match(await openPanel(w.$), /too narrow/);
   });
 
-  it('shows an empty state, then each held message with its buttons', async () => {
+  it('hooks the pane and the /cmc command', () => {
+    const hooked: string[] = [];
+    register(((event: string, matcher: Record<string, string>) => {
+      hooked.push(`${event} ${JSON.stringify(matcher)}`);
+    }) as never);
+    assert.deepEqual(hooked, ['command.run {"command":"cmc"}', `ui.render {"component":"Pane","requestId":"${PANE_ID}"}`]);
+  });
+});
+
+describe('panel: header, tabs and modes', () => {
+  it('shows the state, three tabs with counts, and the modes with the one in force as primary', async () => {
     const w = world();
     await w.start();
-    let tree = await w.draw();
-    assert.ok(texts(tree).includes('Nothing is held'));
-    assert.deepEqual(buttons(tree), []);
     addMessage(w.dir, { text: 'one' });
-    addMessage(w.dir, { text: 'two' });
-    tree = await w.draw();
-    assert.ok(texts(tree).includes('✉ 2 held'));
-    assert.ok(texts(tree).includes('1. one'));
-    const ids = listMessages(w.dir).messages.map((message) => message.id);
+    const tree = await w.draw();
+    assert.ok(texts(tree).includes('○ Agent idle · Send hands a message over now'));
     assert.deepEqual(
-      buttons(tree).map((button) => button.props.key),
-      [`send-${ids[0]}`, `agent-${ids[0]}`, `delete-${ids[0]}`, `send-${ids[1]}`, `agent-${ids[1]}`, `delete-${ids[1]}`, 'send-all', 'clear'],
+      ['tab-messages', 'tab-agents', 'tab-activity'].map((key) => find(tree, key).props.label),
+      ['Messages 1', 'Subagents 0', 'Activity'],
     );
+    assert.equal(find(tree, 'tab-messages').props.variant, 'primary');
+    assert.equal(find(tree, 'mode-sendAtEnd-true').props.variant, 'primary');
+    assert.equal(find(tree, 'mode-holdTarget-subagent').props.dimColor, true);
   });
 
-  it('Delete removes that message, even if the queue moved since it was drawn', async () => {
+  it('switches a mode with one click, into the settings file', async () => {
+    const w = world();
+    await w.start();
+    await press(await w.draw(), 'mode-holdTarget-subagent');
+    assert.deepEqual(JSON.parse(readFileSync(join(w.data, 'config.json'), 'utf8')), { holdTarget: 'subagent' });
+    const tree = await w.draw();
+    assert.equal(find(tree, 'mode-holdTarget-subagent').props.variant, 'primary');
+    assert.ok(texts(tree).includes('Subagent mode on.'));
+  });
+
+  it('changes view with the tabs', async () => {
+    const w = world();
+    await w.start();
+    await press(await w.draw(), 'tab-agents');
+    assert.ok(texts(await w.draw()).some((text) => text.startsWith('No subagents yet.')));
+    await press(await w.draw(), 'tab-activity');
+    assert.ok(texts(await w.draw()).includes('Nothing has happened yet.'));
+  });
+});
+
+describe('panel: messages', () => {
+  it('shows an empty state and the hold box', async () => {
+    const w = world();
+    await w.start();
+    const tree = await w.draw();
+    assert.ok(texts(tree).some((text) => text.startsWith('Nothing is held.')));
+    assert.equal(find(tree, 'hold-box').props.submitLabel, 'Hold');
+  });
+
+  it('shows each message on one line with what will happen to it; a click selects it and shows its actions', async () => {
     const w = world();
     await w.start();
     addMessage(w.dir, { text: 'one' });
     addMessage(w.dir, { text: 'two' });
-    const tree = await w.draw();
-    const two = present(listMessages(w.dir).messages[1]).id;
-    addMessage(w.dir, { text: 'zero' }); // changes nothing about which message the button means
-    await press(tree, `delete-${two}`);
-    assert.deepEqual(w.held(), ['one', 'zero']);
-    assert.ok(w.invalidations() > 0, 'redrawn at once');
-    assert.deepEqual(w.toasts, ['cmc: Deleted.']);
+    let tree = await w.draw();
+    const [first, second] = w.ids();
+    assert.deepEqual(
+      labels(tree).filter((label) => /^\d {2}/.test(label)),
+      ['1  one', '2  two'],
+    );
+    assert.ok(texts(tree).includes('· held until you send it'));
+    assert.ok(!keys(tree).includes(`send-${first}`), 'actions show only on the selected row');
+    await press(tree, `pick-${second}`);
+    tree = await w.draw();
+    assert.deepEqual(
+      keys(tree).filter((key) => key.endsWith(String(second)) && !key.startsWith('pick')),
+      [`send-${second}`, `agent-${second}`, `edit-${second}`, `up-${second}`, `down-${second}`, `delete-${second}`],
+    );
+    assert.ok(texts(tree).includes('▸'));
   });
 
-  it('Send hands that message over (agent idle: as a new prompt)', async () => {
+  it('Send now with the agent idle hands the message over as a new prompt', async () => {
     const w = world();
     await w.start();
     addMessage(w.dir, { text: 'one' });
     addMessage(w.dir, { text: 'two' });
-    const tree = await w.draw();
-    await press(tree, `send-${present(listMessages(w.dir).messages[1]).id}`);
+    const second = present(w.ids()[1]);
+    await press(await w.draw(), `pick-${second}`);
+    await press(await w.draw(), `send-${second}`);
     await until(() => w.held().length === 1);
     assert.deepEqual(w.submitted, ['[cmc] The user released their held message with "/send":\n1. two']);
-    assert.deepEqual(w.held(), ['one']);
   });
 
-  it('says whether the agent works, and Send while it works says the message goes when its turn ends', async () => {
+  it('Send now while the agent works puts the text in the prompt box, and Ctrl+Enter takes it out of the queue', async () => {
     const w = world();
     await w.start();
-    addMessage(w.dir, { text: 'one' });
-    assert.ok(texts(await w.draw()).includes('○ Agent idle · Send hands a message over now'));
+    const hooks: Record<string, unknown> = {};
+    registerInterface(((event: string, handler: unknown) => {
+      hooks[event] = handler;
+    }) as never);
+    addMessage(w.dir, { text: 'also say kiwi' });
     updateState(w.dir, { turnActive: true });
-    const tree = await w.draw();
-    assert.ok(texts(tree).includes('● Agent working · held messages go to it when its turn ends'));
-    await press(tree, `send-${present(listMessages(w.dir).messages[0]).id}`);
-    assert.deepEqual(w.toasts, ['cmc: Could not send it into the running turn (no live session); it goes when the turn ends.']);
-    assert.deepEqual(w.submitted, []);
+    const id = present(w.ids()[0]);
+    await press(await w.draw(), `pick-${id}`);
+    await press(await w.draw(), `send-${id}`);
+    assert.equal(w.box.text, 'also say kiwi');
+    assert.deepEqual(w.held(), ['also say kiwi'], 'still held until the person sends it');
+    assert.deepEqual(pendingIn('also say kiwi'), [id]);
+    assert.ok(texts(await w.draw()).some((text) => text.startsWith('In the prompt box: press Ctrl+Enter')));
+    // The person presses Ctrl+Enter: the prompt goes through the interface's prompt.submit hook.
+    const submit = hooks['prompt.submit'] as ($: PanelEngine, e: { text: string }, next: (e: unknown) => Promise<unknown>) => Promise<unknown>;
+    await submit(w.$, { text: 'also say kiwi' }, async (e) => ({ passed: e }));
+    assert.deepEqual(w.held(), []);
+    assert.deepEqual(pendingIn('also say kiwi'), []);
   });
 
-  it('To agent on a message that is gone says so and starts nothing', async () => {
+  it('Send now while the agent works keeps a draft the person was typing', async () => {
+    const w = world();
+    await w.start();
+    addMessage(w.dir, { text: 'kiwi' });
+    updateState(w.dir, { turnActive: true });
+    w.box.text = 'my own draft';
+    const id = present(w.ids()[0]);
+    await press(await w.draw(), `pick-${id}`);
+    await press(await w.draw(), `send-${id}`);
+    assert.equal(w.box.text, 'my own draft\nkiwi');
+  });
+
+  it('Edit changes the text in the row and keeps its place', async () => {
     const w = world();
     await w.start();
     addMessage(w.dir, { text: 'one' });
+    addMessage(w.dir, { text: 'two' });
+    const first = present(w.ids()[0]);
+    await press(await w.draw(), `pick-${first}`);
+    await press(await w.draw(), `edit-${first}`);
     const tree = await w.draw();
-    const id = present(listMessages(w.dir).messages[0]).id;
-    // Deleted behind the panel's back, after it was drawn.
-    spawnSync('node', [join(ROOT, 'bin/cmc.ts'), 'take', id, '--data-dir', w.data, '--session', SESSION], { cwd: tmpdir() });
-    await press(tree, `agent-${id}`);
-    assert.deepEqual(w.toasts, ['cmc: That message is no longer held.']);
+    assert.equal(find(tree, `edit-${first}`).type, 'Input');
+    await submitInput(tree, `edit-${first}`, '--one, edited');
+    assert.deepEqual(w.held(), ['--one, edited', 'two']);
+  });
+
+  it('moves a message up, and Delete removes it even if the queue moved since it was drawn', async () => {
+    const w = world();
+    await w.start();
+    addMessage(w.dir, { text: 'one' });
+    addMessage(w.dir, { text: 'two' });
+    const second = present(w.ids()[1]);
+    await press(await w.draw(), `pick-${second}`);
+    await press(await w.draw(), `up-${second}`);
+    assert.deepEqual(w.held(), ['two', 'one']);
+    const tree = await w.draw();
+    addMessage(w.dir, { text: 'zero' });
+    await press(tree, `delete-${second}`);
+    assert.deepEqual(w.held(), ['one', 'zero']);
+  });
+
+  it('the hold box holds what was typed; in subagent mode it offers to start a subagent instead', async () => {
+    const w = world();
+    await w.start();
+    await submitInput(await w.draw(), 'hold-box', 'typed in the panel');
+    assert.deepEqual(w.held(), ['typed in the panel']);
+    writeFileSync(join(w.data, 'config.json'), JSON.stringify({ holdTarget: 'subagent' }));
+    assert.equal(find(await w.draw(), 'hold-box').props.submitLabel, 'To subagent');
   });
 
   it('Send all and Clear act on the whole queue', async () => {
@@ -269,7 +405,94 @@ describe('panel: in a session', () => {
     assert.deepEqual(w.held(), []);
   });
 
-  it('redraws by itself when the queue changes, and not otherwise', async () => {
+  it('an action on a message that is gone says so in the activity', async () => {
+    const w = world();
+    await w.start();
+    addMessage(w.dir, { text: 'one' });
+    const id = present(w.ids()[0]);
+    await press(await w.draw(), `pick-${id}`);
+    const tree = await w.draw();
+    spawnSync('node', [join(ROOT, 'bin/cmc.ts'), 'take', id, '--data-dir', w.data, '--session', SESSION], { cwd: tmpdir() });
+    await press(tree, `agent-${id}`);
+    assert.ok(texts(await w.draw()).includes('That message is no longer held.'));
+  });
+});
+
+describe('panel: subagents', () => {
+  /** Writes a subagent record as the dispatcher does, without starting anything. */
+  function agent(w: ReturnType<typeof world>, fields: Record<string, unknown>) {
+    const id = String(fields.id);
+    const dir = join(w.dir, 'agents', id);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, 'agent.json'),
+      JSON.stringify({
+        id,
+        task: 'summarise what we talked about',
+        state: 'finished',
+        mode: 'fork',
+        cwd: tmpdir(),
+        worktree: null,
+        command: ['claude'],
+        runnerPid: null,
+        pid: null,
+        startedAt: '2026-11-21T10:00:00.000Z',
+        endedAt: '2026-11-21T10:00:27.000Z',
+        exitCode: 0,
+        summary: 'We built a plugin that holds messages.',
+        ...fields,
+      }),
+    );
+  }
+
+  it('lists each subagent; selecting one shows what was sent, with what context, and what it answered', async () => {
+    const w = world();
+    await w.start();
+    agent(w, { id: 'ab12cd34' });
+    addMessage(w.dir, { text: 'Agent ab12cd34 finished…', source: 'agent ab12cd34' });
+    await press(await w.draw(), 'tab-agents');
+    let tree = await w.draw();
+    assert.equal(find(tree, 'tab-agents').props.label, 'Subagents 1');
+    assert.ok(texts(tree).includes('· finished · 27s · whole conversation'));
+    await press(tree, 'agent-pick-ab12cd34');
+    tree = await w.draw();
+    assert.ok(texts(tree).includes('Sent with the whole conversation as context'));
+    assert.ok(texts(tree).includes('summarise what we talked about'));
+    assert.ok(texts(tree).includes('We built a plugin that holds messages.'));
+    await press(tree, 'to-main-ab12cd34');
+    await until(() => w.held().length === 0);
+    assert.equal(w.submitted.length, 1);
+  });
+
+  it('a working subagent can be stopped, and has no result to send yet', async () => {
+    const w = world();
+    await w.start();
+    agent(w, { id: 'ef56ab78', state: 'running', endedAt: null, summary: null, mode: 'pack', runnerPid: process.pid, pid: process.pid });
+    await press(await w.draw(), 'tab-agents');
+    await press(await w.draw(), 'agent-pick-ef56ab78');
+    const tree = await w.draw();
+    assert.ok(keys(tree).includes('stop-ef56ab78'));
+    assert.ok(!keys(tree).includes('to-main-ef56ab78'));
+    assert.ok(texts(tree).includes('Sent with a summary of the conversation as context'));
+  });
+});
+
+describe('panel: activity and refresh', () => {
+  it('notes what happened, newest first, and shows the last two under the other views', async () => {
+    const w = world();
+    await w.start();
+    noteActivity('first', false, new Date('2026-11-21T19:42:00'));
+    noteActivity('second', false, new Date('2026-11-21T19:43:00'));
+    noteActivity('third went wrong', true, new Date('2026-11-21T19:44:00'));
+    const tree = await w.draw();
+    assert.ok(texts(tree).includes('third went wrong'));
+    assert.ok(texts(tree).includes('second'));
+    assert.ok(!texts(tree).includes('first'));
+    const error = ofType(tree, 'Text').find((node) => node.props.children === 'third went wrong');
+    assert.equal(error?.props.color, COLORS.error);
+  });
+
+  it('redraws by itself when the queue or the state changes, and not otherwise', async () => {
     const w = world();
     await w.start();
     await w.tick();
@@ -279,13 +502,9 @@ describe('panel: in a session', () => {
     assert.equal(w.invalidations(), 1);
     await w.tick();
     assert.equal(w.invalidations(), 1);
-  });
-
-  it('hooks the pane and the /cmc command', () => {
-    const hooked: string[] = [];
-    register(((event: string, matcher: Record<string, string>) => {
-      hooked.push(`${event} ${JSON.stringify(matcher)}`);
-    }) as never);
-    assert.deepEqual(hooked, ['command.run {"command":"cmc"}', `ui.render {"component":"Pane","requestId":"${PANE_ID}"}`]);
+    updateState(w.dir, { turnActive: true });
+    await w.tick();
+    assert.equal(w.invalidations(), 2);
+    assert.equal(readState(w.dir).turnActive, true);
   });
 });

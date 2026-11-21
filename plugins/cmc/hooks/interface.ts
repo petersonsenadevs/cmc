@@ -47,7 +47,7 @@ export interface InterfaceEngine {
   };
   prompt: {
     read(): Promise<{ text: string; cursor: number }>;
-    fill(args: { text: string }): Promise<unknown>;
+    fill(args: { text: string; mode?: 'replace' | 'append' | 'insert' }): Promise<unknown>;
     submit(args: { text: string }): Promise<unknown>;
   };
   command: { register(spec: { name: string; description: string; argumentHint?: string; immediate?: true }): Promise<unknown> };
@@ -354,13 +354,45 @@ async function heldMenu($: InterfaceEngine): Promise<CommandAnswer> {
   return display(edited.stdout.trim());
 }
 
+/**
+ * Held messages the panel put in the prompt box for Ctrl+Enter (D-038), by id:
+ * each leaves the queue when the person sends a prompt that holds its text.
+ */
+const pendingInBox = new Map<string, string>();
+
+/** Notes that a held message's text is in the prompt box, waiting for the person to send it. */
+export function markPendingInBox(id: string, text: string): void {
+  pendingInBox.set(id, text.trim());
+}
+
+/** The pending messages a submitted prompt carries: those whose text it holds. */
+export function pendingIn(prompt: string): string[] {
+  return [...pendingInBox].filter(([, text]) => text !== '' && prompt.includes(text)).map(([id]) => id);
+}
+
+/** Forgets every pending message: for tests. */
+export function clearPendingInBox(): void {
+  pendingInBox.clear();
+}
+
 /** The interface's hooks on prompts and commands (the session start is the module's). */
 export const register = (on: InterfaceOn): void => {
   on('prompt.submit', async ($, e, next) => {
     // Slash commands and prompts the person did not type pass untouched.
     if (e.command !== undefined || e.isMeta === true || dataDir === undefined) return next(e);
     const text = messageToHold(e.text, await prefix($));
-    if (text === null) return next(e);
+    if (text === null) {
+      const sent = pendingIn(e.text);
+      if (sent.length === 0) return next(e);
+      // The person sent what the panel put in the box: those messages are no longer held.
+      const result = await next(e);
+      const dropped = typeof result === 'object' && result !== null && 'drop' in result && typeof result.drop === 'string';
+      if (!dropped) {
+        for (const id of sent) pendingInBox.delete(id);
+        await cli($, ['take', ...sent]).catch(() => undefined);
+      }
+      return result;
+    }
 
     const held = await cli($, ['hold', '--stdin', '--typed'], text).catch(() => null);
     // Not held here: the command hooks beneath hold it the old way.

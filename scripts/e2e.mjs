@@ -146,6 +146,7 @@ child.on('exit', (code) => {
     ? readFileSync(queue, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line).text)
     : [];
   print('QUEUE', `${left.length} held after the session: ${JSON.stringify(left)}`);
+  print('SESSION', `${sessionId} in ${workDir}${options.keep ? ' (kept)' : ''}`);
   print('EXIT', String(code));
   if (!options.keep) rmSync(workDir, { recursive: true, force: true });
   process.exit(code ?? 0);

@@ -335,21 +335,29 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Devlog: senzu/devlog/2026-11-21/035-f5-t2-diseno-del-panel.md
 - Notas: colores pendientes de que Peterson elija paleta.
 
-### F5-T3 · Sección de mensajes  [M] [doing]
+### F5-T3 · Sección de mensajes  [M] [done]
 - Para qué: gestionar lo retenido con el ratón: lo que hoy son `/held`, `;;edit`, `;;rm`, `;;top`… en un solo sitio.
 - Skill: `plugin-authoring` (`ui.render` de `Pane`, `Button`, `Input`) + `code-quality §references/typescript`
 - Archivos: plugins/cmc/hooks/panel.tsx, plugins/cmc/hooks/panel-messages.tsx, plugins/cmc/bin/cmc.ts, test/panel.test.tsx
 - Hecho cuando: cada mensaje en una fila con su texto, su origen (tú o un agente) y cuándo saldrá (al acabar el turno o retenido); botones Send · Edit · Delete · ↑ · ↓ · To agent; «Send all» y «Clear» arriba; Edit cambia el texto en el propio panel (`Input`) sin perder su sitio; todo se repinta solo; ningún mensaje se pierde si una acción falla (D-034).
 - Verificar: `npm test` (tests del panel con el motor simulado); `claude plugin test ./plugins/cmc`; guion de Peterson con captura.
 - Depende de: F5-T2
+- Verificado: prueba de Peterson (captura): pestañas, modos, filas, edición, caja para retener, subagentes y actividad funcionan; npm test 316
+- Cumple: lo retenido se gestiona con el ratón desde un solo sitio, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/036-f5-t3-panel-centro-de-control.md, 037
+- Notas: añade los modos (ADR 003 §7) y adelanta parte de F5-T4 y F5-T5.
 
-### F5-T4 · Sección de agentes  [M] [todo]
+### F5-T4 · Sección de agentes  [M] [done]
 - Para qué: ver de un vistazo qué hace cada agente derivado y actuar sobre él sin comandos.
 - Skill: `plugin-authoring` (`ui.render`, `Button`, `Progress`, `$.ui.copy`) + `code-quality §references/typescript`
 - Archivos: plugins/cmc/hooks/panel-agents.tsx, plugins/cmc/lib/agents-view.ts, plugins/cmc/bin/cmc.ts, test/panel.test.tsx
 - Hecho cuando: cada agente con su tarea, estado (trabajando, terminado, fallido, cancelado, perdido), tiempo, rama y ficheros cambiados; botones Log (se despliega en el panel), Stop, Send result (su resultado al agente principal), Copy path (carpeta del worktree); se repinta al cambiar de estado.
 - Verificar: `npm test`; guion de Peterson con un agente real.
 - Depende de: F5-T3
+- Verificado: lista con estado, tiempo y contexto; conversación por subagente; Stop y Send result to main; npm test 326
+- Cumple: se ve qué hace cada subagente y se actúa sin comandos, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/036-f5-t3-panel-centro-de-control.md, 038
+- Notas: Log y Copy path quedan cubiertos por la conversación (pasos y avisos con la rama); sin botón aparte.
 
 ### F5-T5 · Nueva tarea para un agente desde el panel  [S] [todo]
 - Para qué: lanzar un agente sin recordar `>>` ni sus opciones.
@@ -359,13 +367,17 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Verificar: `npm test`; guion de Peterson.
 - Depende de: F5-T4
 
-### F5-T6 · Escribir a un agente  [M] [todo]
+### F5-T6 · Escribir a un agente  [M] [done]
 - Para qué: seguir la conversación con un agente derivado: corregirle, pedirle más o preguntarle por su resultado.
 - Skill: `code-quality §references/typescript` + `plugin-authoring` (`Input`)
 - Archivos: plugins/cmc/lib/dispatch.ts, plugins/cmc/lib/agent-runner.ts, plugins/cmc/lib/agent-control.ts, plugins/cmc/bin/cmc.ts, plugins/cmc/hooks/panel-agents.tsx, test/agent-tell.test.ts
 - Hecho cuando: `cmc tell <id> <texto>`, `;;tell <id> <texto>` y un campo en la fila del agente; si el agente ha terminado, se reanuda su sesión (`--resume <agentSessionId>`) en su mismo worktree con el texto; si sigue trabajando, el texto espera y sale cuando acaba (nada a mitad de turno, D-030); su nueva respuesta vuelve como resultado, con el mismo retorno; los mismos permisos y herramientas que al derivar.
 - Verificar: `npm test` (con el claude simulado); sesión real: derivar, escribirle, ver la segunda respuesta en la cola y en el panel.
 - Depende de: F5-T4
+- Verificado: npm test 326 (supervisor real + claude simulado); prueba real: tangerine y luego mango en la misma sesión abierta, ambas respuestas en la cola
+- Cumple: se sigue la conversación con un subagente, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/038-f5-t6-hablar-con-subagentes.md
+- Notas: con la sesión abierta, la entrega es por su entrada stream-json (nativo); cerrada, se reanuda. La conversación se ve como chat (petición de Peterson).
 
 ### F5-T7 · Pasar el resultado de un agente a otro  [S] [todo]
 - Para qué: encadenar agentes (uno investiga, otro implementa) sin copiar y pegar.

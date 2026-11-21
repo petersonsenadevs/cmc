@@ -10,7 +10,8 @@
     {
       "name": "cmc",
       "source": "./plugins/cmc",
-      "description": "Claude Message Control: hold the messages you type while the agent works and release them when you decide, without interrupting it."
+      "description": "Claude Message Control: hold the messages you type while the agent works, release them when you decide, and dispatch tasks to a second agent in its own git worktree.",
+      "version": "1.0.0"
     }
   ]
 }

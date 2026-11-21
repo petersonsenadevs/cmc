@@ -3,6 +3,7 @@
 // under the session folder, with its record, its prompt and its log.
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { uptime } from 'node:os';
 import { dirname, join } from 'node:path';
 import { writeFileAtomic } from './atomic-write.ts';
 import { CmcError, errorCode } from './errors.ts';
@@ -76,6 +77,11 @@ export interface AgentRecord {
 /** What the caller decides about a new agent; the rest of the record starts empty. */
 export type NewAgentFields = Pick<AgentRecord, 'task' | 'mode' | 'cwd' | 'worktree' | 'command' | 'baseCommit' | 'contextWarning' | 'returnMode'>;
 
+/** When the machine last booted, in milliseconds since the epoch. */
+export function bootTime(): number {
+  return Date.now() - uptime() * 1000;
+}
+
 /** Whether a process with this pid exists. */
 export function isAlive(pid: unknown): boolean {
   if (typeof pid !== 'number' || !Number.isInteger(pid) || pid <= 0) return false;
@@ -102,7 +108,7 @@ export function agentDir(sessionDir: string, id: string): string {
  */
 export function createAgent(sessionDir: string, fields: NewAgentFields, id: string = newAgentId()): AgentRecord {
   const dir = agentDir(sessionDir, id);
-  mkdirSync(dir, { recursive: true });
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
   const record: Omit<AgentRecord, 'dir'> = {
     id,
     ...fields,
@@ -169,7 +175,10 @@ export function updateAgentAt(dir: string, patch: Partial<AgentRecord>): AgentRe
 /** An agent recorded as active whose processes are gone did not end well. */
 function withLiveness(record: AgentRecord): AgentRecord {
   const active = record.state === 'starting' || record.state === 'running';
-  if (!active || isAlive(record.runnerPid) || isAlive(record.pid)) return record;
+  if (!active) return record;
+  // Started before the machine last booted: its pids now belong to other processes.
+  if (Date.parse(record.startedAt) < bootTime()) return { ...record, state: 'lost' };
+  if (isAlive(record.runnerPid) || isAlive(record.pid)) return record;
   return { ...record, state: 'lost' };
 }
 

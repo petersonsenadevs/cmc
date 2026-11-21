@@ -3,6 +3,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { writeFileAtomic } from './atomic-write.ts';
+import { withSessionLock } from './queue.ts';
 import { isRecord } from './types.ts';
 
 const STATE_FILE = 'state.json';
@@ -68,7 +69,18 @@ export function readState(dir: string): SessionState {
  * @param dir Session folder.
  */
 export function updateState(dir: string, patch: Partial<SessionState>): SessionState {
-  const next = { ...readState(dir), ...patch };
-  writeFileAtomic(join(dir, STATE_FILE), `${JSON.stringify(next)}\n`);
-  return next;
+  return updateStateWith(dir, () => patch);
+}
+
+/**
+ * Changes the state from what it is right now, under the session lock: the
+ * read and the write cannot be split by another process.
+ */
+export function updateStateWith(dir: string, change: (state: SessionState) => Partial<SessionState>): SessionState {
+  return withSessionLock(dir, () => {
+    const current = readState(dir);
+    const next = { ...current, ...change(current) };
+    writeFileAtomic(join(dir, STATE_FILE), `${JSON.stringify(next)}\n`);
+    return next;
+  });
 }

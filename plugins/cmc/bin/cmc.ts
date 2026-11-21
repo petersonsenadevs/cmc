@@ -165,6 +165,7 @@ function originFor(flags: Flags): DispatchOrigin {
     ...(record?.transcriptPath === undefined ? {} : { transcriptPath: record.transcriptPath }),
     permissionMode: config.dispatch.permissionMode,
     tools: config.dispatch.tools,
+    restrictTools: config.dispatch.restrictTools,
   };
 }
 

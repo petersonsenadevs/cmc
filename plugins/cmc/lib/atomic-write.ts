@@ -36,7 +36,8 @@ export function writeFileAtomic(
 ): void {
   const temporary = `${file}.${process.pid}.tmp`;
   try {
-    writeFileSync(temporary, content);
+    // Owner only: these files hold what the user typed.
+    writeFileSync(temporary, content, { mode: 0o600 });
     let delay = RENAME_FIRST_DELAY_MS;
     for (let attempt = 1; ; attempt += 1) {
       try {

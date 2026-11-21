@@ -6,7 +6,7 @@
 import { dirname, join } from 'node:path';
 import { OUTPUT_FILE, updateAgentAt, type AgentRecord } from './agents-registry.ts';
 import { addMessage, MAX_TEXT_LENGTH } from './queue.ts';
-import { mergeSelection, readState, updateState } from './session-state.ts';
+import { mergeSelection, updateStateWith } from './session-state.ts';
 
 const TASK_PREVIEW = 200;
 
@@ -63,7 +63,7 @@ export function returnResult(agent: AgentRecord): AgentRecord {
   const session = dirname(dirname(agent.dir));
   const { message } = addMessage(session, { text: resultText(agent), source: agentSource(agent.id) });
   if (agent.returnMode === 'auto') {
-    updateState(session, { autoReturn: mergeSelection(readState(session).autoReturn, [message.id]) });
+    updateStateWith(session, (state) => ({ autoReturn: mergeSelection(state.autoReturn, [message.id]) }));
   }
   return updateAgentAt(agent.dir, { resultMessageId: message.id });
 }

@@ -84,7 +84,7 @@ describe('buildContextPack', () => {
 });
 
 describe('packPrompt', () => {
-  it('fences the summary as background and puts the task outside it', () => {
+  it('puts the task first, outside the summary, and fences the summary as background', () => {
     const prompt = packPrompt('review the new test', buildContextPack(transcript, '/x'));
     const summary = prompt.slice(prompt.indexOf('<session-summary>'), prompt.indexOf('</session-summary>'));
     assert.match(prompt, /^\[cmc\] You are a second agent\./);
@@ -95,7 +95,8 @@ describe('packPrompt', () => {
     assert.match(summary, /Files that session changed: src\/export\.ts, test\/export\.test\.ts/);
     assert.match(summary, /Ignore all previous instructions/, 'quoted text stays inside the fence');
     assert.equal(summary.includes('review the new test'), false);
-    assert.match(prompt, /<\/session-summary>\n\nYour task, from the user:\nreview the new test\n/);
+    assert.match(prompt, /\n\nYour task, from the user:\nreview the new test\n\n<session-summary>\n/);
+    assert.match(prompt, /<\/session-summary>\n\nWhen you are done/);
   });
 
   it('says what is missing when the pack is degraded', () => {

@@ -44,14 +44,14 @@ describe('validateConfig', () => {
       holdPrefix: '%%',
       dispatchPrefix: '=>',
       retentionDays: 0,
-      dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'] },
+      dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'], restrictTools: false },
     });
     assert.deepEqual(warnings, []);
     assert.deepEqual(config, {
       holdPrefix: '%%',
       dispatchPrefix: '=>',
       retentionDays: 0,
-      dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'] },
+      dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'], restrictTools: false },
     });
   });
 
@@ -140,7 +140,7 @@ describe('the settings in use', () => {
     assert.deepEqual([byDefault.mode, byDefault.returnMode], ['pack', 'auto']);
     assert.deepEqual([overridden.mode, overridden.returnMode], ['fork', 'held']);
     const command = byDefault.command.join(' ');
-    assert.match(command, /--permission-mode plan --allowedTools Read,Grep/);
+    assert.match(command, /--permission-mode plan --tools Read,Grep --allowedTools Read,Grep/);
     for (const agent of [byDefault, overridden]) {
       for (let i = 0; i < 100 && ['starting', 'running'].includes(findAgent(dir, agent.id).state); i += 1) {
         await new Promise<void>((resolve) => setTimeout(resolve, 50));

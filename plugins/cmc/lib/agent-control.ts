@@ -52,6 +52,7 @@ export interface DispatchOrigin {
   /** From the settings: what the agent may do. */
   permissionMode?: string;
   tools?: readonly string[];
+  restrictTools?: boolean;
 }
 
 export type AgentControl =
@@ -116,6 +117,7 @@ export function startAgent(origin: DispatchOrigin, task: string, { mode, returnM
     ...(origin.env === undefined ? {} : { env: origin.env }),
     ...(origin.permissionMode === undefined ? {} : { permissionMode: origin.permissionMode }),
     ...(origin.tools === undefined ? {} : { tools: origin.tools }),
+    ...(origin.restrictTools === undefined ? {} : { restrictTools: origin.restrictTools }),
   });
   return dispatchReceipt(agent);
 }

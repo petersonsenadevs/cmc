@@ -78,6 +78,7 @@ describe('buildCommand', () => {
     assert.deepEqual(buildCommand(base), [
       'claude', '-p', '--output-format', 'stream-json', '--verbose',
       '--permission-mode', 'acceptEdits',
+      '--tools', 'Read,Glob,Grep,Edit,Write',
       '--allowedTools', 'Read,Glob,Grep,Edit,Write',
       '--resume', SESSION, '--fork-session',
     ]);

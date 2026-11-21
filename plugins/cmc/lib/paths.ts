@@ -40,6 +40,6 @@ export function assertSessionId(sessionId: unknown): asserts sessionId is string
 export function sessionDir(dataDir: string, sessionId: unknown): string {
   assertSessionId(sessionId);
   const dir = join(dataDir, 'sessions', sessionId);
-  mkdirSync(dir, { recursive: true });
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
   return dir;
 }

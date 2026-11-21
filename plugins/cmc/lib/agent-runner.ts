@@ -117,8 +117,9 @@ function main(dir: string): void {
 
   const [executable, ...args] = record.command;
   if (executable === undefined) throw new Error('the agent record has no command to run');
-  const out = openSync(join(dir, OUTPUT_FILE), 'a');
-  const err = openSync(join(dir, STDERR_FILE), 'a');
+  // Owner only: the agent's output can quote files of the project.
+  const out = openSync(join(dir, OUTPUT_FILE), 'a', 0o600);
+  const err = openSync(join(dir, STDERR_FILE), 'a', 0o600);
   const child = spawn(executable, args, { cwd: record.cwd, stdio: ['pipe', out, err], windowsHide: true });
   let settled = false;
   const settle = (exitCode: number | null, failure: string | null): void => {

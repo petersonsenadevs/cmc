@@ -115,7 +115,9 @@ export function changedFiles(path: string, baseCommit: string | null): string[] 
   const files = new Set<string>();
   // Each entry is two status characters, a space and the path. A rename or a
   // copy is followed by one more entry, the path it came from, which is skipped.
-  const status = gitEntries(path, ['status', '--porcelain', '-z']);
+  // Ignored files are listed too ("!!"): "git worktree remove" deletes them
+  // without a word, and what an agent wrote under an ignored path is still work.
+  const status = gitEntries(path, ['status', '--porcelain', '-z', '--ignored']);
   for (let i = 0; i < status.length; i += 1) {
     const entry = status[i] ?? '';
     files.add(entry.slice(3));

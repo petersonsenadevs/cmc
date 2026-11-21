@@ -43,6 +43,8 @@ export interface BuildCommandOptions {
   worktree: string | null;
   permissionMode: string;
   tools: readonly string[];
+  /** Give the agent only the built-in tools in `tools` (default), not merely pre-approve them. */
+  restrictTools?: boolean;
 }
 
 export interface DispatchOptions {
@@ -70,6 +72,7 @@ export interface DispatchOptions {
   tools?: readonly string[];
   claude?: readonly string[];
   env?: NodeJS.ProcessEnv;
+  restrictTools?: boolean;
 }
 
 /**
@@ -92,7 +95,7 @@ export function forkPrompt(task: string): string {
  * Builds the command line of a dispatched agent. Every value is one element
  * of the array; nothing is joined into a shell string.
  */
-export function buildCommand({ claude, mode, sessionId, worktree, permissionMode, tools }: BuildCommandOptions): string[] {
+export function buildCommand({ claude, mode, sessionId, worktree, permissionMode, tools, restrictTools = true }: BuildCommandOptions): string[] {
   if (!PERMISSION_MODES.includes(permissionMode)) {
     throw new CmcError('BAD_PERMISSION_MODE', `A dispatched agent cannot run with permission mode "${permissionMode}".`);
   }
@@ -100,6 +103,12 @@ export function buildCommand({ claude, mode, sessionId, worktree, permissionMode
   if (badTool !== undefined) throw new CmcError('BAD_TOOL', `"${badTool}" is not a tool name a dispatched agent can be given.`);
 
   const command = [...claude, '-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', permissionMode];
+  // --tools limits the built-in tools the agent has at all, whatever the
+  // project or user settings allow; --allowedTools pre-approves them.
+  if (restrictTools) {
+    const builtIn = [...new Set(tools.map((tool) => tool.replace(/\(.*$/, '')))];
+    command.push('--tools', builtIn.join(','));
+  }
   if (tools.length > 0) command.push('--allowedTools', tools.join(','));
   if (mode === 'fork') command.push('--resume', sessionId, '--fork-session');
   if (worktree) command.push('--worktree', worktree);
@@ -122,6 +131,7 @@ export function dispatch({
   worktree,
   permissionMode = DEFAULT_PERMISSION_MODE,
   tools = DEFAULT_TOOLS,
+  restrictTools = true,
   claude = [process.env.CMC_CLAUDE_BIN || 'claude'],
   env = process.env,
 }: DispatchOptions): AgentRecord {
@@ -134,7 +144,7 @@ export function dispatch({
   // Without git there is no worktree: the agent shares the folder (the caller warns the user).
   const chosen = worktree === undefined ? (repository ? worktreeName(id) : null) : typeof worktree === 'function' ? worktree(id) : worktree;
   const worktreeOfAgent = repository ? chosen : null;
-  const command = buildCommand({ claude, mode, sessionId, worktree: worktreeOfAgent, permissionMode, tools });
+  const command = buildCommand({ claude, mode, sessionId, worktree: worktreeOfAgent, permissionMode, tools, restrictTools });
   const baseCommit = worktreeOfAgent === null ? null : headCommit(cwd);
   // A pack is a summary read from the transcript; when it cannot be read the
   // agent still starts, knowing only the task and the folder, and the record says why.
@@ -145,7 +155,7 @@ export function dispatch({
     { task: task.trim(), mode, returnMode, cwd, worktree: worktreeOfAgent, baseCommit, command, contextWarning: pack?.warning ?? null },
     id,
   );
-  writeFileSync(join(record.dir, PROMPT_FILE), text);
+  writeFileSync(join(record.dir, PROMPT_FILE), text, { mode: 0o600 });
 
   // The supervisor outlives this process (a hook that must return at once).
   const runner = spawn(process.execPath, [RUNNER, record.dir], { cwd, env, detached: true, stdio: 'ignore', windowsHide: true });
@@ -176,7 +186,12 @@ function killTree(pid: number | null): void {
     // The supervisor is detached, so it leads its own process group.
     process.kill(-pid, 'SIGTERM');
   } catch (error) {
-    if (errorCode(error) !== 'ESRCH') process.kill(pid, 'SIGTERM');
+    if (errorCode(error) === 'ESRCH') return;
+    try {
+      process.kill(pid, 'SIGTERM');
+    } catch {
+      // Gone meanwhile, or not ours to stop: nothing more to do.
+    }
   }
 }
 

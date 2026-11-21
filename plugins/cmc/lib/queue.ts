@@ -51,6 +51,16 @@ function removeLock(lock: string): void {
   rmSync(lock, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
 }
 
+/**
+ * Runs `action` holding the session lock that also guards the queue. Used by
+ * everything that reads and rewrites a file of the session, so two processes
+ * (a hook, the CLI, an agent supervisor) never overwrite each other.
+ * Not reentrant: `action` must not take the lock again.
+ */
+export function withSessionLock<T>(dir: string, action: () => T): T {
+  return withLock(dir, action);
+}
+
 function withLock<T>(dir: string, action: () => T): T {
   const lock = join(dir, LOCK_DIR);
   const deadline = Date.now() + LOCK_TIMEOUT_MS;

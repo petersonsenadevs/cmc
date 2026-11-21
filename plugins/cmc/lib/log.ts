@@ -9,8 +9,8 @@ export function logEvent(dataDir: string | undefined, level: LogLevel, event: st
   const line = `${JSON.stringify({ t: new Date().toISOString(), level, event, ...details })}\n`;
   try {
     if (!dataDir) throw new Error('no data directory');
-    mkdirSync(dataDir, { recursive: true });
-    appendFileSync(join(dataDir, 'cmc.log'), line);
+    mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+    appendFileSync(join(dataDir, 'cmc.log'), line, { mode: 0o600 });
   } catch {
     // The log is the last resort; when it cannot be written the line goes to
     // stderr, which Claude Code keeps in its own debug output.

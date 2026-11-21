@@ -14,7 +14,8 @@ export const CONFIG_FILE = 'config.json';
 /** Permission modes a dispatched agent may run with; `bypassPermissions` is never one of them. */
 export const PERMISSION_MODES: readonly string[] = Object.freeze(['default', 'acceptEdits', 'plan']);
 /** A tool name as Claude Code's `--allowedTools` takes it, optionally with a rule: `Bash(npm test:*)`. */
-export const TOOL_NAME = /^[A-Za-z][A-Za-z0-9_]*(\([^()]*\))?$/;
+// No comma inside the rule: Claude Code splits the list on commas.
+export const TOOL_NAME = /^[A-Za-z][A-Za-z0-9_]*(\([^(),]*\))?$/;
 
 export interface DispatchSettings {
   /** How a dispatched agent gets its context unless the user says otherwise. */
@@ -23,6 +24,13 @@ export interface DispatchSettings {
   return: ReturnMode;
   permissionMode: string;
   tools: readonly string[];
+  /**
+   * Whether the agent has only the built-in tools in `tools` (true), or every
+   * built-in tool with `tools` merely pre-approved (false). Restricting changes
+   * the agent's prompt, so a fork no longer reuses the session's prompt cache
+   * and costs much more.
+   */
+  restrictTools: boolean;
 }
 
 export interface CmcConfig {
@@ -43,6 +51,7 @@ export const DEFAULT_CONFIG: CmcConfig = Object.freeze({
     return: 'held',
     permissionMode: 'acceptEdits',
     tools: Object.freeze(['Read', 'Glob', 'Grep', 'Edit', 'Write']),
+    restrictTools: true,
   }),
   retentionDays: 30,
 }) as CmcConfig;
@@ -100,7 +109,7 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
     const dispatch = raw.dispatch;
     if (!isRecord(dispatch) || Array.isArray(dispatch)) ignored('dispatch', 'it must be an object');
     else {
-      const knownDispatch = new Set(['context', 'return', 'permissionMode', 'tools']);
+      const knownDispatch = new Set(['context', 'return', 'permissionMode', 'tools', 'restrictTools']);
       for (const key of Object.keys(dispatch)) if (!knownDispatch.has(key)) warnings.push(`unknown setting "dispatch.${key}" ignored`);
       if (dispatch.context !== undefined) {
         if (dispatch.context === 'fork' || dispatch.context === 'pack') config.dispatch.context = dispatch.context;
@@ -120,6 +129,10 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
         const valid = Array.isArray(tools) && tools.length <= 50 && tools.every((tool): tool is string => typeof tool === 'string' && TOOL_NAME.test(tool));
         if (valid) config.dispatch.tools = Object.freeze([...tools]);
         else ignored('dispatch.tools', 'it must be a list of tool names such as "Read" or "Bash(npm test:*)"');
+      }
+      if (dispatch.restrictTools !== undefined) {
+        if (typeof dispatch.restrictTools === 'boolean') config.dispatch.restrictTools = dispatch.restrictTools;
+        else ignored('dispatch.restrictTools', 'it must be true or false');
       }
     }
   }

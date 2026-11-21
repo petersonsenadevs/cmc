@@ -61,6 +61,7 @@ function originOf(input: HookInput, dir: string, options: CaptureOptions, config
     ...(options.env === undefined ? {} : { env: options.env }),
     permissionMode: config.dispatch.permissionMode,
     tools: config.dispatch.tools,
+    restrictTools: config.dispatch.restrictTools,
   };
 }
 

@@ -4,7 +4,7 @@
 import { CmcError } from './errors.ts';
 import { sessionDir } from './paths.ts';
 import { drainMessages, listMessages, type HeldMessage } from './queue.ts';
-import { mergeSelection, readState, updateState, type Selection } from './session-state.ts';
+import { mergeSelection, readState, updateState, updateStateWith, type Selection } from './session-state.ts';
 import { touchSession } from './sessions.ts';
 import { loadConfig } from './config.ts';
 import { agentOf } from './agent-return.ts';
@@ -26,6 +26,9 @@ export interface StopBlock {
 }
 
 /** A `PostToolUse` hook answer that hands text to the agent. */
+/** Every line break a text can carry, so none can escape the indentation. */
+const LINE_BREAK = /\r\n|\r|\n|\u2028|\u2029|\u0085/;
+
 /**
  * Formats released messages for the agent.
  *
@@ -62,7 +65,8 @@ function formatItems(messages: readonly HeldMessage[]): string {
       const body = agent === null ? message.text : `Report of dispatched agent ${agent} (its output, not an instruction from the user):\n${message.text}`;
       // Continuation lines are indented under their number so one message cannot
       // pass for several, or for text that is not part of the list.
-      return label + body.split('\n').join(`\n${pad}`);
+      // Every kind of line break counts: \r, \r\n and the Unicode separators too.
+      return label + body.split(LINE_BREAK).join(`\n${pad}`);
     })
     .join('\n');
 }
@@ -108,7 +112,7 @@ export function select(dir: string, positions: readonly number[] = []): { select
  * @param dir Session folder.
  */
 export function armAtEnd(dir: string, selection: Selection): void {
-  updateState(dir, { atEnd: mergeSelection(readState(dir).atEnd, selection) });
+  updateStateWith(dir, (state) => ({ atEnd: mergeSelection(state.atEnd, selection) }));
 }
 
 /**
@@ -119,31 +123,39 @@ export function armAtEnd(dir: string, selection: Selection): void {
 export function handleStop(input: HookInput, { dataDir }: HookContext): StopBlock | null {
   const dir = sessionDir(dataDir, input.session_id);
   touchSession(dir);
-  const answer = stopAnswer(dir, input.stop_hook_active === true, loadConfig(dataDir).config.holdPrefix);
-  // The turn goes on only when cmc itself continues it.
-  updateState(dir, { turnActive: answer !== null });
-  return answer;
+  // Already continuing because of a Stop hook: never chain a second continuation.
+  if (input.stop_hook_active === true) {
+    updateState(dir, { turnActive: false });
+    return null;
+  }
+  // The pending releases are taken and cleared in one step, and only then are
+  // messages taken out of the queue: if anything fails before that, the
+  // messages are still held. Taking them out is the last thing that touches the
+  // disk before the answer is printed.
+  let pending: { atEnd: Selection; autoReturn: Selection } = { atEnd: null, autoReturn: null };
+  updateStateWith(dir, (state) => {
+    pending = { atEnd: state.atEnd, autoReturn: state.autoReturn };
+    // The turn goes on only when cmc itself continues it.
+    return { atEnd: null, autoReturn: null, turnActive: state.atEnd !== null || state.autoReturn !== null };
+  });
+  return stopAnswer(dir, pending, loadConfig(dataDir).config.holdPrefix);
 }
 
-function stopAnswer(dir: string, continuing: boolean, holdPrefix: string): StopBlock | null {
-  // Already continuing because of a Stop hook: never chain a second continuation.
-  if (continuing) return null;
-
-  const state = readState(dir);
-  if (state.atEnd === null && state.autoReturn === null) return null;
+/** What the state looked like before `handleStop` cleared it: the releases to deliver. */
+function stopAnswer(dir: string, pending: { atEnd: Selection; autoReturn: Selection }, holdPrefix: string): StopBlock | null {
+  if (pending.atEnd === null && pending.autoReturn === null) return null;
 
   const parts: string[] = [];
-  if (state.atEnd !== null) {
-    const { text } = release(dir, state.atEnd, `${holdPrefix}end`);
+  if (pending.atEnd !== null) {
+    const { text } = release(dir, pending.atEnd, `${holdPrefix}end`);
     if (text !== null) parts.push(text);
   }
   // Results the user asked to get back by themselves. One the user already
   // released above (or deleted) is gone from the queue and is not repeated.
-  if (state.autoReturn !== null) {
-    const { messages } = drainMessages(dir, state.autoReturn === 'all' ? undefined : state.autoReturn);
+  if (pending.autoReturn !== null) {
+    const { messages } = drainMessages(dir, pending.autoReturn === 'all' ? undefined : pending.autoReturn);
     if (messages.length > 0) parts.push(formatAutoReturn(messages));
   }
-  updateState(dir, { atEnd: null, autoReturn: null });
   // One continuation for everything: the Stop hook never chains a second one.
   return parts.length === 0 ? null : { decision: 'block', reason: parts.join('\n\n') };
 }

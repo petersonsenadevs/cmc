@@ -1,21 +1,30 @@
 #!/usr/bin/env node
 // cmc — Claude Message Control. Author: Peterson Sena (r3v3rs3).
 // Command line over the same core the hooks use.
-//
-//   cmc drain --session <id> [--data-dir <dir>] [--format prompt|json]
+import { parseControl, runControl } from '../lib/control.mjs';
 import { CmcError } from '../lib/errors.mjs';
 import { describeError, logEvent } from '../lib/log.mjs';
-import { resolveDataDir } from '../lib/paths.mjs';
+import { resolveDataDir, sessionDir } from '../lib/paths.mjs';
 import { releaseAll } from '../lib/release.mjs';
 
 const USAGE = `cmc — Claude Message Control (Peterson Sena · r3v3rs3)
 
-Usage:
-  cmc drain --session <id> [--data-dir <dir>] [--format prompt|json]
-      Take every held message out of the queue and print it.
+Usage: cmc <command> --session <id> [--data-dir <dir>]
+
+  list                 show the held messages, in delivery order
+  edit <N> <text>      replace the text of message N
+  rm <N> [<N>…]        delete messages
+  clear                delete every held message
+  move <N> <M>         move message N to position M
+  up <N> | down <N>    move message N one place
+  top <N> | bottom <N> make message N the first or the last to be delivered
+  end                  release everything when the current turn ends
+  drain [--format prompt|json]
+                       take every held message out of the queue and print it
 `;
 
 const VALUE_FLAGS = new Set(['--session', '--data-dir', '--format']);
+const QUEUE_COMMANDS = new Set(['list', 'edit', 'rm', 'clear', 'move', 'up', 'down', 'top', 'bottom', 'end']);
 
 /** Splits argv into flags with a value and positional arguments. */
 function parseArgs(argv) {
@@ -35,26 +44,35 @@ function parseArgs(argv) {
   return { flags, positional };
 }
 
+function requireSession(flags) {
+  if (!flags.session) throw new CmcError('BAD_USAGE', 'This command needs --session <id>.');
+  return flags.session;
+}
+
 function drain({ flags }, dataDir) {
   const format = flags.format ?? 'prompt';
   if (format !== 'prompt' && format !== 'json') throw new CmcError('BAD_USAGE', '--format must be "prompt" or "json".');
-  if (!flags.session) throw new CmcError('BAD_USAGE', 'drain needs --session <id>.');
 
-  const result = releaseAll(dataDir, flags.session, '/cmc:release');
+  const result = releaseAll(dataDir, requireSession(flags), '/cmc:release');
   if (format === 'json') return JSON.stringify(result);
   const text = result.text ?? '[cmc] The user ran "/cmc:release", but no messages are held. There is nothing to do.';
   return result.warning ? `${text}\n\n[cmc] ${result.warning}` : text;
 }
 
-const COMMANDS = { drain };
+/** The queue commands share their grammar with the control words of the prompt. */
+function queueCommand(name, { flags, positional }, dataDir) {
+  const control = parseControl([name, ...positional].join(' '));
+  if (!control) throw new CmcError('BAD_USAGE', `Wrong arguments for "${name}".\n\n${USAGE}`);
+  return runControl(sessionDir(dataDir, requireSession(flags)), control);
+}
 
 function main(argv) {
   const [name, ...rest] = argv;
   if (!name || name === 'help' || name === '--help') return USAGE;
-  const command = COMMANDS[name];
-  if (!command) throw new CmcError('BAD_USAGE', `Unknown command "${name}".\n\n${USAGE}`);
   const parsed = parseArgs(rest);
-  return command(parsed, resolveDataDir(parsed.flags['data-dir']));
+  if (name === 'drain') return drain(parsed, resolveDataDir(parsed.flags['data-dir']));
+  if (QUEUE_COMMANDS.has(name)) return queueCommand(name, parsed, resolveDataDir(parsed.flags['data-dir']));
+  throw new CmcError('BAD_USAGE', `Unknown command "${name}".\n\n${USAGE}`);
 }
 
 try {

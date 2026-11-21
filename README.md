@@ -25,10 +25,32 @@ claude --plugin-dir /path/to/this/repository
 | `/cmc:release` | Every held message is handed to the agent, in the order you wrote them. |
 | `;;end` | The held messages are handed over automatically when the current turn ends. One-shot. |
 
+### Managing what is held
+
+Control words are typed right after the prefix, with no space. The plugin answers them itself: the agent
+never sees them, they cost no tokens, and they work while the agent is busy.
+
+| You type | What happens |
+|---|---|
+| `;;list` | Shows the held messages in the order they will be delivered, with position, time and id. |
+| `;;edit 2 new text` | Replaces the text of message 2. |
+| `;;rm 2` · `;;rm 1 3` | Deletes messages. |
+| `;;clear` | Deletes every held message. |
+| `;;move 3 1` | Moves message 3 to position 1. |
+| `;;up 2` · `;;down 2` | Moves message 2 one place. |
+| `;;top 3` · `;;bottom 1` | Makes a message the first or the last to be delivered. |
+| `;;help` | Lists the control words. |
+
+The order you see in `;;list` is exactly the order of delivery. `/cmc:queue` shows the same list, but as a
+slash command it goes through the agent, which then sees your held messages (still held); prefer `;;list`.
+
+The same commands exist on the command line: `node bin/cmc.mjs list --session <id>` (see `cmc help`).
+
 Things worth knowing:
 
 - A message is held when it **starts** with `;;`. Anything else goes to the agent as usual.
-- `;;end` is a control word only when written without a space. `;; end` holds the message "end".
+- Put a space after the prefix to hold a message: `;; clear the cache` is held, `;;clear` empties the queue.
+  Text that merely starts like a control word (`;;list the files`) is held as a message.
 - Claude Code prints a three-line notice ("UserPromptSubmit operation blocked by hook…") for every held
   message. That notice is the receipt: the agent does not see it.
 - While the agent is busy, Claude Code hands your message to the plugin when the tool that is running

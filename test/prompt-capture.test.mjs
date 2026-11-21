@@ -56,7 +56,7 @@ describe('handlePrompt', () => {
   });
 
   it('refuses a message that is too long and says why', () => {
-    assert.match(submit(`;;${'x'.repeat(MAX_TEXT_LENGTH + 1)}`).reason, /^Not held: A held message can be at most/);
+    assert.match(submit(`;;${'x'.repeat(MAX_TEXT_LENGTH + 1)}`).reason, /^Not done: A held message can be at most/);
     assert.deepEqual(held(), []);
   });
 

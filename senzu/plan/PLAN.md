@@ -359,13 +359,16 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Devlog: senzu/devlog/2026-11-21/036-f5-t3-panel-centro-de-control.md, 038
 - Notas: Log y Copy path quedan cubiertos por la conversación (pasos y avisos con la rama); sin botón aparte.
 
-### F5-T5 · Nueva tarea para un agente desde el panel  [S] [todo]
+### F5-T5 · Nueva tarea para un agente desde el panel  [S] [done]
 - Para qué: lanzar un agente sin recordar `>>` ni sus opciones.
 - Skill: `plugin-authoring` (`Input`, `Select`) + `code-quality §references/typescript`
 - Archivos: plugins/cmc/hooks/panel-agents.tsx, test/panel.test.tsx
 - Hecho cuando: un campo de texto y un botón «Start agent»; contexto (conversación completa o resumen) y retorno (retenido o automático) elegibles con su valor por defecto de la configuración; el agente aparece en la lista al momento.
 - Verificar: `npm test`; guion de Peterson.
 - Depende de: F5-T4
+- Verificado: npm test 343 (caja «New subagent task» con su resumen de contexto, modelo y esfuerzo)
+- Cumple: se lanza un subagente sin recordar `>>` ni sus opciones, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/043-f5-t8-t5-apertura-y-nueva-tarea.md
 
 ### F5-T6 · Escribir a un agente  [M] [done]
 - Para qué: seguir la conversación con un agente derivado: corregirle, pedirle más o preguntarle por su resultado.
@@ -379,21 +382,26 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Devlog: senzu/devlog/2026-11-21/038-f5-t6-hablar-con-subagentes.md
 - Notas: con la sesión abierta, la entrega es por su entrada stream-json (nativo); cerrada, se reanuda. La conversación se ve como chat (petición de Peterson).
 
-### F5-T7 · Pasar el resultado de un agente a otro  [S] [todo]
+### F5-T7 · Pasar el resultado de un agente a otro  [S] [cancelled]
 - Para qué: encadenar agentes (uno investiga, otro implementa) sin copiar y pegar.
 - Skill: `code-quality §references/typescript` + `plugin-authoring`
 - Archivos: plugins/cmc/lib/agent-control.ts, plugins/cmc/bin/cmc.ts, plugins/cmc/hooks/panel-agents.tsx, test/agent-tell.test.ts
 - Hecho cuando: en la fila de un resultado, «To agent…» lo manda a un agente existente (como F5-T6) o a uno nuevo, citado como informe de otro agente, no como orden del usuario (igual que hoy al soltarlo al principal).
 - Verificar: `npm test`; sesión real con dos agentes.
 - Depende de: F5-T6
+- Notas: fuera de alcance (2026-11-21): escribir al subagente (F5-T6) y «Send result to main» cubren el caso; encadenar varios subagentes en secuencia sería una función propia, a planificar si hace falta.
 
-### F5-T8 · Abrir, cerrar y convivir con el resto  [S] [todo]
+### F5-T8 · Abrir, cerrar y convivir con el resto  [S] [done]
 - Para qué: que el panel esté cuando hace falta y no estorbe cuando no.
 - Skill: `plugin-authoring` (`PaneOpenArgs`: `focus`, `closeOnEscape`; `$.ui.close`) + `code-quality §references/typescript`
 - Archivos: plugins/cmc/hooks/panel.tsx, plugins/cmc/hooks/interface.ts, plugins/cmc/lib/config.ts, test/panel.test.tsx
 - Hecho cuando: usa solo mecanismos nativos del motor (panel, botones, diálogo); no regresión: con el panel cerrado o sin motor, `;;`, `/held`, `/send`, `/cmc:release`, `>>` y la CLI funcionan igual y los tests de antes siguen en verde; `/cmc` lo abre y lo cierra; ajuste `panel.autoOpen` (abrirse al retener el primer mensaje o al derivar), por defecto el que decida el ADR; Escape lo cierra; `/held` y los avisos siguen para quien no use el panel; sin panel disponible, `/cmc` dice por qué y sugiere `/held`.
 - Verificar: `npm test`; guion de Peterson.
 - Depende de: F5-T3
+- Verificado: npm test 343 (abre solo al retener o al arrancar un subagente, no si ya está abierto ni con el ajuste apagado; /cmc abre y cierra)
+- Cumple: el hub aparece cuando hace falta y se quita con /cmc o Escape, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/043-f5-t8-t5-apertura-y-nueva-tarea.md
+- Notas: ajuste `panelAutoOpen` (por defecto activado). Incluye el arreglo de la carrera al parar un subagente en espera.
 
 ### F5-T10 · Cabecera del hub: título, autoría y sitio para el logotipo  [S] [done]
 - Para qué: Peterson: «el nombre debe tener su título y decir by r3v3rs3, y espacio para el logotipo cuando lo tengamos; básicamente será un hub».
@@ -425,7 +433,7 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Archivos: README.md, docs/manual-test.md (parte C: panel), CHANGELOG.md, manifiestos (versión 1.1.0)
 - Hecho cuando: README con el panel (captura), `/held`, `/send`, `sendAtEnd` y escribir a agentes; parte C del guion manual; versión 1.1.0; suite, tipos, lint y validación en verde; Peterson pasa la parte C.
 - Verificar: `npm test`, `npx tsc --noEmit`, `npm run lint`, `claude plugin validate .`; guion de Peterson.
-- Depende de: F5-T5, F5-T7, F5-T8, F5-T10, F5-T11
+- Depende de: F5-T5, F5-T8, F5-T10, F5-T11
 
 ## Tareas ad hoc (fuera del plan original)
 
@@ -544,6 +552,7 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 | 2026-11-21 | Tarjeta ad hoc X-T4: el modo «ya» a mitad de turno no es fiable (5 de 12) | Batería de comparación JavaScript/TypeScript |
 | 2026-11-21 | Q1 resuelta: el plugin se llama `cmc` (Claude Message Control); prefijos `;;` y `>>` por defecto, configurables en F4-T1 | Decisión de Peterson |
 | 2026-11-21 | X-T5 y X-T6: interfaz en el motor (retener al pulsar Enter, `/held`, `/send`) y lo retenido llega solo al acabar el turno (D-035) | Prueba interactiva de Peterson |
+| 2026-11-21 | F5-T7 fuera de alcance; F5-T9 ya no depende de ella | Peterson pidió cerrar con T8, T5 y T9 para subir y publicar |
 | 2026-11-21 | F5-T10 (cabecera del hub: título, «by r3v3rs3», sitio para el logotipo) y F5-T11 (modelo y esfuerzo de los subagentes); F5-T9 depende de ellas | Petición de Peterson: «será un hub», elegir modelo y effort |
 | 2026-11-21 | Nueva fase F5: panel de control con ratón, agentes y mensajes a agentes; los adaptadores pasan a F6. Escribir a un agente entra en el alcance (le llega al acabar su turno); la conversación en tiempo real entre agentes que trabajan sigue fuera | Petición de Peterson: «haz el panel, eso es lo que nos aportaría, además de poder comunicar los agentes» |
 

@@ -102,7 +102,7 @@ describe('F3 — the dispatched agent has only the configured built-in tools', (
     assert.throws(() => buildCommand({ ...options, tools: ['Read(x,Bash)'] }), { code: 'BAD_TOOL' });
     assert.match(validateConfig({ dispatch: { tools: ['Read(x,Bash)'] } }).warnings[0] ?? '', /"dispatch\.tools" ignored/);
     assert.deepEqual(buildCommand({ ...options, tools: DEFAULT_TOOLS }).filter((arg) => arg.startsWith('--')).sort(), [
-      '--allowedTools', '--fork-session', '--output-format', '--permission-mode', '--resume', '--tools', '--verbose',
+      '--allowedTools', '--fork-session', '--input-format', '--output-format', '--permission-mode', '--resume', '--tools', '--verbose',
     ]);
   });
 });

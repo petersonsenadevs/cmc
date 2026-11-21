@@ -5,12 +5,14 @@
 // The user's text never becomes part of a command line: it is written to a
 // file in the agent's folder and fed to the agent through stdin.
 import { spawn, spawnSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   type ReturnMode,
   agentDir,
+  appendConversation,
+  appendInbox,
   createAgent,
   findAgent,
   isAlive,
@@ -73,6 +75,8 @@ export interface DispatchOptions {
   claude?: readonly string[];
   env?: NodeJS.ProcessEnv;
   restrictTools?: boolean;
+  /** How long its session stays open for the user's messages after it answers, in ms; 0 (the default) closes it at once. */
+  keepOpenMs?: number;
 }
 
 /**
@@ -102,7 +106,9 @@ export function buildCommand({ claude, mode, sessionId, worktree, permissionMode
   const badTool = tools.find((tool) => typeof tool !== 'string' || !TOOL_NAME.test(tool));
   if (badTool !== undefined) throw new CmcError('BAD_TOOL', `"${badTool}" is not a tool name a dispatched agent can be given.`);
 
-  const command = [...claude, '-p', '--output-format', 'stream-json', '--verbose', '--permission-mode', permissionMode];
+  // stream-json both ways: the supervisor keeps the input open, so the user can
+  // write to the agent while it works and after it answers.
+  const command = [...claude, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose', '--permission-mode', permissionMode];
   // --tools limits the built-in tools the agent has at all, whatever the
   // project or user settings allow; --allowedTools pre-approves them.
   if (restrictTools) {
@@ -134,6 +140,7 @@ export function dispatch({
   restrictTools = true,
   claude = [process.env.CMC_CLAUDE_BIN || 'claude'],
   env = process.env,
+  keepOpenMs = 0,
 }: DispatchOptions): AgentRecord {
   if (typeof task !== 'string' || task.trim() === '') throw new CmcError('EMPTY_TASK', 'There is no task to dispatch.');
   if (task.length > MAX_TEXT_LENGTH) {
@@ -152,15 +159,65 @@ export function dispatch({
   const text = prompt ?? (pack === null ? forkPrompt(task.trim()) : packPrompt(task.trim(), pack));
   const record = createAgent(
     sessionDir,
-    { task: task.trim(), mode, returnMode, cwd, worktree: worktreeOfAgent, baseCommit, command, contextWarning: pack?.warning ?? null },
+    { task: task.trim(), mode, returnMode, cwd, worktree: worktreeOfAgent, baseCommit, command, contextWarning: pack?.warning ?? null, keepOpenMs },
     id,
   );
   writeFileSync(join(record.dir, PROMPT_FILE), text, { mode: 0o600 });
 
-  // The supervisor outlives this process (a hook that must return at once).
+  return startRunner(record, cwd, env);
+}
+
+/** Starts the supervisor of an agent. It outlives this process (a hook that must return at once). */
+function startRunner(record: AgentRecord, cwd: string, env: NodeJS.ProcessEnv): AgentRecord {
   const runner = spawn(process.execPath, [RUNNER, record.dir], { cwd, env, detached: true, stdio: 'ignore', windowsHide: true });
   runner.unref();
   return updateAgentAt(record.dir, { runnerPid: runner.pid ?? null });
+}
+
+/** The command that resumes an agent's own session: the same tools and permissions, without forking or a new worktree. */
+export function resumeCommand(command: readonly string[], agentSessionId: string): string[] {
+  const kept: string[] = [];
+  for (let i = 0; i < command.length; i += 1) {
+    const arg = command[i] ?? '';
+    if (arg === '--resume' || arg === '--worktree') i += 1;
+    else if (arg !== '--fork-session') kept.push(arg);
+  }
+  return [...kept, '--resume', agentSessionId];
+}
+
+/**
+ * Writes to an agent. While its session is open (working, or waiting after an
+ * answer) the message goes to its inbox, and its supervisor hands it over: a
+ * working agent reads it after its current step. Once the session has closed,
+ * it is resumed with the message, in the folder it worked in.
+ * @returns The agent's record.
+ */
+export function tellAgent(sessionDir: string, id: string, text: string, env: NodeJS.ProcessEnv = process.env): AgentRecord {
+  const message = typeof text === 'string' ? text.trim() : '';
+  if (message === '') throw new CmcError('EMPTY_MESSAGE', 'There is nothing to send.');
+  if (message.length > MAX_TEXT_LENGTH) throw new CmcError('MESSAGE_TOO_LONG', `A message can be at most ${MAX_TEXT_LENGTH} characters long.`);
+  const record = findAgent(sessionDir, id);
+  if (record.state === 'starting' || record.state === 'running' || record.state === 'waiting') {
+    appendInbox(record.dir, message);
+    appendConversation(record.dir, 'you', message);
+    return record;
+  }
+  if (record.state === 'cancelled') throw new CmcError('AGENT_CANCELLED', `Agent ${record.id} was cancelled; start a new one instead.`);
+  if (!record.agentSessionId) {
+    throw new CmcError('AGENT_NO_SESSION', `Agent ${record.id} ${record.state} before it answered, so it has no session to resume.`);
+  }
+  const resumeCwd = record.worktreePath && existsSync(record.worktreePath) ? record.worktreePath : record.cwd;
+  appendConversation(record.dir, 'you', message);
+  writeFileSync(join(record.dir, PROMPT_FILE), message, { mode: 0o600 });
+  const resumed = updateAgentAt(record.dir, {
+    state: 'starting',
+    command: resumeCommand(record.command, record.agentSessionId),
+    resumeCwd,
+    pid: null,
+    endedAt: null,
+    exitCode: null,
+  });
+  return startRunner(resumed, resumeCwd, env);
 }
 
 /**
@@ -203,7 +260,7 @@ function killTree(pid: number | null): void {
  */
 export function cancelAgent(sessionDir: string, id: string): AgentRecord {
   const record = findAgent(sessionDir, id);
-  if (record.state !== 'starting' && record.state !== 'running') {
+  if (record.state !== 'starting' && record.state !== 'running' && record.state !== 'waiting') {
     throw new CmcError('AGENT_NOT_RUNNING', `Agent ${record.id} is not running (${record.state}).`);
   }
   // Marked first, so the supervisor does not report the kill as a failure.

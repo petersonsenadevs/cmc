@@ -12,7 +12,7 @@
     "cmc": "plugins/cmc/bin/cmc.ts"
   },
   "scripts": {
-    "test": "node --test",
+    "test": "node --import ./test-support/setup.ts --test",
     "lint": "node scripts/lint.ts",
     "types": "tsc --noEmit"
   },

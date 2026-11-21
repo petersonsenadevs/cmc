@@ -33,7 +33,12 @@ function shorten(text: string, length: number): string {
 export function resultText(agent: AgentRecord): string {
   const task = shorten(agent.task, TASK_PREVIEW);
   const lines: string[] = [];
-  if (agent.state === 'finished') {
+  if (agent.state === 'waiting') {
+    // An answer of an agent whose session is still open: short, and how to go on.
+    lines.push(`Subagent ${agent.id} answered (task "${task}"):`, agent.summary ?? '(no answer)');
+    if (agent.worktree !== null) lines.push('', `It works in its own worktree (branch worktree-${agent.worktree}); nothing is merged.`);
+    lines.push(`Write to it with ";;tell ${agent.id} <message>" or from the cmc panel.`);
+  } else if (agent.state === 'finished') {
     lines.push(`Agent ${agent.id} finished the task "${task}".`);
     if (agent.worktree === null) lines.push('It worked in the folder of the session.');
     else if (agent.changedFiles !== undefined && agent.changedFiles.length > 0) {
@@ -58,7 +63,7 @@ export function resultText(agent: AgentRecord): string {
  * @returns The record with the id of the held message.
  */
 export function returnResult(agent: AgentRecord): AgentRecord {
-  if (agent.state !== 'finished' && agent.state !== 'failed') return agent;
+  if (agent.state !== 'finished' && agent.state !== 'failed' && agent.state !== 'waiting') return agent;
   // The agent folder is <session>/agents/<id>.
   const session = dirname(dirname(agent.dir));
   const { message } = addMessage(session, { text: resultText(agent), source: agentSource(agent.id) });

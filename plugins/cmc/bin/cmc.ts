@@ -5,7 +5,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { parseAgentControl, parseDispatch, runAgentControl, startAgent, type DispatchOrigin } from '../lib/agent-control.ts';
-import { CONFIG_FILE, loadConfig, writeDefaultConfig, type LoadedConfig, setMode } from '../lib/config.ts';
+import { CONFIG_FILE, loadConfig, writeDefaultConfig, type LoadedConfig, setMode, keepOpenMsOf } from '../lib/config.ts';
 import { parseControl, runControl } from '../lib/control.ts';
 import { CmcError, errorCode } from '../lib/errors.ts';
 import { describeError, logEvent } from '../lib/log.ts';
@@ -51,6 +51,8 @@ The session is the one started in the current folder; name it with --session
                        show the agents dispatched from the session
   log <id>             show what an agent was asked and its latest steps or final answer
   cancel <id>          stop an agent
+  tell <id> <text>     write to a subagent (--stdin: the text on standard input); it reads it
+                       after its current step, or its closed session is resumed with it
   sessions [--all]     show the open sessions started in this folder (--all: every session)
   config [init]        show the settings in force and where the file is (init: write a file
                        with every setting at its default, to edit)
@@ -223,6 +225,7 @@ function originFor(flags: Flags): DispatchOrigin {
     permissionMode: config.dispatch.permissionMode,
     tools: config.dispatch.tools,
     restrictTools: config.dispatch.restrictTools,
+    keepOpenMs: keepOpenMsOf(config),
   };
 }
 
@@ -242,6 +245,14 @@ function dispatchCommand({ flags, positional }: ParsedArgs): string {
   const chosenMode = flags.pack ? 'pack' : flags.fork ? 'fork' : mode;
   const chosenReturn = flags.auto ? 'auto' : flags.held ? 'held' : returnMode;
   return startAgent(origin, task, { mode: chosenMode, returnMode: chosenReturn });
+}
+
+/** `tell <id> <text>` (or the text on standard input with --stdin): writes to a subagent. */
+function tell({ flags, positional }: ParsedArgs): string {
+  const [id, ...words] = positional;
+  const text = flags.stdin ? readFileSync(0, 'utf8') : words.join(' ');
+  if (id === undefined || text.trim() === '') throw new CmcError('BAD_USAGE', `"tell" needs an agent id and a message.\n\n${USAGE}`);
+  return runAgentControl(originFor(flags), { name: 'tell', id, text });
 }
 
 /** `agents`, `log <id>` and `cancel <id>` share their grammar with the control words. */
@@ -346,6 +357,7 @@ function main(argv: readonly string[]): string {
   if (name === 'config') return configCommand(parsed);
   if (name === 'dispatch') return dispatchCommand(parsed);
   if (name === 'agents' || name === 'log' || name === 'cancel') return agentCommand(name, parsed);
+  if (name === 'tell') return tell(parsed);
   if (QUEUE_COMMANDS.has(name)) return queueCommand(name, parsed);
   throw new CmcError('BAD_USAGE', `Unknown command "${name}".\n\n${USAGE}`);
 }

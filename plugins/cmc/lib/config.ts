@@ -40,6 +40,8 @@ export interface DispatchSettings {
    * so a worktree with only these changes is removed like one with none.
    */
   ignoreChanges: readonly string[];
+  /** How long a subagent's session stays open for the user's messages after it answers, in minutes; 0 closes it at once. */
+  keepOpenMinutes: number;
 }
 
 export interface CmcConfig {
@@ -75,6 +77,7 @@ export const DEFAULT_CONFIG: CmcConfig = Object.freeze({
     tools: Object.freeze(['Read', 'Glob', 'Grep', 'Edit', 'Write']),
     restrictTools: true,
     ignoreChanges: Object.freeze([]),
+    keepOpenMinutes: 10,
   }),
   retentionDays: 30,
 }) as CmcConfig;
@@ -149,7 +152,7 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
     const dispatch = raw.dispatch;
     if (!isRecord(dispatch) || Array.isArray(dispatch)) ignored('dispatch', 'it must be an object');
     else {
-      const knownDispatch = new Set(['context', 'return', 'permissionMode', 'tools', 'restrictTools', 'ignoreChanges']);
+      const knownDispatch = new Set(['context', 'return', 'permissionMode', 'tools', 'restrictTools', 'ignoreChanges', 'keepOpenMinutes']);
       for (const key of Object.keys(dispatch)) if (!knownDispatch.has(key)) warnings.push(`unknown setting "dispatch.${key}" ignored`);
       if (dispatch.context !== undefined) {
         if (dispatch.context === 'fork' || dispatch.context === 'pack') config.dispatch.context = dispatch.context;
@@ -169,6 +172,11 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
         const valid = Array.isArray(tools) && tools.length <= 50 && tools.every((tool): tool is string => typeof tool === 'string' && TOOL_NAME.test(tool));
         if (valid) config.dispatch.tools = Object.freeze([...tools]);
         else ignored('dispatch.tools', 'it must be a list of tool names such as "Read" or "Bash(npm test:*)"');
+      }
+      if (dispatch.keepOpenMinutes !== undefined) {
+        const minutes = dispatch.keepOpenMinutes;
+        if (typeof minutes === 'number' && Number.isInteger(minutes) && minutes >= 0 && minutes <= 240) config.dispatch.keepOpenMinutes = minutes;
+        else ignored('dispatch.keepOpenMinutes', 'it must be a whole number of minutes from 0 to 240');
       }
       if (dispatch.ignoreChanges !== undefined) {
         const paths = dispatch.ignoreChanges;
@@ -199,6 +207,13 @@ export function loadConfig(dataDir: string | undefined): LoadedConfig {
     return { config: DEFAULT_CONFIG, warnings: [`${CONFIG_FILE} ignored: ${why}; using the defaults`], path };
   }
   return { ...validateConfig(raw), path };
+}
+
+/** How long a subagent's session stays open after it answers, in ms: CMC_KEEP_OPEN_MS when set, else the setting. */
+export function keepOpenMsOf(config: CmcConfig, env: NodeJS.ProcessEnv = process.env): number {
+  const override = env.CMC_KEEP_OPEN_MS;
+  if (override !== undefined && /^\d+$/.test(override)) return Number(override);
+  return config.dispatch.keepOpenMinutes * 60_000;
 }
 
 /** The settings the panel's modes switch, and the values each one takes. */

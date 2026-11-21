@@ -18,6 +18,7 @@ import {
   openPanel,
   PANE_ID,
   parseAgents,
+  parseConversation,
   parseQueue,
   readModes,
   register,
@@ -208,6 +209,8 @@ describe('panel: what it reads and says', () => {
     );
     assert.match(dispatchToast('Dispatched to agent 6e3ccfc8: it inherits this conversation.'), /with the whole conversation as context/);
     assert.deepEqual(parseAgents('not json'), []);
+    assert.deepEqual(parseConversation('{"at":"x","role":"you","text":"hi"}\nbroken\n{"role":"robot","text":"no"}'), [{ at: 'x', role: 'you', text: 'hi' }]);
+    assert.deepEqual(stateMark('waiting'), { icon: '●', color: COLORS.accent });
   });
 
   it('uses the violet palette', () => {
@@ -451,10 +454,33 @@ describe('panel: subagents', () => {
     );
   }
 
-  it('lists each subagent; selecting one shows what was sent, with what context, and what it answered', async () => {
+  /** Writes a subagent's conversation as its supervisor does. */
+  function chat(w: ReturnType<typeof world>, id: string, entries: [string, string][]) {
+    const lines = entries.map(([role, text], index) => JSON.stringify({ at: `2026-11-21T10:0${index}:00.000Z`, role, text }));
+    writeFileSync(join(w.dir, 'agents', id, 'conversation.jsonl'), `${lines.join('\n')}\n`);
+  }
+  /** The chat bubbles of a drawing: who speaks, on which side, and what they say. */
+  function bubbles(tree: unknown): string[] {
+    return nodes(tree)
+      .filter((node) => node.type === 'Box' && (node.props.justifyContent === 'flex-end' || node.props.justifyContent === 'flex-start'))
+      .map((node) => {
+        const words = texts(node.props.children);
+        return `${node.props.justifyContent === 'flex-end' ? 'right' : 'left'} ${(words[0] ?? '').split('  ')[0]}: ${words[1] ?? ''}`;
+      });
+  }
+
+  it('lists each subagent; selecting one shows the conversation as a chat, in order, you on the right and it on the left', async () => {
     const w = world();
     await w.start();
     agent(w, { id: 'ab12cd34' });
+    chat(w, 'ab12cd34', [
+      ['you', 'summarise what we talked about'],
+      ['step', 'Read README.md'],
+      ['agent', 'We built a plugin that holds messages.'],
+      ['you', 'and the open tasks?'],
+      ['agent', 'F5-T7 and F5-T8.'],
+      ['note', 'Its session closed.'],
+    ]);
     addMessage(w.dir, { text: 'Agent ab12cd34 finished…', source: 'agent ab12cd34' });
     await press(await w.draw(), 'tab-agents');
     let tree = await w.draw();
@@ -462,15 +488,39 @@ describe('panel: subagents', () => {
     assert.ok(texts(tree).includes('· finished · 27s · whole conversation'));
     await press(tree, 'agent-pick-ab12cd34');
     tree = await w.draw();
-    assert.ok(texts(tree).includes('Sent with the whole conversation as context'));
-    assert.ok(texts(tree).includes('summarise what we talked about'));
-    assert.ok(texts(tree).includes('We built a plugin that holds messages.'));
+    assert.ok(texts(tree).some((text) => text.startsWith('Sent with the whole conversation as context')));
+    assert.deepEqual(bubbles(tree), [
+      'right You: summarise what we talked about',
+      'left Agent: We built a plugin that holds messages.',
+      'right You: and the open tasks?',
+      'left Agent: F5-T7 and F5-T8.',
+    ]);
+    assert.ok(texts(tree).includes('   › Read README.md'), 'its steps, between the messages');
+    assert.ok(texts(tree).includes('   — Its session closed.'));
     await press(tree, 'to-main-ab12cd34');
     await until(() => w.held().length === 0);
     assert.equal(w.submitted.length, 1);
   });
 
-  it('a working subagent can be stopped, and has no result to send yet', async () => {
+  it('writes to a subagent from its conversation: a waiting one gets it in its inbox', async () => {
+    const w = world();
+    await w.start();
+    agent(w, { id: 'cd34ef56', state: 'waiting', endedAt: null, runnerPid: process.pid, pid: process.pid });
+    chat(w, 'cd34ef56', [['you', 'first task'], ['agent', 'done']]);
+    await press(await w.draw(), 'tab-agents');
+    await press(await w.draw(), 'agent-pick-cd34ef56');
+    let tree = await w.draw();
+    assert.ok(texts(tree).includes('● waiting for you: write below, or it closes after a while'));
+    assert.equal(find(tree, 'tell-cd34ef56').props.placeholder, 'Write to cd34ef56');
+    await submitInput(tree, 'tell-cd34ef56', 'one more thing');
+    const inbox = readFileSync(join(w.dir, 'agents', 'cd34ef56', 'inbox.jsonl'), 'utf8');
+    assert.equal((JSON.parse(inbox.trim()) as { text: string }).text, 'one more thing');
+    tree = await w.draw();
+    assert.equal(bubbles(tree).at(-1), 'right You: one more thing');
+    assert.ok(texts(tree).includes('Sent to agent cd34ef56.'));
+  });
+
+  it('a working subagent can be stopped, has no result to send yet, and says it reads messages after its step', async () => {
     const w = world();
     await w.start();
     agent(w, { id: 'ef56ab78', state: 'running', endedAt: null, summary: null, mode: 'pack', runnerPid: process.pid, pid: process.pid });
@@ -479,7 +529,9 @@ describe('panel: subagents', () => {
     const tree = await w.draw();
     assert.ok(keys(tree).includes('stop-ef56ab78'));
     assert.ok(!keys(tree).includes('to-main-ef56ab78'));
-    assert.ok(texts(tree).includes('Sent with a summary of the conversation as context'));
+    assert.ok(texts(tree).some((text) => text.startsWith('Sent with a summary of the conversation as context')));
+    assert.equal(find(tree, 'tell-ef56ab78').props.placeholder, 'Write to ef56ab78: it reads it after its current step');
+    assert.deepEqual(bubbles(tree), ['right You: summarise what we talked about'], 'with no conversation yet, the task');
   });
 });
 

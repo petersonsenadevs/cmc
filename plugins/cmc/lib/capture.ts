@@ -3,7 +3,7 @@
 // control word, or passed on to the agent untouched.
 import { parseAgentControl, parseDispatch, runAgentControl, startAgent, type DispatchOrigin } from './agent-control.ts';
 import { parseControl, runControl } from './control.ts';
-import { DEFAULT_CONFIG, loadConfig, withPrefixes, type CmcConfig } from './config.ts';
+import { DEFAULT_CONFIG, keepOpenMsOf, loadConfig, withPrefixes, type CmcConfig } from './config.ts';
 import { CmcError } from './errors.ts';
 import { assertSessionId, sessionDir } from './paths.ts';
 import { addMessage } from './queue.ts';
@@ -63,6 +63,7 @@ function originOf(input: HookInput, dir: string, options: CaptureOptions, config
     permissionMode: config.dispatch.permissionMode,
     tools: config.dispatch.tools,
     restrictTools: config.dispatch.restrictTools,
+    keepOpenMs: keepOpenMsOf(config, options.env ?? process.env),
   };
 }
 

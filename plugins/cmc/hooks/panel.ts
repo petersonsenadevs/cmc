@@ -40,6 +40,8 @@ export interface PanelElements {
     borderStyle?: string;
     borderColor?: string;
     paddingX?: number;
+    justifyContent?: 'flex-start' | 'flex-end' | 'center';
+    width?: number | string;
   }>;
   Text: Make<{ bold?: boolean; dimColor?: boolean; color?: string; italic?: boolean; wrap?: 'truncate-end' | 'wrap'; maxLines?: number }>;
   Button: Make<{
@@ -224,6 +226,7 @@ export function elapsed(startedAt: string, endedAt: string | null, now: number =
 /** The icon and colour of a subagent's state. */
 export function stateMark(state: string): { icon: string; color?: string } {
   if (state === 'running' || state === 'starting') return { icon: '⟳', color: COLORS.working };
+  if (state === 'waiting') return { icon: '●', color: COLORS.accent };
   if (state === 'finished') return { icon: '✓', color: COLORS.done };
   if (state === 'failed' || state === 'lost') return { icon: '✗', color: COLORS.error };
   return { icon: '■' };
@@ -242,6 +245,39 @@ export function firstSentence(text: string): string {
   const line = text.replace(/^\[cmc\]\s*/, '').split('\n')[0] ?? '';
   const end = line.search(/\.(\s|$)/);
   return end < 0 ? line : line.slice(0, end + 1);
+}
+
+/** One entry of a subagent's conversation, as its supervisor records it. */
+export interface ChatEntry {
+  at: string;
+  role: 'you' | 'agent' | 'step' | 'aside' | 'note';
+  text: string;
+}
+
+/** How many entries of a conversation the panel shows: the latest. */
+const CHAT_SHOWN = 40;
+
+/** Reads a conversation file's text; a line that cannot be read is skipped. */
+export function parseConversation(text: string): ChatEntry[] {
+  return text.split('\n').flatMap((line) => {
+    try {
+      const value: unknown = JSON.parse(line);
+      if (typeof value !== 'object' || value === null) return [];
+      const entry = value as Record<string, unknown>;
+      const roles = ['you', 'agent', 'step', 'aside', 'note'];
+      return typeof entry.text === 'string' && typeof entry.role === 'string' && roles.includes(entry.role)
+        ? [{ at: typeof entry.at === 'string' ? entry.at : '', role: entry.role as ChatEntry['role'], text: entry.text }]
+        : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** The time of an entry, for its bubble: hours and minutes. */
+export function chatTime(at: string): string {
+  const date = new Date(at);
+  return Number.isNaN(date.getTime()) ? '' : `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 /** Reads the agents list the command line prints; nothing when it cannot be read. */
@@ -411,6 +447,13 @@ async function resultToMain($: PanelEngine, agentId: string): Promise<string | n
   return (await sendHeld($, [String(index + 1)])).text;
 }
 
+/** Writes to a subagent: it reads it after its current step, or its closed session is resumed with it. */
+async function tellOne($: PanelEngine, agentId: string, text: string): Promise<string | null> {
+  if (text.trim() === '') return null;
+  const told = await cli($, ['tell', agentId, '--stdin'], text);
+  return firstSentence(told.stdout.trim());
+}
+
 async function stopAgent($: PanelEngine, agentId: string): Promise<string | null> {
   return firstSentence((await cli($, ['cancel', agentId])).stdout.trim());
 }
@@ -551,8 +594,8 @@ function drawMessages(el: PanelElements, $: PanelEngine, entries: HeldEntry[], w
   return Box({ flexDirection: 'column', gap: 1, children: [list, bulk, box] });
 }
 
-function drawAgents(el: PanelElements, $: PanelEngine, agents: AgentEntry[], held: HeldEntry[]): Element {
-  const { Box, Text, Button } = el;
+function drawAgents(el: PanelElements, $: PanelEngine, agents: AgentEntry[], held: HeldEntry[], chat: ChatEntry[]): Element {
+  const { Box, Text, Button, Input } = el;
   if (agents.length === 0) {
     return Text({ dimColor: true, children: 'No subagents yet. Select a message and press "To subagent", or type a task in Messages.' });
   }
@@ -576,33 +619,60 @@ function drawAgents(el: PanelElements, $: PanelEngine, agents: AgentEntry[], hel
     });
     if (!isSelected) return line;
     const working = agent.state === 'running' || agent.state === 'starting';
+    const open = working || agent.state === 'waiting';
     const resultHeld = held.some((entry) => entry.source === `agent ${agent.id}`);
+    const entries = (chat.length > 0 ? chat : [{ at: agent.startedAt, role: 'you' as const, text: agent.task }]).slice(-CHAT_SHOWN);
+    const bubble = (entry: ChatEntry, index: number): Element => {
+      const time = chatTime(entry.at);
+      if (entry.role === 'step') return Box({ key: `chat-${index}`, children: Text({ dimColor: true, wrap: 'truncate-end', children: `   › ${entry.text}` }) });
+      if (entry.role === 'note') return Box({ key: `chat-${index}`, children: Text({ dimColor: true, italic: true, children: `   — ${entry.text}` }) });
+      const mine = entry.role === 'you';
+      return Box({
+        key: `chat-${index}`,
+        flexDirection: 'row',
+        justifyContent: mine ? 'flex-end' : 'flex-start',
+        children: Box({
+          flexDirection: 'column',
+          width: '85%',
+          borderStyle: 'round',
+          borderColor: mine ? COLORS.accent : entry.role === 'aside' ? undefined : COLORS.done,
+          paddingX: 1,
+          children: [
+            Text({ bold: true, color: mine ? COLORS.accent : COLORS.done, dimColor: entry.role === 'aside', children: `${mine ? 'You' : entry.role === 'aside' ? 'Agent (to your hooks)' : 'Agent'}${time === '' ? '' : `  ${time}`}` }),
+            Text({ wrap: 'wrap', dimColor: entry.role === 'aside', children: entry.text }),
+          ],
+        }),
+      });
+    };
     const conversation = Box({
       flexDirection: 'column',
       marginLeft: 2,
-      borderStyle: 'round',
-      borderColor: COLORS.accent,
-      paddingX: 1,
+      gap: 1,
       children: [
-        Text({ dimColor: true, children: `Sent with ${agent.mode === 'fork' ? 'the whole conversation' : 'a summary of the conversation'} as context` }),
-        Box({ flexDirection: 'row', columnGap: 1, children: [Text({ bold: true, color: COLORS.accent, children: 'You  ' }), Text({ wrap: 'wrap', children: agent.task })] }),
-        working
-          ? Text({ color: COLORS.working, children: `⟳ working for ${elapsed(agent.startedAt, null)}…` })
-          : Box({
-              flexDirection: 'row',
-              columnGap: 1,
-              children: [Text({ bold: true, color: mark.color, children: 'Agent' }), Text({ wrap: 'wrap', children: agent.answer ?? `(${agent.state}, no answer)` })],
+        Text({
+          dimColor: true,
+          children: `Sent with ${agent.mode === 'fork' ? 'the whole conversation' : 'a summary of the conversation'} as context${agent.branch ? ` · branch ${agent.branch}` : ''}${agent.changedFiles.length > 0 ? ` · changed: ${agent.changedFiles.join(', ')}` : ''}`,
+        }),
+        Box({ flexDirection: 'column', children: entries.map(bubble) }),
+        working ? Text({ color: COLORS.working, children: `⟳ working for ${elapsed(agent.startedAt, null)}…` }) : null,
+        agent.state === 'waiting' ? Text({ color: COLORS.accent, children: '● waiting for you: write below, or it closes after a while' }) : null,
+        agent.state === 'cancelled'
+          ? null
+          : Input({
+              key: `tell-${agent.id}`,
+              placeholder: working ? `Write to ${agent.id}: it reads it after its current step` : open ? `Write to ${agent.id}` : `Write to ${agent.id}: its session is resumed`,
+              submitLabel: 'Send',
+              onSubmit: (value) => act($, () => tellOne($, agent.id, value)),
             }),
-        agent.branch ? Text({ dimColor: true, children: `Branch ${agent.branch}${agent.changedFiles.length > 0 ? ` · changed: ${agent.changedFiles.join(', ')}` : ' · no changes'}` }) : null,
         Box({
           flexDirection: 'row',
           columnGap: 1,
           flexWrap: 'wrap',
           children: [
-            working ? Button({ key: `stop-${agent.id}`, label: 'Stop', onPress: () => act($, () => stopAgent($, agent.id)) }) : null,
-            !working && resultHeld
+            resultHeld
               ? Button({ key: `to-main-${agent.id}`, label: 'Send result to main', variant: 'primary', onPress: () => act($, () => resultToMain($, agent.id)) })
               : null,
+            open ? Button({ key: `stop-${agent.id}`, label: 'Stop', dimColor: true, onPress: () => act($, () => stopAgent($, agent.id)) }) : null,
           ],
         }),
       ],
@@ -640,7 +710,7 @@ export async function drawPanel($: PanelEngine, e: PaneRenderEvent): Promise<Ele
   const agents = await agentsOf($);
   const body =
     ui.view === 'agents'
-      ? drawAgents(el, $, agents, entries)
+      ? drawAgents(el, $, agents, entries, ui.selected === null ? [] : parseConversation(await sessionFile($, `agents/${ui.selected}/conversation.jsonl`)))
       : ui.view === 'activity'
         ? drawActivity(el, ACTIVITY_KEPT)
         : drawMessages(el, $, entries, working, atEnd, modes.holdTarget ?? 'main');

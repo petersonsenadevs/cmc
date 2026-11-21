@@ -76,7 +76,7 @@ describe('buildCommand', () => {
 
   it('forks the session with limited permissions and a tool list', () => {
     assert.deepEqual(buildCommand(base), [
-      'claude', '-p', '--output-format', 'stream-json', '--verbose',
+      'claude', '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--verbose',
       '--permission-mode', 'acceptEdits',
       '--tools', 'Read,Glob,Grep,Edit,Write',
       '--allowedTools', 'Read,Glob,Grep,Edit,Write',
@@ -124,7 +124,7 @@ describe('dispatch', () => {
     const called = JSON.parse(readFileSync(recordFile, 'utf8')) as { argv: string[]; stdin: string; cwd: string };
     assert.equal(called.stdin, forkPrompt(task));
     assert.equal(called.argv.join(' ').includes('INJECTED'), false);
-    assert.deepEqual(called.argv.slice(0, 3), ['-p', '--output-format', 'stream-json']);
+    assert.deepEqual(called.argv.slice(0, 5), ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json']);
     assert.deepEqual(called.argv.slice(-3), ['--resume', SESSION, '--fork-session']);
     assert.equal(existsSync(join(base, 'INJECTED')), false);
   });

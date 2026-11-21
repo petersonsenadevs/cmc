@@ -2,7 +2,7 @@
 // Registry of the agents dispatched from one session: a folder per agent
 // under the session folder, with its record, its prompt and its log.
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { uptime } from 'node:os';
 import { dirname, join } from 'node:path';
 import { writeFileAtomic } from './atomic-write.ts';
@@ -17,9 +17,23 @@ const AGENT_ID = /^[a-f0-9]{8}$/;
 export const PROMPT_FILE = 'prompt.txt';
 export const OUTPUT_FILE = 'output.jsonl';
 export const STDERR_FILE = 'stderr.log';
+/** The conversation with the agent, one entry per line, in the order things happened. */
+export const CONVERSATION_FILE = 'conversation.jsonl';
+/** Messages the user wrote to the agent, for its supervisor to hand over. */
+export const INBOX_FILE = 'inbox.jsonl';
 
-/** `lost`: recorded as running, but its process is gone and it left no result. */
-export type AgentState = 'starting' | 'running' | 'finished' | 'failed' | 'cancelled' | 'lost';
+/**
+ * `waiting`: it answered and its session stays open for the user to write to it.
+ * `lost`: recorded as running, but its process is gone and it left no result.
+ */
+export type AgentState = 'starting' | 'running' | 'waiting' | 'finished' | 'failed' | 'cancelled' | 'lost';
+
+/** One entry of the conversation with an agent. `step`: a tool it used; `aside`: what it said after the user's own hooks made it go on. */
+export interface ConversationEntry {
+  at: string;
+  role: 'you' | 'agent' | 'step' | 'aside' | 'note';
+  text: string;
+}
 
 /** How a dispatched agent got its context. */
 export type AgentMode = 'fork' | 'pack';
@@ -57,6 +71,12 @@ export interface AgentRecord {
   changedFiles?: string[];
   /** Executable and arguments, as an array. */
   command: string[];
+  /** How long its session stays open for the user's messages after it answers, in ms; 0 closes it at once. */
+  keepOpenMs?: number;
+  /** How many times it has answered. */
+  turns?: number;
+  /** Folder a resumed session runs in: the worktree it worked in, when it was kept. */
+  resumeCwd?: string | null;
   /** Process that supervises the agent. */
   runnerPid: number | null;
   /** The agent process itself. */
@@ -75,7 +95,7 @@ export interface AgentRecord {
 }
 
 /** What the caller decides about a new agent; the rest of the record starts empty. */
-export type NewAgentFields = Pick<AgentRecord, 'task' | 'mode' | 'cwd' | 'worktree' | 'command' | 'baseCommit' | 'contextWarning' | 'returnMode'>;
+export type NewAgentFields = Pick<AgentRecord, 'task' | 'mode' | 'cwd' | 'worktree' | 'command' | 'baseCommit' | 'contextWarning' | 'returnMode' | 'keepOpenMs'>;
 
 /** When the machine last booted, in milliseconds since the epoch. */
 export function bootTime(): number {
@@ -135,6 +155,37 @@ export function noteActiveAgents(sessionDir: string): void {
   writeFileAtomic(join(sessionDir, AGENTS_DIR, ACTIVE_FILE), `${JSON.stringify({ active })}\n`);
 }
 
+/** Adds an entry to the conversation with an agent. */
+export function appendConversation(dir: string, role: ConversationEntry['role'], text: string): void {
+  const entry: ConversationEntry = { at: new Date().toISOString(), role, text };
+  // Owner only: the conversation can quote files of the project.
+  appendFileSync(join(dir, CONVERSATION_FILE), `${JSON.stringify(entry)}\n`, { mode: 0o600 });
+}
+
+/** The conversation with an agent, in order; a line that cannot be read is skipped. */
+export function readConversation(dir: string): ConversationEntry[] {
+  let text: string;
+  try {
+    text = readFileSync(join(dir, CONVERSATION_FILE), 'utf8');
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return [];
+    throw error;
+  }
+  return text.split('\n').flatMap((line) => {
+    try {
+      const entry: unknown = JSON.parse(line);
+      return isRecord(entry) && typeof entry.text === 'string' && typeof entry.role === 'string' ? [entry as unknown as ConversationEntry] : [];
+    } catch {
+      return [];
+    }
+  });
+}
+
+/** Leaves a message for the agent's supervisor to hand over. */
+export function appendInbox(dir: string, text: string): void {
+  appendFileSync(join(dir, INBOX_FILE), `${JSON.stringify({ at: new Date().toISOString(), text })}\n`, { mode: 0o600 });
+}
+
 /** @returns A new agent id: eight hex characters. */
 export function newAgentId(): string {
   return randomBytes(4).toString('hex');
@@ -174,7 +225,7 @@ export function updateAgentAt(dir: string, patch: Partial<AgentRecord>): AgentRe
 
 /** An agent recorded as active whose processes are gone did not end well. */
 function withLiveness(record: AgentRecord): AgentRecord {
-  const active = record.state === 'starting' || record.state === 'running';
+  const active = record.state === 'starting' || record.state === 'running' || record.state === 'waiting';
   if (!active) return record;
   // Started before the machine last booted: its pids now belong to other processes.
   if (Date.parse(record.startedAt) < bootTime()) return { ...record, state: 'lost' };

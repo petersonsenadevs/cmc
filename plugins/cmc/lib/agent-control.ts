@@ -5,7 +5,7 @@
 // sees none of it.
 import { findAgent, listAgents, type AgentMode, type ReturnMode } from './agents-registry.ts';
 import { dispatchReceipt, formatAgentLog, formatAgents } from './agents-view.ts';
-import { cancelAgent, dispatch } from './dispatch.ts';
+import { cancelAgent, dispatch, tellAgent } from './dispatch.ts';
 import { CmcError } from './errors.ts';
 import { drainMessages, listMessages } from './queue.ts';
 
@@ -53,11 +53,14 @@ export interface DispatchOrigin {
   permissionMode?: string;
   tools?: readonly string[];
   restrictTools?: boolean;
+  /** How long a subagent's session stays open after it answers, in ms. */
+  keepOpenMs?: number;
 }
 
 export type AgentControl =
   | { name: 'agents' }
   | { name: 'log' | 'cancel'; id: string }
+  | { name: 'tell'; id: string; text: string }
   | ({ name: 'dispatch'; position: number } & DispatchChoice);
 
 /**
@@ -71,6 +74,11 @@ export function parseAgentControl(rest: string, defaults: DispatchChoice = DEFAU
   const [first, second, ...more] = words;
 
   if (name === 'agents') return words.length === 0 ? { name } : null;
+  if (name === 'tell') {
+    // ;;tell <id> <message>: the message is everything after the id, as typed.
+    const match = rest.match(/^tell\s+(\S+)\s+([\s\S]+)$/);
+    return match && match[1] !== undefined && match[2] !== undefined && AGENT_ID.test(match[1]) ? { name, id: match[1], text: match[2].trim() } : null;
+  }
   if (name === 'log' || name === 'cancel') {
     return first !== undefined && second === undefined && AGENT_ID.test(first) ? { name, id: first } : null;
   }
@@ -118,6 +126,7 @@ export function startAgent(origin: DispatchOrigin, task: string, { mode, returnM
     ...(origin.permissionMode === undefined ? {} : { permissionMode: origin.permissionMode }),
     ...(origin.tools === undefined ? {} : { tools: origin.tools }),
     ...(origin.restrictTools === undefined ? {} : { restrictTools: origin.restrictTools }),
+    ...(origin.keepOpenMs === undefined ? {} : { keepOpenMs: origin.keepOpenMs }),
   });
   return dispatchReceipt(agent);
 }
@@ -131,6 +140,12 @@ export function runAgentControl(origin: DispatchOrigin, control: AgentControl): 
       return formatAgents(listAgents(origin.dir));
     case 'log':
       return formatAgentLog(findAgent(origin.dir, control.id));
+    case 'tell': {
+      const agent = tellAgent(origin.dir, control.id, control.text, origin.env);
+      return agent.state === 'starting' && agent.resumeCwd !== undefined
+        ? `Agent ${agent.id} had closed its session; it is resumed with your message.`
+        : `Sent to agent ${agent.id}${agent.state === 'running' ? ': it reads it after its current step' : ''}.`;
+    }
     case 'cancel': {
       const agent = cancelAgent(origin.dir, control.id);
       const left = agent.worktreePath ? ` Its work so far is kept in ${agent.worktreePath}.` : '';

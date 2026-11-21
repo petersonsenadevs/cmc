@@ -4,6 +4,11 @@
       {
         "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/prompt-capture.mjs\"", "timeout": 10 }]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-release.mjs\"", "timeout": 10 }]
+      }
     ]
   }
 }

@@ -29,8 +29,10 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-012 · `cmc release --now` (desde fuera) entrega por `PostToolUse` con la cabecera factual y, si no hay más pasos, por `Stop` · ver 009
 - D-013 · La CLI encuentra el directorio de datos por la marca `cmc.json` (no hay estado fuera de `CLAUDE_PLUGIN_DATA`) y la sesión por carpeta · ver 010
 - D-014 · El indicador `✉ N held` es un módulo de hooks (`hooks/indicator.mjs`, `$.ui.status`), no la `statusLine` del usuario · ver 011
+- D-015 · Las sesiones sin actividad en 30 días se borran con su cola al arrancar otra; configurable en F4-T1 · ver 012
 
 ## Reglas del cliente y del proyecto
+- El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012
 
 ## Lo que no funcionó (no repetir)
 - El `additionalContext` de `PostToolUse` con redacción imperativa no se obedece; con la cabecera factual sí · ver 002, 009

@@ -24,7 +24,7 @@
 | Fase | Entregable verificable por el usuario | Estado |
 |---|---|---|
 | F1 | Esqueleto: escribes `;; texto` con el agente trabajando, no se interrumpe, y `/cmc:release` o el fin del turno se lo entrega | doing |
-| F2 | Control completo: ver, editar, borrar y soltar de forma selectiva, modo «ya», indicador visible y CLI `cmc` desde otra terminal | doing |
+| F2 | Control completo: ver, editar, borrar y soltar de forma selectiva, modo «ya», indicador visible y CLI `cmc` desde otra terminal | done |
 | F3 | Derivar: `>> tarea` arranca un segundo agente con contexto en su worktree, en paralelo; se ve, se cancela y su resultado vuelve a la cola (retenido o automático) | todo |
 | F4 | Entrega: configuración, revisión de seguridad, README e instalación desde marketplace local | todo |
 
@@ -166,16 +166,17 @@
 - Devlog: senzu/devlog/2026-11-21/011-f2-t4-indicador.md
 - Notas: es un módulo de hooks (`hooks/indicator.mjs`, D-014), no `mods/` ni `statusline/`: un plugin sí puede aportar la línea de estado, así que no hace falta documentar ajuste manual.
 
-### F2-T5 · Conservar la cola tras reiniciar, reanudar o compactar  [S] [doing]
+### F2-T5 · Conservar la cola tras reiniciar, reanudar o compactar  [S] [done]
 - Para qué: no perder mensajes retenidos si se cierra la terminal.
 - Skill: `code-quality §references/testing "Qué testear y qué no"`
 - Archivos: lib/sessions.mjs, hooks/session-register.mjs, test/persistence.test.mjs
 - Hecho cuando: al reanudar una sesión (`--resume`, `--continue`) la cola sigue ahí y se avisa de cuántos hay; las colas de sesiones de más de N días se limpian.
 - Verificar: `npm test` y prueba real: retener, cerrar, `claude --continue`, soltar.
 - Depende de: F2-T3
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 117 pass, 0 fail; prueba real: 2 mensajes retenidos, proceso cerrado, `claude -p /cmc:release --continue` reanuda la misma sesión (`21ac41be…`), el hook devuelve `cmc: 2 held message(s) are waiting in this session` y el agente responde `guava mango`
+- Cumple: cerrar la terminal no pierde los mensajes retenidos: siguen ahí al reanudar y se avisa, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/012-f2-t5-cola-tras-reanudar.md
+- Notas: retención de 30 días (D-015), configurable en F4-T1. La lógica quedó en lib/sessions.mjs (ya existía de F2-T3).
 
 ## F3 — Derivar a otro agente
 
@@ -295,6 +296,17 @@
 
 ## Tareas ad hoc (fuera del plan original)
 
+### X-T1 · Revisar y corregir la portabilidad entre sistemas operativos  [M] [doing]
+- Para qué: que el plugin funcione igual en Windows, macOS y Linux; Peterson lo pidió el 2026-11-21 («cuidado con las barras y las rutas»).
+- Skill: sin skill: revisión de rutas, renombrados y permisos (subagente)
+- Archivos: lib/atomic-write.mjs, lib/queue.mjs, lib/session-state.mjs, lib/sessions.mjs, scripts/e2e.mjs, tests
+- Hecho cuando: los renombrados atómicos reintentan en Windows; las carpetas se comparan por ruta real y sin distinguir mayúsculas donde toca; el cerrojo no confunde un error de permisos con «ocupado» fuera de Windows; `scripts/e2e.mjs` respeta `CLAUDE_CONFIG_DIR` y `CLAUDE_BIN`; los ejecutables llevan el bit de ejecución en git; revisado el resto del código en busca de supuestos de un solo sistema.
+- Verificar: `npm test` y `npm run lint`; lista de lo que no se ha podido ejecutar fuera de Windows.
+- Depende de: —
+- Verificado: —
+- Cumple: —
+- Devlog: —
+
 ## Cambios al plan
 | Fecha | Cambio | Motivo |
 |---|---|---|
@@ -306,6 +318,7 @@
 | 2026-11-21 | ADR 001: `/cmc:release` a mitad de turno actúa al terminar el turno; el modo «ya» de F2-T2 se hace con el prompt `;;now` y `additionalContext` de `UserPromptSubmit` | Evidencia de F1-T1 |
 | 2026-11-21 | F1-T6 dividida: la parte interactiva del guion pasa a F1-T6b (bloqueada, la ejecuta Peterson) | El agente no puede conducir la interfaz interactiva |
 | 2026-11-21 | `;;end` adelantado de F2-T2 a F1-T5 (D-010) | Sin él no había forma de activar la entrega al terminar a mitad de turno |
+| 2026-11-21 | Tarjeta ad hoc X-T1: portabilidad entre sistemas operativos | Petición de Peterson: el plugin debe ser multi-OS |
 | 2026-11-21 | Q1 resuelta: el plugin se llama `cmc` (Claude Message Control); prefijos `;;` y `>>` por defecto, configurables en F4-T1 | Decisión de Peterson |
 
 ## Riesgos y bloqueos

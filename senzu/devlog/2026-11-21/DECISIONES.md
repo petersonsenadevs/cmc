@@ -55,3 +55,10 @@
 - **Elección:** D-014 módulo de hooks `hooks/indicator.mjs` que lee la cola cada segundo y fija `✉ N held`.
 - **Motivo:** se instala con el plugin, sin tocar la configuración del usuario, y no pisa su `statusLine` propia.
 - **Consecuencias:** el módulo corre en el motor (sin Node), así que no comparte código con el core; exige una versión de Claude Code con módulos de hooks (la 2.1.330 los tiene). El mismo motor ofrece el evento `prompt.submit` y la «puerta» `queue`, que podrían capturar un mensaje al teclearlo y no al acabar la herramienta: anotado como mejora posible, fuera del plan.
+
+## dev-012 — Retención de sesiones inactivas
+- **Contexto:** cada sesión deja una carpeta con su cola en el directorio de datos.
+- **Opciones:** no borrar nunca; borrar al cerrar la sesión; borrar por antigüedad.
+- **Elección:** D-015 se borran las sesiones sin actividad desde hace más de 30 días, al arrancar otra sesión.
+- **Motivo:** borrar al cerrar impediría reanudar con la cola intacta; no borrar nunca acumula mensajes olvidados.
+- **Consecuencias:** lo retenido en una sesión abandonada más de 30 días se pierde; el plazo será configurable (F4-T1) y 0 desactiva la limpieza.

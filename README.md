@@ -96,6 +96,9 @@ Things worth knowing:
   `;;end`.
 - Held messages belong to the session they were typed in and are stored on your machine, under the plugin
   data directory (`~/.claude/plugins/data/…/sessions/<session id>/queue.jsonl`).
+- The queue survives closing the terminal: resume the session (`claude --continue` or `--resume`) and the
+  held messages are still there; cmc reminds you how many. A compaction does not touch them. Sessions left
+  inactive for more than 30 days are cleaned up, with whatever they still held.
 - If the plugin itself fails, your prompt goes to the agent as if the plugin were not installed, and the
   error is written to `cmc.log` in the data directory. A message is never dropped silently.
 

@@ -23,6 +23,7 @@ defecto que se está aplicando y que falta confirmar.
   dependencias) y el core confía en sus tipos. (propuesta)
 - Un hook nunca pierde un mensaje: ante un error propio deja pasar el prompt y registra el error. (plan F1-T4)
 - El texto del usuario nunca se interpola en una línea de shell: procesos con argumentos en array, sin `shell`. (brief)
+- **Multi-OS (Windows, macOS, Linux)**: rutas siempre con `path.join`/`path.resolve`, nunca separadores escritos a mano; las carpetas se comparan por ruta real (enlaces simbólicos) y sin distinguir mayúsculas donde el sistema no las distingue; los renombrados se reintentan en Windows. (regla de Peterson, 2026-11-21)
 - Salida por `process.stdout.write` / `process.stderr.write`; `console.log` no se usa. (muro de Senzu)
 
 ## Front

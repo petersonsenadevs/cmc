@@ -300,6 +300,18 @@
 
 ## Tareas ad hoc (fuera del plan original)
 
+### X-T3 · Migrar el plugin a TypeScript ejecutado por Node  [M] [blocked]
+- Para qué: Peterson quería el plugin en TypeScript; el agente lo dejó en JavaScript por un malentendido.
+- Skill: `code-quality §references/typescript` (tipado estricto, validación en los bordes)
+- Archivos: plugins/cmc/**/*.mjs → *.ts, test/**, test-support/**, scripts/**, plugins/cmc/hooks/hooks.json, plugins/cmc/commands/*.md, package.json, tsconfig.json, README.md
+- Hecho cuando: todo el código es `.ts` y Node lo ejecuta sin compilar (sin `dist/`); `tsc --noEmit` en modo estricto sin errores; los hooks y los comandos llaman a los `.ts`; la instalación por marketplace sigue copiando solo `plugins/cmc`; el Node mínimo real está comprobado en la documentación y escrito en el README; `/adoptar` vuelto a ejecutar con TypeScript.
+- Verificar: `npm test` (los 146 tests), `npm run lint`, `npx tsc --noEmit`, `claude plugin validate`, instalación en configuración aislada y `scripts/e2e`.
+- Depende de: —
+- Verificado: —
+- Cumple: —
+- Devlog: —
+- Notas: bloqueada. Necesito: que Peterson borre `senzu/conventions.md` y `senzu/conventions.json`; están selladas con «sin TypeScript» (D-022) y el muro impide al agente tocarlas. F3-T3 espera a esta tarjeta para no escribir más código en JavaScript.
+
 ### X-T2 · Convertir el repositorio en marketplace con el plugin en su carpeta  [S] [done]
 - Para qué: instalar `cmc` como quiere Peterson, añadiendo un marketplace y luego el plugin, sin que la instalación arrastre `senzu/`, tests ni configuración del proyecto.
 - Skill: sin skill: reestructuración de carpetas y manifiesto
@@ -340,6 +352,7 @@
 | 2026-11-21 | Tarjeta ad hoc X-T2: el repositorio pasa a ser un marketplace y el plugin a `plugins/cmc/`; adelanta parte de F4-T3 | Peterson: quería instalación por marketplace y luego plugin |
 | 2026-11-21 | Nueva fase F5 (adaptadores para otros agentes), sin tarjetas todavía: se planifica cuando Claude Code esté terminado | Decisión de Peterson: «primero Claude y luego, cuando esté perfecto, pasamos» |
 | 2026-11-21 | El lenguaje queda en JavaScript sobre Node, sin TypeScript (D-022) | Decisión de Peterson |
+| 2026-11-21 | Tarjeta ad hoc X-T3: migración a TypeScript; D-022 sustituida por D-024; F3-T3 espera | Peterson: «quería TypeScript» |
 | 2026-11-21 | Q1 resuelta: el plugin se llama `cmc` (Claude Message Control); prefijos `;;` y `>>` por defecto, configurables en F4-T1 | Decisión de Peterson |
 
 ## Riesgos y bloqueos

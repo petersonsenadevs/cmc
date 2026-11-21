@@ -36,7 +36,8 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-019 · Lint del proyecto = `node --check` sobre cada `.mjs` (`scripts/lint.mjs`); sin ESLint ni `tsc`: no hay dependencias ni TypeScript · ver 003
 - D-020 · Lo que solo se ve en la interfaz interactiva (aviso de retención, indicador) lo comprueba Peterson con `docs/manual-test.md` parte B; el agente verifica en headless con `scripts/e2e.mjs` · ver 007
 - D-021 · El repositorio es un marketplace (`r3v3rs3`) y el plugin vive en `plugins/cmc/`; se instala con `marketplace add` + `install cmc@r3v3rs3` · ver 016
-- D-022 · JavaScript sobre Node, sin TypeScript ni compilación: Claude Code ya trae Node y así están hechos Senzu y Corvus · ver 017
+- D-022 · JavaScript sin TypeScript: sustituida por D-024 (fue un malentendido del agente) · ver 017
+- D-024 · El plugin va en TypeScript ejecutado directamente por Node, sin compilar; `tsc --noEmit` solo en desarrollo · ver 018
 - D-023 · Primero Claude Code; los adaptadores para otros agentes (Codex y los que falten) van después, en la fase 5 · ver 017
 
 ## Reglas del cliente y del proyecto
@@ -49,7 +50,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - En Windows, la carpeta que fue directorio de trabajo de un proceso sigue bloqueada un rato tras su salida: los tests no lanzan procesos dentro de su carpeta temporal · ver 015
 
 ## Pendientes abiertos
-- [desde 2026-11-21] Peterson copia el `conventions.md` sellado (el agente no puede: el muro ya protege el archivo) · ver 017
+- [desde 2026-11-21] Peterson borra `senzu/conventions.md` y `senzu/conventions.json` (sellados con «sin TypeScript») para poder migrar y volver a ejecutar /adoptar · ver 018
 - [desde 2026-11-21] El «types» de `verify-build` falla porque Senzu se instaló con stack `node-api` (lanza `tsc`): reinstalar Senzu con los comandos reales · ver 017
 - [desde 2026-11-21] F1-T6b: Peterson pasa la parte B de `docs/manual-test.md` en la interfaz interactiva
 - [desde 2026-11-21] Ejecutar la suite en macOS y Linux (solo se ha corrido en Windows) · ver 014

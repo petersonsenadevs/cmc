@@ -90,3 +90,10 @@
 - **Elección:** D-022 JavaScript sobre Node, sin TypeScript ni compilación. D-023 primero se termina Claude Code; los adaptadores van después, en una fase 5.
 - **Motivo:** de Peterson: Claude Code ya usa Node para funcionar, y Senzu y Corvus están hechos así; los adaptadores, cuando lo de Claude esté perfecto.
 - **Consecuencias:** no se añade TypeScript ni como dependencia de desarrollo; el «types» de `verify-build` seguirá en rojo hasta que Senzu se reinstale con los comandos reales del proyecto. En la fase 5 habrá que separar de `lib/` lo específico de Claude Code y volver a ejecutar `/adoptar`.
+
+## dev-018 — El plugin va en TypeScript
+- **Contexto:** D-022 fijó «JavaScript sin TypeScript» a partir de una respuesta de Peterson que el agente interpretó mal. Peterson lo aclaró: quería TypeScript.
+- **Opciones:** TypeScript compilado a `dist/`; TypeScript ejecutado directamente por Node; JavaScript con JSDoc comprobado.
+- **Elección:** D-024 TypeScript ejecutado directamente por Node (ficheros `.ts`, sin compilar), con `typescript` solo como dependencia de desarrollo para `tsc --noEmit`. Sustituye a D-022.
+- **Motivo:** es lo que quiere Peterson, y sin compilación la instalación por marketplace sigue copiando la carpeta tal cual.
+- **Consecuencias:** sube el Node mínimo (a confirmar en la documentación); solo se puede usar sintaxis borrable (sin `enum`); hay que borrar las convenciones selladas y volver a ejecutar `/adoptar`.

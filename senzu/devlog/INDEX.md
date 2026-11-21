@@ -21,3 +21,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 015 | 2026-11-21 | F3-T2: lanzador de agentes derivados       | feature  | —        | F3-T2 |
 | 016 | 2026-11-21 | X-T2: marketplace y plugin en plugins/cmc  | refactor | 003      | X-T2  |
 | 017 | 2026-11-21 | /adoptar: convenciones del proyecto        | decisión | 002      | —     |
+| 018 | 2026-11-21 | Decisión corregida: TypeScript             | decisión | 017      | X-T3  |

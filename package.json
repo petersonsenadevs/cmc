@@ -1,0 +1,14 @@
+{
+  "name": "cmc",
+  "version": "0.1.0",
+  "description": "Claude Message Control: a Claude Code plugin to hold your messages and release them when you decide.",
+  "author": "Peterson Sena (r3v3rs3)",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "bin": { "cmc": "bin/cmc.mjs" },
+  "scripts": {
+    "test": "node --test",
+    "lint": "node scripts/lint.mjs"
+  }
+}

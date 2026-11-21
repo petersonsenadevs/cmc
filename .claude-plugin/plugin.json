@@ -1,0 +1,7 @@
+{
+  "name": "cmc",
+  "version": "0.1.0",
+  "description": "Claude Message Control: hold the messages you type while the agent works and release them when you decide, without interrupting it.",
+  "author": { "name": "Peterson Sena (r3v3rs3)" },
+  "keywords": ["queue", "messages", "hold", "release", "hooks"]
+}

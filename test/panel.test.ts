@@ -20,6 +20,7 @@ import {
   MARK,
   MODES,
   modesSummary,
+  newTaskHint,
   noteActivity,
   openPanel,
   PANE_ID,
@@ -374,6 +375,24 @@ describe('panel: header, tabs and modes', () => {
     assert.ok(texts(await w.draw()).some((text) => text.startsWith('No subagents yet.')));
     await press(await w.draw(), 'tab-activity');
     assert.ok(texts(await w.draw()).includes('Nothing has happened yet.'));
+  });
+
+  it('starts a new subagent task from the Subagents view, saying what it will run with', async () => {
+    assert.equal(newTaskHint(readModes('')), 'It gets this whole conversation. Change it in Settings.');
+    assert.equal(
+      newTaskHint(readModes('{"dispatch":{"context":"pack","model":"sonnet","effort":"low"}}')),
+      'It gets a summary of this conversation, runs with sonnet, effort low. Change it in Settings.',
+    );
+    const w = world();
+    await w.start();
+    await press(await w.draw(), 'tab-agents');
+    const tree = await w.draw();
+    const box = find(tree, 'new-task-box');
+    assert.equal(box.type, 'Input');
+    assert.equal(box.props.submitLabel, 'Start');
+    assert.ok(texts(tree).includes('New subagent task'));
+    await submitInput(tree, 'new-task-box', '   ');
+    assert.ok(texts(await w.draw()).includes('Type the task first.'));
   });
 });
 

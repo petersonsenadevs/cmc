@@ -784,16 +784,45 @@ function drawMessages(el: PanelElements, $: PanelEngine, entries: HeldEntry[], w
         },
         onSubmit: (value) => act($, () => holdTyped($, value)),
       }),
-      Button({ key: 'box-to-subagent', label: 'Send what I typed to a subagent', dimColor: true, onPress: () => act($, () => dispatchTyped($, ui.draft)) }),
     ],
   });
   return Box({ flexDirection: 'column', gap: 1, children: [list, bulk, box] });
 }
 
-function drawAgents(el: PanelElements, $: PanelEngine, agents: AgentEntry[], held: HeldEntry[], chat: ChatEntry[]): Element {
+/** What a new subagent will run with, for the new-task box. */
+export function newTaskHint(modes: Record<string, string>): string {
+  const context = modes['dispatch.context'] === 'pack' ? 'a summary of this conversation' : 'this whole conversation';
+  return `It gets ${context}${modelAndEffort(modes['dispatch.model'], modes['dispatch.effort']).replace(/^ · /, ', runs with ').replace(' · ', ', ')}. Change it in Settings.`;
+}
+
+/** The new-task box, on top of the Subagents view. */
+function drawNewTask(el: PanelElements, $: PanelEngine, modes: Record<string, string>): Element {
+  const { Box, Text, Input } = el;
+  return Box({
+    key: 'new-task',
+    flexDirection: 'column',
+    children: [
+      Text({ bold: true, children: 'New subagent task' }),
+      Input({
+        key: 'new-task-box',
+        placeholder: 'What should a new subagent do? It works apart, in its own worktree.',
+        submitLabel: 'Start',
+        onSubmit: (value) => act($, () => dispatchTyped($, value)),
+      }),
+      Text({ dimColor: true, wrap: 'wrap', children: newTaskHint(modes) }),
+    ],
+  });
+}
+
+function drawAgents(el: PanelElements, $: PanelEngine, agents: AgentEntry[], held: HeldEntry[], chat: ChatEntry[], modes: Record<string, string>): Element {
   const { Box, Text, Button, Input } = el;
+  const newTask = drawNewTask(el, $, modes);
   if (agents.length === 0) {
-    return Text({ dimColor: true, children: 'No subagents yet. Select a message and press "To subagent", or type a task in Messages.' });
+    return Box({
+      flexDirection: 'column',
+      gap: 1,
+      children: [newTask, Text({ dimColor: true, children: 'No subagents yet. Start one above, or press "To subagent" on a held message.' })],
+    });
   }
   const rows = agents.map((agent) => {
     const mark = stateMark(agent.state);
@@ -878,7 +907,7 @@ function drawAgents(el: PanelElements, $: PanelEngine, agents: AgentEntry[], hel
     });
     return Box({ key: `agent-sel-${agent.id}`, flexDirection: 'column', children: [line, conversation] });
   });
-  return Box({ flexDirection: 'column', children: rows });
+  return Box({ flexDirection: 'column', gap: 1, children: [newTask, Box({ flexDirection: 'column', children: rows })] });
 }
 
 function drawActivity(el: PanelElements, limit: number): Element {
@@ -927,7 +956,7 @@ export async function drawPanel($: PanelEngine, e: PaneRenderEvent): Promise<Ele
     ui.view === 'settings'
       ? drawModes(el, $, modes)
       : ui.view === 'agents'
-      ? drawAgents(el, $, agents, entries, ui.selected === null ? [] : parseConversation(await sessionFile($, `agents/${ui.selected}/conversation.jsonl`)))
+      ? drawAgents(el, $, agents, entries, ui.selected === null ? [] : parseConversation(await sessionFile($, `agents/${ui.selected}/conversation.jsonl`)), modes)
       : ui.view === 'activity'
         ? drawActivity(el, ACTIVITY_KEPT)
         : drawMessages(el, $, entries, working, atEnd, modes.holdTarget ?? 'main');

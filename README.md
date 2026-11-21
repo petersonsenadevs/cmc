@@ -77,6 +77,11 @@ How sure each delivery is:
   two steps and, in every test so far, acted on it; but it is the model that weighs text arriving
   mid-task, so treat it as best effort. Whatever happens, a message is handed over exactly once.
 
+### Indicator
+
+While something is held, `✉ 2 held` is pinned under the prompt. It follows the queue within about a second,
+whoever changes it (the session or the `cmc` command line), and disappears when the queue is empty.
+
 Things worth knowing:
 
 - A message is held when it **starts** with `;;`. Anything else goes to the agent as usual.

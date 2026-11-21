@@ -27,6 +27,7 @@ Start `claude --plugin-dir .` in a scratch folder and give it a slow task, for e
 | B3 | `;; also say papaya`, Enter, then `;;end`, Enter | Notice `1 held message(s) will be released when this turn ends`; when the task is done the agent continues by itself and says "papaya". |
 | B4 | `;; also say mango`, Enter, then `/cmc:release`, Enter, **before the task ends** | The command does nothing until the turn ends; then it runs and the agent says "mango". |
 | B5 | (agent idle) `;;` and Enter | Notice `Nothing to hold…`; nothing is queued. |
+| B6 | (agent idle) `;; one`, then `;; two`, then `;;clear` | Under the prompt a status line shows `✉ 1 held`, then `✉ 2 held`, within about a second of each message, and disappears after `;;clear`. |
 
-Write down for each row: pass or fail, and what the notice looked like on screen. B1, B3 and B4 are the ones
-the headless run cannot prove about the terminal UI.
+Write down for each row: pass or fail, and what the notice looked like on screen. B1, B3, B4 and B6 are the
+ones the headless run cannot prove about the terminal UI.

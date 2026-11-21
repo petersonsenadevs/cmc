@@ -13,7 +13,7 @@
 - F3-T3 se detiene antes de escribir código: el módulo del worktree se hará ya en TypeScript.
 
 ## Commits
-- (este) docs(senzu): replace the no-TypeScript decision and plan the migration
+- `ca5c1a7` docs(senzu): replace the no-TypeScript decision, plan the migration
 
 ## Decisiones (resumen; detalle en DECISIONES.md)
 - D-024 TypeScript ejecutado por Node, sin compilar; sustituye a D-022 (ver DECISIONES.md#dev-018).

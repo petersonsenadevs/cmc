@@ -1,8 +1,7 @@
-# Convenciones del proyecto (PROPUESTA de /adoptar, sin sellar)
-
-Analizado el 2026-11-21 sobre 37 módulos (`plugins/cmc/**`, `test/**`, `test-support/**`, `scripts/**`) y 32 commits.
-**Pendiente del ok de Peterson para sellar**: hasta entonces este archivo no lleva el sello de inmutabilidad ni existe
-`senzu/conventions.json`. Queda una decisión abierta que cambia varias reglas: **lenguaje** (ver «Pendiente de decidir»).
+# Convenciones del proyecto (adoptadas con /adoptar)
+<!-- senzu:inmutable -->
+Analizado el 2026-11-21 sobre 37 módulos (`plugins/cmc/**`, `test/**`, `test-support/**`, `scripts/**`) y 32 commits. Estas convenciones GANAN a las preferencias de Senzu.
+Selladas con el ok de Peterson el 2026-11-21. Para cambiarlas: borrar este archivo y `senzu/conventions.json`, y volver a ejecutar `/adoptar`.
 
 ## Naming
 - Archivos en `kebab-case.mjs` — ej. `plugins/cmc/lib/agents-registry.mjs`, `plugins/cmc/hooks/prompt-capture.mjs`.
@@ -35,7 +34,7 @@ Analizado el 2026-11-21 sobre 37 módulos (`plugins/cmc/**`, `test/**`, `test-su
 - Un agente derivado nunca corre con `bypassPermissions` (D-002).
 - Errores: no se tragan; un `catch` que ignora algo lleva un comentario con el motivo.
 - Salida por `process.stdout.write` / `process.stderr.write`; `console.*` no se usa. El texto de los mensajes no se registra.
-- Tipos como JSDoc (`@param`, `@returns`, `@typedef`) en todo lo exportado.
+- Tipos como JSDoc (`@param`, `@returns`, `@typedef`) en todo lo exportado; no hay TypeScript (D-022).
 
 ## Front
 - No aplica: sin interfaz web. El indicador es un módulo de hooks del motor (`hooks/indicator.mjs`), sin `node:` (D-014).
@@ -64,16 +63,11 @@ Analizado el 2026-11-21 sobre 37 módulos (`plugins/cmc/**`, `test/**`, `test-su
 - `spike/`: código desechable de los experimentos; no se importa desde el producto.
 - Lo generado por Senzu (`CLAUDE.md`, `.claude/**`, `senzu/senzu.json`).
 
-## Pendiente de decidir (no se sella hasta resolverlo)
-- **Lenguaje.** Hoy: JavaScript `.mjs` con tipos en JSDoc que nadie comprueba. Propuesta: mantenerlo y comprobar el JSDoc con
-  `tsc --checkJs` como dependencia solo de desarrollo. Alternativa: TypeScript ejecutado directamente por Node (≥ 22.18), sin
-  compilar. Cambia las reglas de extensión de archivo, tipos y Node mínimo.
-- **Adaptadores para otros agentes** (Codex y los que falten). Hoy `lib/` mezcla lógica neutra (cola, estado, control) con
-  cosas de Claude Code (`capture`, `release`, `sessions`, `dispatch`, `paths`). Si va a haber más adaptadores, la regla a
-  sellar sería: núcleo sin nada específico de un agente y una carpeta de adaptador por agente. Es un cambio de
-  arquitectura que necesita su propia fase en el plan.
+## Decidido al sellar
+- **Lenguaje: JavaScript sobre Node, sin TypeScript ni compilación** (D-022). Claude Code ya trae Node para ejecutar los hooks y es como están hechos Senzu y Corvus. Los tipos se documentan en JSDoc.
+- **Primero Claude Code; los adaptadores para otros agentes (Codex y los que falten), después** (D-023), cuando el plugin esté terminado. Entonces se separará un núcleo sin nada específico de un agente y una carpeta por adaptador, y se volverá a ejecutar `/adoptar` para sellar esa regla. Hasta entonces `lib/` puede conocer Claude Code.
 
-## Reglas ejecutables propuestas (irán a `senzu/conventions.json` al sellar; hoy dan 0 coincidencias)
+## Reglas ejecutables (en `senzu/conventions.json`; al sellar dan 0 coincidencias)
 | Archivos | Veta | Por qué |
 |---|---|---|
 | `\.mjs$` | `\brequire\(` | ESM: `import`, no `require` |

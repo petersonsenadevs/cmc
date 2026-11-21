@@ -300,16 +300,17 @@
 
 ## Tareas ad hoc (fuera del plan original)
 
-### X-T3 · Migrar el plugin a TypeScript ejecutado por Node  [M] [doing]
+### X-T3 · Migrar el plugin a TypeScript ejecutado por Node  [M] [done]
 - Para qué: Peterson quería el plugin en TypeScript; el agente lo dejó en JavaScript por un malentendido.
 - Skill: `code-quality §references/typescript` (tipado estricto, validación en los bordes)
 - Archivos: plugins/cmc/**/*.mjs → *.ts, test/**, test-support/**, scripts/**, plugins/cmc/hooks/hooks.json, plugins/cmc/commands/*.md, package.json, tsconfig.json, README.md
 - Hecho cuando: todo el código es `.ts` y Node lo ejecuta sin compilar (sin `dist/`); `tsc --noEmit` en modo estricto sin errores; los hooks y los comandos llaman a los `.ts`; la instalación por marketplace sigue copiando solo `plugins/cmc`; el Node mínimo real está comprobado en la documentación y escrito en el README; `/adoptar` vuelto a ejecutar con TypeScript.
 - Verificar: `npm test` (los 146 tests), `npm run lint`, `npx tsc --noEmit`, `claude plugin validate`, instalación en configuración aislada y `scripts/e2e`.
 - Depende de: —
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npx tsc --noEmit` → exit 0 (de 666 errores a 0); `npm test` → 146 pass, 0 fail; `npm run lint` → 38 modules checked; `verify-build` → PASS lint, types y test; sesión real con los hooks en `.ts` (`mango guava papaya` tras `;;top 2`, `cmc hold` y `;;end`); instalación por marketplace en configuración aislada, con el hook ejecutándose desde la caché
+- Cumple: el plugin está en TypeScript, que es lo que Peterson quería, y Node lo ejecuta sin compilar, así que se sigue instalando copiando la carpeta
+- Devlog: senzu/devlog/2026-11-21/019-x-t3-migracion-a-typescript.md
+- Notas: tipado hecho por dos subagentes y revisado; destapó seis fallos reales, corregidos. Node mínimo 22.18 (documentación). Sin probar: Node 22.18 exacto, macOS y Linux. `spike/` sigue en `.mjs`.
 - Notas: desbloqueada el 2026-11-21 (Peterson borró las convenciones selladas). F3-T3 espera a esta tarjeta para no escribir más código en JavaScript.
 
 ### X-T2 · Convertir el repositorio en marketplace con el plugin en su carpeta  [S] [done]

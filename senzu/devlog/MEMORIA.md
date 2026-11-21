@@ -33,12 +33,13 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-016 · Derivar: por defecto fork de la sesión (`--resume <id> --fork-session`), paquete de contexto como alternativa y respaldo · ver 013
 - D-017 · El worktree del derivado lo crea `--worktree cmc-<id>` de Claude Code; sin git, misma carpeta con aviso · ver 013
 - D-018 · Cada agente derivado corre bajo un supervisor desacoplado; el prompt entra por stdin, nunca por la línea de comandos · ver 015
-- D-019 · Lint del proyecto = `node --check` sobre cada `.mjs` (`scripts/lint.mjs`); sin ESLint ni `tsc`: no hay dependencias ni TypeScript · ver 003
+- D-019 · Lint = `node --check` sobre cada módulo (`scripts/lint.ts`), sin ESLint; los tipos los comprueba `tsc --noEmit` desde D-024 · ver 003, 019
 - D-020 · Lo que solo se ve en la interfaz interactiva (aviso de retención, indicador) lo comprueba Peterson con `docs/manual-test.md` parte B; el agente verifica en headless con `scripts/e2e.mjs` · ver 007
 - D-021 · El repositorio es un marketplace (`r3v3rs3`) y el plugin vive en `plugins/cmc/`; se instala con `marketplace add` + `install cmc@r3v3rs3` · ver 016
 - D-022 · JavaScript sin TypeScript: sustituida por D-024 (fue un malentendido del agente) · ver 017
 - D-024 · El plugin va en TypeScript ejecutado directamente por Node, sin compilar; `tsc --noEmit` solo en desarrollo · ver 018
 - D-023 · Primero Claude Code; los adaptadores para otros agentes (Codex y los que falten) van después, en la fase 5 · ver 017
+- D-025 · Tipado estricto sin escapes (`strict`, sin `any` ni `@ts-ignore`; entradas como `unknown`; solo sintaxis borrable); `npm run types` en cada verificación · ver 019
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012

@@ -97,3 +97,10 @@
 - **Elección:** D-024 TypeScript ejecutado directamente por Node (ficheros `.ts`, sin compilar), con `typescript` solo como dependencia de desarrollo para `tsc --noEmit`. Sustituye a D-022.
 - **Motivo:** es lo que quiere Peterson, y sin compilación la instalación por marketplace sigue copiando la carpeta tal cual.
 - **Consecuencias:** sube el Node mínimo (a confirmar en la documentación); solo se puede usar sintaxis borrable (sin `enum`); hay que borrar las convenciones selladas y volver a ejecutar `/adoptar`.
+
+## dev-019 — Tipado estricto sin escapes
+- **Contexto:** al migrar a TypeScript había que decidir cuánto rigor.
+- **Opciones:** `strict` con `any` donde cueste; o estricto del todo.
+- **Elección:** D-025 `strict` + `noUncheckedIndexedAccess`, sin `any`, `@ts-ignore` ni `!`; lo que entra por un hook o sale de `JSON.parse` es `unknown` y se estrecha; solo sintaxis borrable (`erasableSyntaxOnly`), porque Node no transforma el código.
+- **Motivo:** el plugin intercepta los mensajes del usuario; el tipado estricto destapó seis fallos reales en la primera pasada.
+- **Consecuencias:** `npm run types` (`tsc --noEmit`) forma parte de la verificación de cada tarea.

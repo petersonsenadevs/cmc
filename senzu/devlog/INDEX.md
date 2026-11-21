@@ -19,3 +19,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 013 | 2026-11-21 | F3-T1: el fork de sesión a mitad de turno  | decisión | —        | F3-T1 |
 | 014 | 2026-11-21 | X-T1: portabilidad Windows, macOS y Linux  | fix      | 004, 010 | X-T1  |
 | 015 | 2026-11-21 | F3-T2: lanzador de agentes derivados       | feature  | —        | F3-T2 |
+| 016 | 2026-11-21 | X-T2: marketplace y plugin en plugins/cmc  | refactor | 003      | X-T2  |

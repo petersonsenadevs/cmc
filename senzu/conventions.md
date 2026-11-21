@@ -12,8 +12,10 @@ defecto que se está aplicando y que falta confirmar.
 - Comandos del plugin en minúscula y una palabra: `/cmc:release`, `/cmc:queue`, `/cmc:dispatch`, `/cmc:agents`. (brief)
 
 ## Estructura
-- `lib/` core puro, testeable sin Claude Code; `hooks/` adaptadores finos sin lógica; `bin/cmc.mjs` CLI;
-  `commands/` comandos del plugin; `test/` tests. (brief, sección «Arquitectura» del plan)
+- El repositorio es un **marketplace** (`.claude-plugin/marketplace.json`, nombre `r3v3rs3`) y el plugin vive en
+  `plugins/cmc/`: solo esa carpeta se instala. Dentro: `lib/` core puro, testeable sin Claude Code; `hooks/`
+  adaptadores finos sin lógica; `bin/cmc.mjs` CLI; `commands/` comandos del plugin. Fuera del plugin, en la raíz:
+  `test/`, `test-support/`, `scripts/`, `docs/`, `senzu/`. (decisión de Peterson, 2026-11-21, D-021)
 - Node ≥ 20, ESM (`.mjs`, `import`/`export`), **sin dependencias de npm ni paso de build**. (brief)
 - El estado solo se escribe bajo `${CLAUDE_PLUGIN_DATA}`, nunca en `${CLAUDE_PLUGIN_ROOT}`. (brief)
 - Cabecera de autoría en cada fichero del core: `// cmc — … Author: Peterson Sena (r3v3rs3).` (brief)

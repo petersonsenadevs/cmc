@@ -76,3 +76,10 @@
 - **Elección:** D-018 un supervisor desacoplado (`lib/agent-runner.mjs`) ejecuta `claude`, le pasa el prompt por stdin, guarda la salida y anota el estado final. La línea de comandos se construye como array y nunca lleva texto del usuario.
 - **Motivo:** el supervisor da un estado fiable (terminado, fallido, cancelado) y un sitio donde, en F3-T6, devolver el resultado a la cola; stdin evita inyección y el límite de longitud de la línea de comandos en Windows.
 - **Consecuencias:** dos procesos por agente; cancelar mata el árbol (`taskkill /T /F` en Windows, grupo de procesos en POSIX).
+
+## dev-016 — El repositorio es un marketplace
+- **Contexto:** el plugin estaba en la raíz del repositorio, junto a `senzu/`, `.claude/` y los tests, y el marketplace se dejaba para F4-T3. Peterson quería instalarlo añadiendo un marketplace y después el plugin.
+- **Opciones:** plugin en la raíz con `marketplace.json` apuntando a `./`; o plugin en su propia carpeta.
+- **Elección:** D-021 marketplace `r3v3rs3` en la raíz (`.claude-plugin/marketplace.json`) y plugin en `plugins/cmc/`; tests, scripts y documentación de desarrollo se quedan fuera.
+- **Motivo:** la instalación copia la carpeta del plugin: así solo viaja el producto. Deja sitio para más plugins del mismo autor.
+- **Consecuencias:** `--plugin-dir` apunta ahora a `plugins/cmc`; la CLI instalada queda en la caché de plugins de Claude Code (F4-T3 documentará cómo ponerla en el PATH).

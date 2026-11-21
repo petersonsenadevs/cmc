@@ -35,6 +35,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-018 · Cada agente derivado corre bajo un supervisor desacoplado; el prompt entra por stdin, nunca por la línea de comandos · ver 015
 - D-019 · Lint del proyecto = `node --check` sobre cada `.mjs` (`scripts/lint.mjs`); sin ESLint ni `tsc`: no hay dependencias ni TypeScript · ver 003
 - D-020 · Lo que solo se ve en la interfaz interactiva (aviso de retención, indicador) lo comprueba Peterson con `docs/manual-test.md` parte B; el agente verifica en headless con `scripts/e2e.mjs` · ver 007
+- D-021 · El repositorio es un marketplace (`r3v3rs3`) y el plugin vive en `plugins/cmc/`; se instala con `marketplace add` + `install cmc@r3v3rs3` · ver 016
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012

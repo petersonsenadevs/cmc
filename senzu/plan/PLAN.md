@@ -14,6 +14,7 @@
 - **Riesgos:** ver sección final
 
 ## Arquitectura (decidida al planificar)
+- **Desde el 2026-11-21 (D-021):** el repositorio es un marketplace (`.claude-plugin/marketplace.json`, nombre `r3v3rs3`) y el plugin vive en `plugins/cmc/`. Las rutas de abajo (`lib/`, `hooks/`, `bin/`, `commands/`) cuelgan de `plugins/cmc/`; `test/`, `test-support/` y `scripts/` siguen en la raíz y no se instalan.
 - `lib/` — core puro y testeable sin Claude Code: `queue.mjs` (cola JSONL por sesión, vaciado atómico), `sessions.mjs` (registro de sesiones por carpeta), `config.mjs`, `dispatch.mjs` (lanzador), `context-pack.mjs`.
 - `hooks/` — adaptadores finos: leen el JSON del hook por stdin, llaman al core y devuelven la salida del hook. Sin lógica propia.
 - `bin/cmc.mjs` — CLI externa (otra terminal) sobre el mismo core.
@@ -298,6 +299,18 @@
 
 ## Tareas ad hoc (fuera del plan original)
 
+### X-T2 · Convertir el repositorio en marketplace con el plugin en su carpeta  [S] [done]
+- Para qué: instalar `cmc` como quiere Peterson, añadiendo un marketplace y luego el plugin, sin que la instalación arrastre `senzu/`, tests ni configuración del proyecto.
+- Skill: sin skill: reestructuración de carpetas y manifiesto
+- Archivos: .claude-plugin/marketplace.json, plugins/cmc/**, test/**, scripts/**, package.json, README.md
+- Hecho cuando: `claude plugin marketplace add <repo>` y `claude plugin install cmc@r3v3rs3` instalan solo el contenido de `plugins/cmc`; los tests y el script de extremo a extremo siguen en verde con las rutas nuevas.
+- Verificar: `npm test`, `claude plugin validate .` y `./plugins/cmc`, instalación en una configuración aislada y `scripts/e2e.mjs`.
+- Depende de: —
+- Verificado: `npm test` → 146 pass, 0 fail; `claude plugin validate .` → marketplace Validation passed; instalación en configuración aislada: `marketplace add` → `Successfully added marketplace: r3v3rs3`, `install cmc@r3v3rs3` → `Successfully installed plugin`, y en la caché solo hay `.claude-plugin`, `bin`, `commands`, `hooks`, `lib`; `scripts/e2e.mjs` con la ruta nueva entrega `guava`
+- Cumple: el plugin se instala añadiendo el marketplace y después el plugin, y la instalación no arrastra nada del proyecto, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/016-x-t2-marketplace-y-plugin.md
+- Notas: no instalado en la configuración real de Peterson ni probada una sesión con el plugin instalado (solo `--plugin-dir`). Licencia, icono y PATH de la CLI siguen en F4-T3.
+
 ### X-T1 · Revisar y corregir la portabilidad entre sistemas operativos  [M] [done]
 - Para qué: que el plugin funcione igual en Windows, macOS y Linux; Peterson lo pidió el 2026-11-21 («cuidado con las barras y las rutas»).
 - Skill: sin skill: revisión de rutas, renombrados y permisos (subagente)
@@ -323,6 +336,7 @@
 | 2026-11-21 | `;;end` adelantado de F2-T2 a F1-T5 (D-010) | Sin él no había forma de activar la entrega al terminar a mitad de turno |
 | 2026-11-21 | Tarjeta ad hoc X-T1: portabilidad entre sistemas operativos | Petición de Peterson: el plugin debe ser multi-OS |
 | 2026-11-21 | ADR 002: F3-T3 usa el `--worktree` de Claude Code en vez de crear el worktree a mano | Evidencia de F3-T1 |
+| 2026-11-21 | Tarjeta ad hoc X-T2: el repositorio pasa a ser un marketplace y el plugin a `plugins/cmc/`; adelanta parte de F4-T3 | Peterson: quería instalación por marketplace y luego plugin |
 | 2026-11-21 | Q1 resuelta: el plugin se llama `cmc` (Claude Message Control); prefijos `;;` y `>>` por defecto, configurables en F4-T1 | Decisión de Peterson |
 
 ## Riesgos y bloqueos

@@ -20,7 +20,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-003 · El resultado del derivado vuelve retenido; el retorno automático es un ajuste · ver 001
 - D-004 · Producto en inglés (código, comandos, README, ADR); devlog y plan en castellano · ver 001
 - D-005 · Captura con `UserPromptSubmit` bloqueando los prompts con prefijo (funciona a mitad de turno) · ver 002
-- D-006 · Liberar: `/cmc:release` (a mitad de turno actúa al terminar) y `Stop` con `decision: block` en una sola continuación · ver 002
+- D-006 · Liberar: `/cmc:release` (a mitad de turno actúa al terminar) y `Stop` con `decision: block` (la parte «una sola continuación» la sustituye D-036) · ver 002
 - D-007 · Modo «ya»: prompt `;;now` + `additionalContext` con cabecera «[cmc] The user released their held messages…» · ver 002
 - D-008 · Los comandos pasan `${CLAUDE_PLUGIN_DATA}` y `${CLAUDE_SESSION_ID}` como argumentos y llevan `disable-model-invocation: true` · ver 002
 - D-009 · La cola se toca siempre bajo cerrojo por directorio y se reescribe con temporal + renombrado · ver 004
@@ -49,6 +49,8 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-032 · El derivado tiene solo las herramientas integradas configuradas (`--tools`); `dispatch.restrictTools: false` lo quita a cambio de coste (el fork pierde la caché) · ver 027
 - D-033 · Licencia MIT (elegida por el agente; cambiable) y versión 1.0.0 · ver 028
 - D-034 · Un mensaje sale de la cola solo cuando su envío se ha aceptado (`send` lee, `take <ids>` saca) · ver 029
+- D-035 · Lo retenido mientras el agente trabaja llega solo al acabar su turno (`sendAtEnd`, por defecto); `false` retiene hasta soltar · ver 031
+- D-036 · `Stop` entrega aunque otro hook Stop esté continuando el turno (sin bucle: lo entregado sale de la cola) · ver 031
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012

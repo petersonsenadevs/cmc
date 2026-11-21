@@ -167,3 +167,16 @@
 - **Elección:** D-034 leer sin vaciar (`send`), enviar, y `take <ids>` solo con el prompt aceptado.
 - **Motivo:** reponer después cambia el orden y deja una ventana sin el mensaje; por id no importa lo que haya pasado entre medias.
 - **Consecuencias:** si el envío falla el mensaje sigue retenido y se avisa; un mensaje borrado entre enviar y tomar simplemente ya no está.
+
+## dev-029 — Lo retenido llega solo al acabar el turno
+- **Contexto:** prueba de Peterson: lo retenido no llegó al acabar el agente porque esperaba a un `/send`; él lo esperaba solo («ya es obvio»).
+- **Opciones:** seguir reteniendo hasta soltar a mano; entregar al acabar el turno por defecto, con ajuste para retener de verdad.
+- **Elección:** D-035 entregar al acabar el turno (`sendAtEnd: true` por defecto); `false` conserva el comportamiento anterior.
+- **Motivo:** el caso común es «no me interrumpas, díselo al terminar»; la cola sigue sirviendo para cambiar, borrar, reordenar o derivar antes.
+- **Consecuencias:** cambia el contrato de ADR 001 (retenido hasta soltar); los resultados de agentes siguen su modo de retorno.
+
+## dev-030 — Entregar aunque otro hook Stop esté continuando
+- **Contexto:** con `stop_hook_active` cmc no entregaba nada para no encadenar continuaciones; con Senzu bloqueando el Stop, la parada «limpia» podía no llegar y el mensaje se quedaba.
+- **Elección:** D-036 entregar también con `stop_hook_active`.
+- **Motivo:** no hay bucle posible: lo entregado sale de la cola y la siguiente parada no encuentra nada.
+- **Consecuencias:** sustituye la parte «una sola continuación» de D-006.

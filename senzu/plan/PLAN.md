@@ -308,6 +308,18 @@
 
 ## Tareas ad hoc (fuera del plan original)
 
+### X-T6 · Lo retenido llega solo al acabar el turno  [S] [done]
+- Para qué: Peterson retuvo «di también piña» mientras el agente trabajaba y, al acabar, no llegó: esperaba a un `/send`. «Debería enviarse al final, ya es obvio.» Además, con otro hook Stop continuando el turno (Senzu), cmc no entregaba nada.
+- Skill: `code-quality §references/typescript` + experimento con `scripts/e2e.ts`
+- Archivos: plugins/cmc/lib/release.ts, plugins/cmc/lib/config.ts, plugins/cmc/lib/capture.ts, plugins/cmc/bin/cmc.ts, plugins/cmc/hooks/interface.ts, test/send-at-end.test.ts
+- Hecho cuando: lo retenido mientras el agente trabaja llega al acabar su turno sin ningún comando, con su orden y sus ediciones; `sendAtEnd: false` lo deja retenido; los resultados de agentes siguen su modo de retorno; se entrega aunque otro hook Stop esté continuando el turno.
+- Verificar: `npm test`; sesión real con `scripts/e2e.ts --mid`.
+- Depende de: —
+- Verificado: `npm test` → 282 pass; sesión real: `;; also say the word pineapple` a mitad de turno → aviso «goes to the agent when its turn ends», el agente acaba la tarea y responde «pineapple», cola vacía
+- Cumple: lo que escribes mientras trabaja le llega al terminar sin hacer nada más, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/031-x-t6-envio-al-acabar-el-turno.md
+- Notas: D-035 y D-036. `/send` con el agente parado ahora envía cuando su comando ha contestado (el motor rechazaba el prompt durante el comando, hipótesis); si falla, muestra el motivo del motor. Pendiente de confirmar en el terminal de Peterson.
+
 ### X-T5 · Interfaz interactiva en el motor de plugins: prueba (retener al pulsar Enter, /held, /send)  [M] [doing]
 - Para qué: en el terminal interactivo el mensaje retenido volvía a la barra del chat, con un aviso de tres líneas, y no había forma visible de enviarlo, editarlo, borrarlo o derivarlo (prueba de Peterson, F1-T6b).
 - Skill: `plugin-authoring` (módulo de hooks: `prompt.submit`, `command.register`/`command.run`, `$.prompt`) + `code-quality §references/typescript`

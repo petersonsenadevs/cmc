@@ -1,60 +1,83 @@
-# Convenciones del proyecto (BORRADOR de /adoptar, sin sellar)
+# Convenciones del proyecto (PROPUESTA de /adoptar, sin sellar)
 
-Definidas por entrevista el 2026-11-21 (proyecto nuevo, sin código previo). **Pendiente del ok de Peterson para
-sellar**: hasta entonces este archivo no lleva el sello de inmutabilidad ni existe `senzu/conventions.json`.
-Lo marcado «(brief)» ya lo decidió Peterson en `senzu/plan/brief.md`; lo marcado «(propuesta)» es el valor por
-defecto que se está aplicando y que falta confirmar.
+Analizado el 2026-11-21 sobre 37 módulos (`plugins/cmc/**`, `test/**`, `test-support/**`, `scripts/**`) y 32 commits.
+**Pendiente del ok de Peterson para sellar**: hasta entonces este archivo no lleva el sello de inmutabilidad ni existe
+`senzu/conventions.json`. Queda una decisión abierta que cambia varias reglas: **lenguaje** (ver «Pendiente de decidir»).
 
 ## Naming
-- Archivos en `kebab-case.mjs` — ej. `lib/queue.mjs`, `hooks/prompt-capture.mjs`. (propuesta)
-- Funciones y variables en `camelCase`, constantes de módulo en `UPPER_SNAKE`, sin clases salvo errores propios
-  — ej. `drainQueue()`, `HOLD_PREFIX`. (propuesta)
-- Comandos del plugin en minúscula y una palabra: `/cmc:release`, `/cmc:queue`, `/cmc:dispatch`, `/cmc:agents`. (brief)
+- Archivos en `kebab-case.mjs` — ej. `plugins/cmc/lib/agents-registry.mjs`, `plugins/cmc/hooks/prompt-capture.mjs`.
+- Funciones y variables en `camelCase`, verbo primero — ej. `addMessage` (`lib/queue.mjs:138`), `handlePrompt` (`lib/capture.mjs:22`).
+- Constantes de módulo en `UPPER_SNAKE` — ej. `DEFAULT_HOLD_PREFIX` (`lib/capture.mjs:9`), `MAX_TEXT_LENGTH`.
+- Sin clases, salvo el error propio `CmcError` (`lib/errors.mjs:4`), con `code` estable en mayúsculas (`NO_SUCH_MESSAGE`).
+- Los manejadores de hook se llaman `handle<Evento>` — ej. `handleStop`, `handleSessionStart`, `handlePostToolUse`.
+- Comandos del plugin en minúscula y una palabra: `/cmc:release`, `/cmc:queue`; palabras de control igual: `;;list`, `;;now`.
 
 ## Estructura
-- El repositorio es un **marketplace** (`.claude-plugin/marketplace.json`, nombre `r3v3rs3`) y el plugin vive en
-  `plugins/cmc/`: solo esa carpeta se instala. Dentro: `lib/` core puro, testeable sin Claude Code; `hooks/`
-  adaptadores finos sin lógica; `bin/cmc.mjs` CLI; `commands/` comandos del plugin. Fuera del plugin, en la raíz:
-  `test/`, `test-support/`, `scripts/`, `docs/`, `senzu/`. (decisión de Peterson, 2026-11-21, D-021)
-- Node ≥ 20, ESM (`.mjs`, `import`/`export`), **sin dependencias de npm ni paso de build**. (brief)
-- El estado solo se escribe bajo `${CLAUDE_PLUGIN_DATA}`, nunca en `${CLAUDE_PLUGIN_ROOT}`. (brief)
-- Cabecera de autoría en cada fichero del core: `// cmc — … Author: Peterson Sena (r3v3rs3).` (brief)
+- El repositorio es un **marketplace** (`.claude-plugin/marketplace.json`, nombre `r3v3rs3`); el plugin vive en
+  `plugins/cmc/` y solo esa carpeta se instala (D-021).
+- Dentro del plugin: `lib/` core, `hooks/` adaptadores de una línea (`runHook('nombre', handle…)`), `bin/cmc.mjs` CLI,
+  `commands/` comandos. Fuera, en la raíz: `test/`, `test-support/` (ayudantes: `node --test` ejecuta todo lo de `test/`),
+  `scripts/`, `docs/`, `senzu/`.
+- Node ≥ 20, ESM (`import`/`export`), **sin dependencias de npm en lo que se instala y sin paso de compilación**.
+- El estado solo se escribe bajo `${CLAUDE_PLUGIN_DATA}` (`sessions/<id>/…`), nunca en la carpeta del plugin (D-013).
+- Cabecera en cada módulo: `// cmc — Claude Message Control. Author: Peterson Sena (r3v3rs3).` y debajo, qué hace y por qué.
 
 ## Backend (core y adaptadores)
-- Lo que entra por un hook, la CLI o un fichero se valida en el borde con validación a mano (sin zod: sin
-  dependencias) y el core confía en sus tipos. (propuesta)
-- Un hook nunca pierde un mensaje: ante un error propio deja pasar el prompt y registra el error. (plan F1-T4)
-- El texto del usuario nunca se interpola en una línea de shell: procesos con argumentos en array, sin `shell`. (brief)
-- **Multi-OS (Windows, macOS, Linux)**: rutas siempre con `path.join`/`path.resolve`, nunca separadores escritos a mano; las carpetas se comparan por ruta real (enlaces simbólicos) y sin distinguir mayúsculas donde el sistema no las distingue; los renombrados se reintentan en Windows. (regla de Peterson, 2026-11-21)
-- Salida por `process.stdout.write` / `process.stderr.write`; `console.log` no se usa. (muro de Senzu)
+- **Multi-OS (Windows, macOS, Linux)**: rutas con `path.join`/`path.resolve`; carpetas comparadas por ruta real; escrituras
+  con `writeFileAtomic` (`lib/atomic-write.mjs`), que reintenta el renombrado en Windows. (regla de Peterson)
+- Lo que entra por un hook, la CLI o un fichero se valida en el borde a mano y el core confía en sus tipos — ej. `sessionDir`
+  valida el id antes de usarlo como carpeta (`lib/paths.mjs`).
+- **Un hook nunca pierde un mensaje ni estorba**: ante un error propio no imprime nada, sale con 0 y lo registra (`runHook`,
+  `lib/hook-io.mjs`). Lo que cmc rechaza a propósito se explica al usuario (`Not done: …`).
+- **El texto del usuario nunca va en una línea de comandos**: procesos con argumentos en array, sin shell; el prompt de un
+  agente derivado entra por stdin (D-018); los comandos no reciben argumentos del usuario (D-011).
+- Lo que se entrega al agente lleva cabecera factual `[cmc] The user released…`, nunca imperativa (ADR 001).
+- Un agente derivado nunca corre con `bypassPermissions` (D-002).
+- Errores: no se tragan; un `catch` que ignora algo lleva un comentario con el motivo.
+- Salida por `process.stdout.write` / `process.stderr.write`; `console.*` no se usa. El texto de los mensajes no se registra.
+- Tipos como JSDoc (`@param`, `@returns`, `@typedef`) en todo lo exportado.
 
 ## Front
-- No aplica: sin interfaz web.
+- No aplica: sin interfaz web. El indicador es un módulo de hooks del motor (`hooks/indicator.mjs`), sin `node:` (D-014).
 
 ## Tests
-- `node --test`, ficheros `test/<módulo>.test.mjs`, `describe`/`it` de `node:test` y `node:assert/strict`,
-  nombres de test en inglés. (propuesta)
-- Los tests usan un directorio temporal propio como directorio de datos; nunca el real del usuario. (propuesta)
+- `node --test`; `test/<tema>.test.mjs`; `describe`/`it` de `node:test`, `node:assert/strict`; nombres en inglés que
+  describen el comportamiento — ej. `it('never hands a message to two drainers running at the same time')`.
+- Cada test usa su carpeta temporal (`mkdtempSync`) como directorio de datos; nunca el real. Los procesos que lanza un
+  test arrancan en `os.tmpdir()`, no dentro de su carpeta temporal (bloqueo de Windows, entrada 015).
+- Cada pieza se prueba en el core y, además, lanzando su script (hook o CLI) como proceso.
+- Lo que depende de Claude Code se comprueba con `scripts/e2e.mjs` contra una sesión real; no entra en `npm test`.
 
 ## Git
-- Conventional Commits ≤ 72, en inglés, sin co-autores; el cuerpo lleva `Tarea: <id>`. Ramas `feat/…`, `fix/…`. (Senzu + propuesta de idioma)
+- Conventional Commits en inglés, título ≤ 72, sin co-autores; el cuerpo lleva `Tarea: <id>` — ej. `feat(queue): add per-session held-message queue`.
+- Por tarea: un commit de código y uno `docs(devlog): close <id>`. Ramas `feat/…`, `fix/…`, `refactor/…`.
 
 ## Idioma
-- Identificadores (funciones, variables, archivos): **inglés** — ej. `drainQueue()`, `prompt-capture.mjs`. (brief)
-- Términos de dominio (lenguaje ubicuo): **inglés** — `hold`, `release`, `queue`, `dispatch`. (brief)
-- Comentarios: **EN**. (brief)
-- Devlog, memoria y plan: **ES**. ADR, README y documentación del producto: **EN**. (brief)
-- Mensajes de commit: **EN**, Conventional ≤ 72 sin co-autores. (propuesta)
-- Textos de cara al usuario (avisos del plugin, CLI, comandos): **inglés**. (brief)
+- Identificadores (funciones, variables, archivos): **inglés** — ej. `drainMessages()`, `session-state.mjs`.
+- Términos de dominio (lenguaje ubicuo): **inglés** — `hold`, `release`, `queue`, `dispatch`, `held message`.
+- Comentarios: **EN**.
+- Devlog, memoria y plan: **ES**. ADR, README y documentación del producto: **EN**.
+- Mensajes de commit: **EN**, Conventional ≤ 72 sin co-autores.
+- Textos de cara al usuario (avisos del plugin, CLI, comandos): **inglés**.
 
 ## Zonas intocables
-- `spike/` es código desechable de los experimentos (F1-T1, F3-T1): no se reutiliza ni se importa desde el producto.
+- `spike/`: código desechable de los experimentos; no se importa desde el producto.
 - Lo generado por Senzu (`CLAUDE.md`, `.claude/**`, `senzu/senzu.json`).
 
-## Reglas ejecutables propuestas (irán a `senzu/conventions.json` al sellar)
+## Pendiente de decidir (no se sella hasta resolverlo)
+- **Lenguaje.** Hoy: JavaScript `.mjs` con tipos en JSDoc que nadie comprueba. Propuesta: mantenerlo y comprobar el JSDoc con
+  `tsc --checkJs` como dependencia solo de desarrollo. Alternativa: TypeScript ejecutado directamente por Node (≥ 22.18), sin
+  compilar. Cambia las reglas de extensión de archivo, tipos y Node mínimo.
+- **Adaptadores para otros agentes** (Codex y los que falten). Hoy `lib/` mezcla lógica neutra (cola, estado, control) con
+  cosas de Claude Code (`capture`, `release`, `sessions`, `dispatch`, `paths`). Si va a haber más adaptadores, la regla a
+  sellar sería: núcleo sin nada específico de un agente y una carpeta de adaptador por agente. Es un cambio de
+  arquitectura que necesita su propia fase en el plan.
+
+## Reglas ejecutables propuestas (irán a `senzu/conventions.json` al sellar; hoy dan 0 coincidencias)
 | Archivos | Veta | Por qué |
 |---|---|---|
 | `\.mjs$` | `\brequire\(` | ESM: `import`, no `require` |
-| `^(lib\|hooks\|bin)/.*\.mjs$` | `shell:\s*true` | sin shell: argumentos en array |
-| `^(lib\|hooks\|bin)/.*\.mjs$` | `\bexecSync\(\|\bexec\(` | sin líneas de shell con texto del usuario |
-| `^(lib\|hooks\|bin)/.*\.mjs$` | `CLAUDE_PLUGIN_ROOT.*(writeFile\|appendFile\|mkdir)` | el estado no va en la carpeta del plugin |
+| `^plugins/.*\.mjs$` | `shell:\s*true` | sin shell: argumentos en array |
+| `^plugins/.*\.mjs$` | `\bexecSync\(\|\bexec\(` | sin líneas de shell con texto del usuario |
+| `^plugins/cmc/hooks/indicator\.mjs$` | `from 'node:` | el módulo del motor no tiene Node |
+| `^plugins/cmc/(hooks\|bin)/.*\.mjs$` y `lib/` salvo `atomic-write.mjs` | `\brenameSync\(` | escrituras atómicas por el ayudante (Windows) |

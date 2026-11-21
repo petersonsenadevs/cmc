@@ -31,3 +31,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 025 | 2026-11-21 | X-T4: «ya» sin entregas a mitad de turno     | fix      | 009, 020 | X-T4  |
 | 026 | 2026-11-21 | F4-T1: configuración del plugin            | feature  | 012, 024 | F4-T1 |
 | 027 | 2026-11-21 | F4-T2: revisión de seguridad y arreglos    | fix      | 015, 021, 022, 024, 025 | F4-T2 |
+| 028 | 2026-11-21 | F4-T3: documentación e instalación         | docs     | 016      | F4-T3 |

@@ -27,7 +27,7 @@
 | F1 | Esqueleto: escribes `;; texto` con el agente trabajando, no se interrumpe, y `/cmc:release` o el fin del turno se lo entrega | doing |
 | F2 | Control completo: ver, editar, borrar y soltar de forma selectiva, modo «ya», indicador visible y CLI `cmc` desde otra terminal | done |
 | F3 | Derivar: `>> tarea` arranca un segundo agente con contexto en su worktree, en paralelo; se ve, se cancela y su resultado vuelve a la cola (retenido o automático) | done |
-| F4 | Entrega: configuración, revisión de seguridad, README e instalación desde marketplace local | doing |
+| F4 | Entrega: configuración, revisión de seguridad, README e instalación desde marketplace local | done |
 | F5 | Adaptadores para otros agentes: núcleo sin nada de Claude Code, adaptador de Codex y los que falten (se planifica al cerrar F4) | todo |
 
 ---
@@ -292,16 +292,17 @@
 - Devlog: senzu/devlog/2026-11-21/027-f4-t2-revision-de-seguridad.md
 - Notas: 3 medios y 5 bajos corregidos; S1 y S2 corregidas, S3 aceptada. Contrapartida: restringir herramientas encarece el fork (D-032, ajuste `dispatch.restrictTools`).
 
-### F4-T3 · Documentar e instalar desde un marketplace local  [M] [doing]
+### F4-T3 · Documentar e instalar desde un marketplace local  [M] [done]
 - Para qué: instalarlo en cualquier proyecto y que otra persona sepa usarlo.
 - Skill: sin skill: README (qué hace, instalación, uso, límites conocidos, cómo probar)
 - Archivos: README.md, .claude-plugin/marketplace.json, CHANGELOG.md, LICENSE
 - Hecho cuando: el README cubre instalación, los cuatro comandos, los prefijos, la CLI, la configuración y los límites (lo no documentado por Claude Code); el plugin se instala desde el marketplace local en un proyecto limpio y pasa el guion de F1-T6 y el de derivación.
 - Verificar: `claude plugin validate .`; instalación en una carpeta nueva y guiones pasados, con resultado en el devlog.
 - Depende de: F4-T2
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: instalación real con `marketplace add` + `install cmc@r3v3rs3 --scope project` en un proyecto git limpio; guion de F1-T6 (retener, `/cmc:release` → `mango`, `;;end` → `papaya`) y derivación (worktree propio, carpeta principal intacta, resultado en la cola y entregado) pasados con el plugin instalado; `claude plugin validate .` → Validation passed; desinstalado después
+- Cumple: el plugin se instala en cualquier proyecto desde el marketplace y el README explica instalación, uso, CLI, ajustes, límites y seguridad, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/028-f4-t3-documentar-e-instalar.md
+- Notas: licencia MIT elegida por el agente. Sin icono (solo lo pide el directorio público). Los hooks globales del usuario escriben en el worktree del derivado y hacen que se conserve siempre: documentado.
 
 ---
 

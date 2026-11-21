@@ -64,7 +64,6 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - `--allowedTools` solo preaprueba herramientas, no las limita: para restringir hay que pasar `--tools`; y cambiar las herramientas rompe la caché de un fork · ver 027
 
 ## Pendientes abiertos
-- [desde 2026-11-21] El «types» de `verify-build` falla porque Senzu se instaló con stack `node-api` (lanza `tsc`): reinstalar Senzu con los comandos reales · ver 017
 - [desde 2026-11-21] F1-T6b: Peterson pasa la parte B de `docs/manual-test.md` en la interfaz interactiva
 - [desde 2026-11-21] Ejecutar la suite en macOS y Linux (solo se ha corrido en Windows) · ver 014
 - [desde 2026-11-21] Las sesiones de agentes derivados se registran como sesiones abiertas y la CLI las ofrece; marcarlas y excluirlas · ver 023

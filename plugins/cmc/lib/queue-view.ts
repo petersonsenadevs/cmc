@@ -16,7 +16,7 @@ function preview(text) {
 
 /**
  * Lists the held messages in the exact order they will be delivered.
- * @param {import('./queue.mjs').HeldMessage[]} messages
+ * @param {import('./queue.ts').HeldMessage[]} messages
  * @returns {string}
  */
 export function formatQueue(messages) {

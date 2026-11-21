@@ -6,14 +6,14 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { handlePrompt } from '../plugins/cmc/lib/capture.mjs';
-import { parseControl } from '../plugins/cmc/lib/control.mjs';
-import { sessionDir } from '../plugins/cmc/lib/paths.mjs';
-import { addMessage, clearMessages, editMessage, listMessages, moveMessage, removeMessages } from '../plugins/cmc/lib/queue.mjs';
-import { formatQueue } from '../plugins/cmc/lib/queue-view.mjs';
-import { releaseAll } from '../plugins/cmc/lib/release.mjs';
+import { handlePrompt } from '../plugins/cmc/lib/capture.ts';
+import { parseControl } from '../plugins/cmc/lib/control.ts';
+import { sessionDir } from '../plugins/cmc/lib/paths.ts';
+import { addMessage, clearMessages, editMessage, listMessages, moveMessage, removeMessages } from '../plugins/cmc/lib/queue.ts';
+import { formatQueue } from '../plugins/cmc/lib/queue-view.ts';
+import { releaseAll } from '../plugins/cmc/lib/release.ts';
 
-const cli = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc', 'bin', 'cmc.mjs');
+const cli = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc', 'bin', 'cmc.ts');
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
 
 let dataDir;

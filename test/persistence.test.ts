@@ -4,11 +4,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, w
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { handlePrompt } from '../plugins/cmc/lib/capture.mjs';
-import { sessionDir } from '../plugins/cmc/lib/paths.mjs';
-import { listMessages } from '../plugins/cmc/lib/queue.mjs';
-import { handleStop, releaseAll } from '../plugins/cmc/lib/release.mjs';
-import { handleSessionEnd, handleSessionStart, listSessions, pruneSessions } from '../plugins/cmc/lib/sessions.mjs';
+import { handlePrompt } from '../plugins/cmc/lib/capture.ts';
+import { sessionDir } from '../plugins/cmc/lib/paths.ts';
+import { listMessages } from '../plugins/cmc/lib/queue.ts';
+import { handleStop, releaseAll } from '../plugins/cmc/lib/release.ts';
+import { handleSessionEnd, handleSessionStart, listSessions, pruneSessions } from '../plugins/cmc/lib/sessions.ts';
 
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
 const OLD = 'b06d5f9a-57e8-44f3-8b37-b14b890259fc';

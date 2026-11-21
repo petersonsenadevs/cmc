@@ -3,7 +3,7 @@
 // never inside the plugin folder.
 import { mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { CmcError } from './errors.mjs';
+import { CmcError } from './errors.ts';
 
 // Session ids become folder names, so they are restricted to a safe alphabet.
 const SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;

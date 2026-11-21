@@ -4,8 +4,8 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { writeFileAtomic } from './atomic-write.mjs';
-import { CmcError } from './errors.mjs';
+import { writeFileAtomic } from './atomic-write.ts';
+import { CmcError } from './errors.ts';
 
 const AGENTS_DIR = 'agents';
 const RECORD_FILE = 'agent.json';

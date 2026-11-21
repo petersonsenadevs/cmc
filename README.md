@@ -63,8 +63,8 @@ Open a second terminal **in the folder where the Claude Code session was started
 and use the `cmc` command line. Nothing you do there shows up in the session until you release it.
 
 ```
-node /path/to/this/repository/plugins/cmc/bin/cmc.mjs hold also update the README
-node /path/to/this/repository/plugins/cmc/bin/cmc.mjs list
+node /path/to/this/repository/plugins/cmc/bin/cmc.ts hold also update the README
+node /path/to/this/repository/plugins/cmc/bin/cmc.ts list
 ```
 
 `npm link` in this repository puts `cmc` on your PATH, so that becomes `cmc hold …`, `cmc list`, and so on.
@@ -121,7 +121,7 @@ claude plugin validate .              # the marketplace
 claude plugin validate ./plugins/cmc  # the plugin
 ```
 
-`node scripts/e2e.mjs` drives a real headless Claude Code session with this checkout loaded and types
+`node scripts/e2e.ts` drives a real headless Claude Code session with this checkout loaded and types
 messages into it while it works (it spends tokens, so it is not part of `npm test`). See
 [docs/manual-test.md](docs/manual-test.md) for the scenarios and for the checks that need the interactive
 terminal.

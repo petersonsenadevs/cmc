@@ -6,11 +6,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { handlePrompt } from '../plugins/cmc/lib/capture.mjs';
-import { sessionDir } from '../plugins/cmc/lib/paths.mjs';
-import { listMessages, MAX_TEXT_LENGTH } from '../plugins/cmc/lib/queue.mjs';
+import { handlePrompt } from '../plugins/cmc/lib/capture.ts';
+import { sessionDir } from '../plugins/cmc/lib/paths.ts';
+import { listMessages, MAX_TEXT_LENGTH } from '../plugins/cmc/lib/queue.ts';
 
-const hook = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc', 'hooks', 'prompt-capture.mjs');
+const hook = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc', 'hooks', 'prompt-capture.ts');
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
 
 let dataDir;

@@ -7,8 +7,8 @@
 import { randomUUID } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { sleep, writeFileAtomic } from './atomic-write.mjs';
-import { CmcError } from './errors.mjs';
+import { sleep, writeFileAtomic } from './atomic-write.ts';
+import { CmcError } from './errors.ts';
 
 const QUEUE_FILE = 'queue.jsonl';
 const LOCK_DIR = 'queue.lock';

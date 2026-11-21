@@ -5,7 +5,7 @@
 // timeline of what the session saw. It spends tokens, so it is not part of
 // `npm test`.
 //
-//   node scripts/e2e.mjs [--mid <text>]... [--cli <args>] [--after <text>]... [--model <name>] [--keep]
+//   node scripts/e2e.ts [--mid <text>]... [--cli <args>] [--after <text>]... [--model <name>] [--keep]
 //
 //   --mid    typed two seconds into the first tool call (repeatable)
 //   --cli    cmc CLI arguments, run in the session's folder as from a second terminal when the
@@ -105,7 +105,7 @@ const dataDir = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude')
 
 function runCli() {
   // Like a second terminal opened in the same folder: no session id, no data directory.
-  const result = spawnSync(process.execPath, [join(pluginDir, 'bin', 'cmc.mjs'), ...options.cli.split(' ')], {
+  const result = spawnSync(process.execPath, [join(pluginDir, 'bin', 'cmc.ts'), ...options.cli.split(' ')], {
     cwd: workDir,
     encoding: 'utf8',
   });

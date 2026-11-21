@@ -6,12 +6,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { handlePrompt } from '../plugins/cmc/lib/capture.mjs';
-import { parseControl } from '../plugins/cmc/lib/control.mjs';
-import { sessionDir } from '../plugins/cmc/lib/paths.mjs';
-import { addMessage, listMessages } from '../plugins/cmc/lib/queue.mjs';
-import { handlePostToolUse, handleStop } from '../plugins/cmc/lib/release.mjs';
-import { mergeSelection, readState } from '../plugins/cmc/lib/session-state.mjs';
+import { handlePrompt } from '../plugins/cmc/lib/capture.ts';
+import { parseControl } from '../plugins/cmc/lib/control.ts';
+import { sessionDir } from '../plugins/cmc/lib/paths.ts';
+import { addMessage, listMessages } from '../plugins/cmc/lib/queue.ts';
+import { handlePostToolUse, handleStop } from '../plugins/cmc/lib/release.ts';
+import { mergeSelection, readState } from '../plugins/cmc/lib/session-state.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc');
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
@@ -33,7 +33,7 @@ const stop = (extra = {}) => handleStop({ session_id: SESSION, ...extra }, { dat
 const afterTool = () => handlePostToolUse({ session_id: SESSION, tool_name: 'Bash' }, { dataDir });
 const context = (output) => output?.hookSpecificOutput?.additionalContext;
 const cmc = (...args) =>
-  spawnSync(process.execPath, [join(root, 'bin', 'cmc.mjs'), ...args, '--data-dir', dataDir, '--session', SESSION], { encoding: 'utf8' });
+  spawnSync(process.execPath, [join(root, 'bin', 'cmc.ts'), ...args, '--data-dir', dataDir, '--session', SESSION], { encoding: 'utf8' });
 
 describe('release now (";;now")', () => {
   it('lets the prompt through with the whole queue as context', () => {
@@ -165,7 +165,7 @@ describe('release armed from outside the session (cmc release)', () => {
 describe('tool-release hook script', () => {
   it('prints the context for a pending release and nothing otherwise', () => {
     const run = () =>
-      spawnSync(process.execPath, [join(root, 'hooks', 'tool-release.mjs')], {
+      spawnSync(process.execPath, [join(root, 'hooks', 'tool-release.ts')], {
         input: JSON.stringify({ session_id: SESSION, tool_name: 'Bash' }),
         encoding: 'utf8',
         env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir },

@@ -2,9 +2,9 @@
 // The shared shell of every hook script: read the JSON Claude Code sends on
 // stdin, run a handler from the core, print its answer.
 import { readSync } from 'node:fs';
-import { sleep } from './atomic-write.mjs';
-import { describeError, logEvent } from './log.mjs';
-import { resolveDataDir } from './paths.mjs';
+import { sleep } from './atomic-write.ts';
+import { describeError, logEvent } from './log.ts';
+import { resolveDataDir } from './paths.ts';
 
 /**
  * Reads everything Claude Code wrote to stdin.

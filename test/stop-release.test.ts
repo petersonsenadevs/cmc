@@ -6,11 +6,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { handlePrompt } from '../plugins/cmc/lib/capture.mjs';
-import { sessionDir } from '../plugins/cmc/lib/paths.mjs';
-import { listMessages } from '../plugins/cmc/lib/queue.mjs';
-import { formatRelease, handleStop, releaseAll } from '../plugins/cmc/lib/release.mjs';
-import { readState } from '../plugins/cmc/lib/session-state.mjs';
+import { handlePrompt } from '../plugins/cmc/lib/capture.ts';
+import { sessionDir } from '../plugins/cmc/lib/paths.ts';
+import { listMessages } from '../plugins/cmc/lib/queue.ts';
+import { formatRelease, handleStop, releaseAll } from '../plugins/cmc/lib/release.ts';
+import { readState } from '../plugins/cmc/lib/session-state.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc');
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
@@ -134,7 +134,7 @@ describe('release at the end of the turn', () => {
 
 describe('stop-release hook script', () => {
   const runHookScript = (input) =>
-    run('hooks/stop-release.mjs', [], { input: JSON.stringify(input), env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir } });
+    run('hooks/stop-release.ts', [], { input: JSON.stringify(input), env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir } });
 
   it('prints the block decision when delivery was requested', () => {
     type(';; from the hook');
@@ -163,7 +163,7 @@ describe('stop-release hook script', () => {
 });
 
 describe('cmc drain', () => {
-  const drain = (...args) => run('bin/cmc.mjs', ['drain', '--data-dir', dataDir, ...args]);
+  const drain = (...args) => run('bin/cmc.ts', ['drain', '--data-dir', dataDir, ...args]);
 
   it('prints the release text and empties the queue', () => {
     type(';; one');
@@ -196,13 +196,13 @@ describe('cmc drain', () => {
       assert.equal(result.status, 1, args.join(' '));
       assert.match(result.stdout, /^\[cmc\] /);
     }
-    assert.equal(run('bin/cmc.mjs', ['frobnicate']).status, 1);
-    assert.match(run('bin/cmc.mjs', []).stdout, /^cmc — Claude Message Control/);
+    assert.equal(run('bin/cmc.ts', ['frobnicate']).status, 1);
+    assert.match(run('bin/cmc.ts', []).stdout, /^cmc — Claude Message Control/);
   });
 
   it('falls back to CLAUDE_PLUGIN_DATA when --data-dir was not expanded', () => {
     type(';; one');
-    const result = run('bin/cmc.mjs', ['drain', '--data-dir', '${CLAUDE_PLUGIN_DATA}', '--session', SESSION], {
+    const result = run('bin/cmc.ts', ['drain', '--data-dir', '${CLAUDE_PLUGIN_DATA}', '--session', SESSION], {
       env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir },
     });
     assert.match(result.stdout, /1\. one\n$/);

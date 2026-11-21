@@ -2,13 +2,13 @@
 // cmc — Claude Message Control. Author: Peterson Sena (r3v3rs3).
 // Command line over the same core the hooks use. Run it from another terminal,
 // in the folder where the Claude Code session was started.
-import { parseControl, runControl } from '../lib/control.mjs';
-import { CmcError } from '../lib/errors.mjs';
-import { describeError, logEvent } from '../lib/log.mjs';
-import { resolveDataDir, sessionDir } from '../lib/paths.mjs';
-import { addMessage } from '../lib/queue.mjs';
-import { arm, release, select } from '../lib/release.mjs';
-import { candidateDataDirs, formatSessions, listSessions, openSessionsIn, resolveSession } from '../lib/sessions.mjs';
+import { parseControl, runControl } from '../lib/control.ts';
+import { CmcError } from '../lib/errors.ts';
+import { describeError, logEvent } from '../lib/log.ts';
+import { resolveDataDir, sessionDir } from '../lib/paths.ts';
+import { addMessage } from '../lib/queue.ts';
+import { arm, release, select } from '../lib/release.ts';
+import { candidateDataDirs, formatSessions, listSessions, openSessionsIn, resolveSession } from '../lib/sessions.ts';
 
 const USAGE = `cmc — Claude Message Control (Peterson Sena · r3v3rs3)
 

@@ -4,12 +4,12 @@
 // the hook that asked for the agent: it runs the agent, keeps its output in a
 // log and records how it ended.
 //
-//   node agent-runner.mjs <agentDir>
+//   node agent-runner.ts <agentDir>
 import { spawn } from 'node:child_process';
 import { closeSync, openSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { OUTPUT_FILE, PROMPT_FILE, readAgentAt, STDERR_FILE, updateAgentAt } from './agents-registry.mjs';
-import { describeError, logEvent } from './log.mjs';
+import { OUTPUT_FILE, PROMPT_FILE, readAgentAt, STDERR_FILE, updateAgentAt } from './agents-registry.ts';
+import { describeError, logEvent } from './log.ts';
 
 const SUMMARY_LENGTH = 4000;
 const dir = process.argv[2];

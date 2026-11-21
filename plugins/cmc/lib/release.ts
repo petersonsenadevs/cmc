@@ -1,11 +1,11 @@
 // cmc — Claude Message Control. Author: Peterson Sena (r3v3rs3).
 // Hands held messages over to the agent: takes them out of the queue and
 // words them so the agent reads them as what they are, things the user typed.
-import { CmcError } from './errors.mjs';
-import { sessionDir } from './paths.mjs';
-import { drainMessages, listMessages } from './queue.mjs';
-import { mergeSelection, readState, updateState } from './session-state.mjs';
-import { touchSession } from './sessions.mjs';
+import { CmcError } from './errors.ts';
+import { sessionDir } from './paths.ts';
+import { drainMessages, listMessages } from './queue.ts';
+import { mergeSelection, readState, updateState } from './session-state.ts';
+import { touchSession } from './sessions.ts';
 
 /**
  * Formats released messages for the agent.
@@ -13,7 +13,7 @@ import { touchSession } from './sessions.mjs';
  * The header is short and factual on purpose: it names the plugin and the
  * user's own action. Imperative framing ("treat the following as…") made the
  * model distrust the text (ADR 001, finding f).
- * @param {import('./queue.mjs').HeldMessage[]} messages
+ * @param {import('./queue.ts').HeldMessage[]} messages
  * @param {string} trigger What the user did to release them, e.g. `/cmc:release`.
  * @returns {string}
  */
@@ -31,7 +31,7 @@ export function formatRelease(messages, trigger) {
 /**
  * Takes messages out of a session queue and formats them.
  * @param {string} dir Session folder.
- * @param {import('./session-state.mjs').Selection} selection
+ * @param {import('./session-state.ts').Selection} selection
  * @param {string} trigger
  * @returns {{ count: number, text: string | null, warning?: string }}
  */
@@ -56,7 +56,7 @@ export function releaseAll(dataDir, sessionId, trigger) {
  * No positions means the whole queue.
  * @param {string} dir Session folder.
  * @param {number[]} [positions]
- * @returns {{ selection: import('./session-state.mjs').Selection, count: number, held: number }}
+ * @returns {{ selection: import('./session-state.ts').Selection, count: number, held: number }}
  */
 export function select(dir, positions = []) {
   const { messages } = listMessages(dir);
@@ -76,7 +76,7 @@ export function select(dir, positions = []) {
  * Arms a release for later: at the end of the turn, or at the agent's next step.
  * @param {string} dir Session folder.
  * @param {'atEnd' | 'atNextStep'} when
- * @param {import('./session-state.mjs').Selection} selection
+ * @param {import('./session-state.ts').Selection} selection
  */
 export function arm(dir, when, selection) {
   updateState(dir, { [when]: mergeSelection(readState(dir)[when], selection) });

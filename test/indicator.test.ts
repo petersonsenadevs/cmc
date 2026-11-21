@@ -1,7 +1,7 @@
 // cmc — held-messages indicator (hooks module), driven with a stand-in engine. Author: Peterson Sena (r3v3rs3).
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { countHeld, register, statusFor } from '../plugins/cmc/hooks/indicator.mjs';
+import { countHeld, register, statusFor } from '../plugins/cmc/hooks/indicator.ts';
 
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
 const line = (text) => `${JSON.stringify({ id: 'x', text, at: '2026-11-21T00:00:00.000Z', source: 'user' })}\n`;

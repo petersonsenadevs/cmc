@@ -4,8 +4,8 @@ import { mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { writeFileAtomic } from '../plugins/cmc/lib/atomic-write.mjs';
-import { addMessage, listMessages } from '../plugins/cmc/lib/queue.mjs';
+import { writeFileAtomic } from '../plugins/cmc/lib/atomic-write.ts';
+import { addMessage, listMessages } from '../plugins/cmc/lib/queue.ts';
 
 let dir;
 let file;

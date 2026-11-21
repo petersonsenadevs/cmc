@@ -2,9 +2,9 @@
 // Control words: what the user types right after the hold prefix (";;list",
 // ";;move 3 1") to manage the queue. They are answered by the plugin itself,
 // so nothing about them reaches the agent.
-import { clearMessages, editMessage, listMessages, moveMessage, removeMessages } from './queue.mjs';
-import { formatQueue } from './queue-view.mjs';
-import { arm, release, select } from './release.mjs';
+import { clearMessages, editMessage, listMessages, moveMessage, removeMessages } from './queue.ts';
+import { formatQueue } from './queue-view.ts';
+import { arm, release, select } from './release.ts';
 
 const POSITION = /^[1-9]\d{0,5}$/;
 

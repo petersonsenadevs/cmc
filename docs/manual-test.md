@@ -10,9 +10,9 @@ types the `--mid` messages two seconds into the first one.
 
 | # | Command | Pass when |
 |---|---|---|
-| A1 | `node scripts/e2e.mjs --mid ";; also reply with the word pineapple"` | A `NOTICE … Held (1 queued)` line appears after step 1; steps 2 and 3 still run; the `AGENT` answer lists the three steps and does not say "pineapple"; `QUEUE 1 held`. |
-| A2 | `node scripts/e2e.mjs --mid ";; also reply with the word pineapple" --mid ";; and then the word mango" --after "/cmc:release"` | Two `Held` notices; first answer without the words; after `/cmc:release` the agent answers with both words, in that order; `QUEUE 0 held`. |
-| A3 | `node scripts/e2e.mjs --mid ";; also reply with the word papaya" --mid ";;end"` | Notice `1 held message(s) will be released when this turn ends`; after the three steps a `DELIVERED Stop hook feedback: [cmc] The user released…` line; the agent answers "papaya"; `QUEUE 0 held`. |
+| A1 | `node scripts/e2e.ts --mid ";; also reply with the word pineapple"` | A `NOTICE … Held (1 queued)` line appears after step 1; steps 2 and 3 still run; the `AGENT` answer lists the three steps and does not say "pineapple"; `QUEUE 1 held`. |
+| A2 | `node scripts/e2e.ts --mid ";; also reply with the word pineapple" --mid ";; and then the word mango" --after "/cmc:release"` | Two `Held` notices; first answer without the words; after `/cmc:release` the agent answers with both words, in that order; `QUEUE 0 held`. |
+| A3 | `node scripts/e2e.ts --mid ";; also reply with the word papaya" --mid ";;end"` | Notice `1 held message(s) will be released when this turn ends`; after the three steps a `DELIVERED Stop hook feedback: [cmc] The user released…` line; the agent answers "papaya"; `QUEUE 0 held`. |
 
 ## Part B — interactive terminal
 

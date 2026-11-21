@@ -5,11 +5,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { findAgent, isAlive, listAgents, readAgentAt } from '../plugins/cmc/lib/agents-registry.mjs';
-import { buildCommand, cancelAgent, DEFAULT_TOOLS, dispatch, forkPrompt } from '../plugins/cmc/lib/dispatch.mjs';
-import { sessionDir } from '../plugins/cmc/lib/paths.mjs';
+import { findAgent, isAlive, listAgents, readAgentAt } from '../plugins/cmc/lib/agents-registry.ts';
+import { buildCommand, cancelAgent, DEFAULT_TOOLS, dispatch, forkPrompt } from '../plugins/cmc/lib/dispatch.ts';
+import { sessionDir } from '../plugins/cmc/lib/paths.ts';
 
-const fake = join(dirname(fileURLToPath(import.meta.url)), '..', 'test-support', 'fake-claude.mjs');
+const fake = join(dirname(fileURLToPath(import.meta.url)), '..', 'test-support', 'fake-claude.ts');
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
 
 let base;
@@ -168,7 +168,7 @@ describe('dispatch', () => {
     for (let i = 0; i < 100 && (isAlive(running.pid) || isAlive(running.runnerPid)); i += 1) {
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    const { updateAgentAt } = await import('../plugins/cmc/lib/agents-registry.mjs');
+    const { updateAgentAt } = await import('../plugins/cmc/lib/agents-registry.ts');
     updateAgentAt(running.dir, { state: 'running' });
     assert.equal(findAgent(dir, second.id).state, 'lost');
   });

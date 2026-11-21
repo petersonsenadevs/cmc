@@ -1,8 +1,8 @@
 // cmc — test helper: a separate process that adds to or drains a queue. Author: Peterson Sena (r3v3rs3).
-//   node queue-worker.mjs add <dir> <count> <label>
-//   node queue-worker.mjs drain <dir> <stopFile>
+//   node queue-worker.ts add <dir> <count> <label>
+//   node queue-worker.ts drain <dir> <stopFile>
 import { existsSync } from 'node:fs';
-import { addMessage, drainMessages } from '../plugins/cmc/lib/queue.mjs';
+import { addMessage, drainMessages } from '../plugins/cmc/lib/queue.ts';
 
 const [mode, dir, third, label] = process.argv.slice(2);
 

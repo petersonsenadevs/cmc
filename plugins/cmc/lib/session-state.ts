@@ -2,7 +2,7 @@
 // Small per-session flags that live next to the queue (state.json).
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { writeFileAtomic } from './atomic-write.mjs';
+import { writeFileAtomic } from './atomic-write.ts';
 
 const STATE_FILE = 'state.json';
 

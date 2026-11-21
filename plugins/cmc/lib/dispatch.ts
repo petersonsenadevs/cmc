@@ -8,11 +8,11 @@ import { spawn, spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { agentDir, createAgent, findAgent, isAlive, newAgentId, PROMPT_FILE, readAgentAt, updateAgentAt } from './agents-registry.mjs';
-import { CmcError } from './errors.mjs';
-import { MAX_TEXT_LENGTH } from './queue.mjs';
+import { agentDir, createAgent, findAgent, isAlive, newAgentId, PROMPT_FILE, readAgentAt, updateAgentAt } from './agents-registry.ts';
+import { CmcError } from './errors.ts';
+import { MAX_TEXT_LENGTH } from './queue.ts';
 
-const RUNNER = join(dirname(fileURLToPath(import.meta.url)), 'agent-runner.mjs');
+const RUNNER = join(dirname(fileURLToPath(import.meta.url)), 'agent-runner.ts');
 
 export const DEFAULT_PERMISSION_MODE = 'acceptEdits';
 // Read and edit files; no shell, no network, unless the user configures more.
@@ -80,7 +80,7 @@ export function buildCommand({ claude, mode, sessionId, worktree, permissionMode
  * @param {readonly string[]} [options.tools]
  * @param {string[]} [options.claude]
  * @param {NodeJS.ProcessEnv} [options.env]
- * @returns {import('./agents-registry.mjs').AgentRecord}
+ * @returns {import('./agents-registry.ts').AgentRecord}
  */
 export function dispatch({
   sessionDir,
@@ -130,7 +130,7 @@ function killTree(pid) {
  * Stops a dispatched agent.
  * @param {string} sessionDir
  * @param {string} id An agent id, or the start of one.
- * @returns {import('./agents-registry.mjs').AgentRecord}
+ * @returns {import('./agents-registry.ts').AgentRecord}
  */
 export function cancelAgent(sessionDir, id) {
   const record = findAgent(sessionDir, id);

@@ -6,10 +6,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join, parse } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { sessionDir } from '../plugins/cmc/lib/paths.mjs';
-import { listMessages } from '../plugins/cmc/lib/queue.mjs';
-import { handleStop } from '../plugins/cmc/lib/release.mjs';
-import { candidateDataDirs, handleSessionEnd, handleSessionStart, listSessions, openSessionsIn, resolveSession } from '../plugins/cmc/lib/sessions.mjs';
+import { sessionDir } from '../plugins/cmc/lib/paths.ts';
+import { listMessages } from '../plugins/cmc/lib/queue.ts';
+import { handleStop } from '../plugins/cmc/lib/release.ts';
+import { candidateDataDirs, handleSessionEnd, handleSessionStart, listSessions, openSessionsIn, resolveSession } from '../plugins/cmc/lib/sessions.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc');
 const FIRST = 'd0546eba-c080-415b-b5e2-863787cb5937';
@@ -37,7 +37,7 @@ function cmc(args, { cwd = project, env = { CMC_DATA_DIR: dataDir } } = {}) {
   const clean = { ...process.env };
   delete clean.CLAUDE_PLUGIN_DATA;
   delete clean.CMC_DATA_DIR;
-  return spawnSync(process.execPath, [join(root, 'bin', 'cmc.mjs'), ...args], { cwd, encoding: 'utf8', env: { ...clean, ...env } });
+  return spawnSync(process.execPath, [join(root, 'bin', 'cmc.ts'), ...args], { cwd, encoding: 'utf8', env: { ...clean, ...env } });
 }
 
 describe('session registry', () => {
@@ -309,7 +309,7 @@ describe('cmc from another terminal', () => {
 
 describe('session-register hook script', () => {
   const run = (input) =>
-    spawnSync(process.execPath, [join(root, 'hooks', 'session-register.mjs')], {
+    spawnSync(process.execPath, [join(root, 'hooks', 'session-register.ts')], {
       input: JSON.stringify(input),
       encoding: 'utf8',
       env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir },

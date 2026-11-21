@@ -4,10 +4,10 @@
 import { existsSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve, sep } from 'node:path';
-import { writeFileAtomic } from './atomic-write.mjs';
-import { CmcError } from './errors.mjs';
-import { sessionDir } from './paths.mjs';
-import { listMessages } from './queue.mjs';
+import { writeFileAtomic } from './atomic-write.ts';
+import { CmcError } from './errors.ts';
+import { sessionDir } from './paths.ts';
+import { listMessages } from './queue.ts';
 
 const SESSION_FILE = 'session.json';
 // Marks a plugin data directory as cmc's, whatever name Claude Code gave it.

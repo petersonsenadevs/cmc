@@ -1,10 +1,10 @@
 // cmc — Claude Message Control. Author: Peterson Sena (r3v3rs3).
 // Decides what happens to a prompt: held, a control word, or passed on to the
 // agent untouched.
-import { parseControl, runControl } from './control.mjs';
-import { CmcError } from './errors.mjs';
-import { sessionDir } from './paths.mjs';
-import { addMessage } from './queue.mjs';
+import { parseControl, runControl } from './control.ts';
+import { CmcError } from './errors.ts';
+import { sessionDir } from './paths.ts';
+import { addMessage } from './queue.ts';
 
 export const DEFAULT_HOLD_PREFIX = ';;';
 

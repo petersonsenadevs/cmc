@@ -433,13 +433,17 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Devlog: senzu/devlog/2026-11-21/031-x-t6-envio-al-acabar-el-turno.md
 - Notas: D-035 y D-036. `/send` con el agente parado ahora envía cuando su comando ha contestado (el motor rechazaba el prompt durante el comando, hipótesis); si falla, muestra el motivo del motor. Pendiente de confirmar en el terminal de Peterson.
 
-### X-T5 · Interfaz interactiva en el motor de plugins: prueba (retener al pulsar Enter, /held, /send)  [M] [doing]
+### X-T5 · Interfaz interactiva en el motor de plugins: prueba (retener al pulsar Enter, /held, /send)  [M] [done]
 - Para qué: en el terminal interactivo el mensaje retenido volvía a la barra del chat, con un aviso de tres líneas, y no había forma visible de enviarlo, editarlo, borrarlo o derivarlo (prueba de Peterson, F1-T6b).
 - Skill: `plugin-authoring` (módulo de hooks: `prompt.submit`, `command.register`/`command.run`, `$.prompt`) + `code-quality §references/typescript`
 - Archivos: plugins/cmc/hooks/interface.ts, plugins/cmc/hooks/module.ts, plugins/cmc/hooks/indicator.ts, plugins/cmc/lib/release.ts, plugins/cmc/bin/cmc.ts, test/interface.test.ts
 - Hecho cuando: en el terminal interactivo de Peterson, `;; texto` desaparece de la barra con un aviso corto, `/held` y `/send` salen en el autocompletado y funcionan con el agente trabajando, y ningún mensaje se pierde si el envío falla. Con eso se decide construir el resto (/edit, /drop, /move, /agent, panel).
 - Verificar: `npm test`; `claude plugin validate ./plugins/cmc`; sesión real sin interfaz (retener, /held, /send); guion interactivo de Peterson.
 - Depende de: —
+- Verificado: prueba de Peterson en su terminal («ahora sí, me gusta»): `;;` desaparece de la barra con un aviso de una línea; `/held` y `/send` funcionan; ningún mensaje se pierde si el envío falla (D-034)
+- Cumple: la interfaz del motor sirve para retener y gestionar sin estorbar, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/029-x-t5-interfaz-motor-prueba.md, 030
+- Notas: lo que seguía (editar, borrar, mover, derivar, panel) lo cubre la fase F5.
 
 ### X-T4 · Decidir qué hacer con el modo «ya» a mitad de turno  [M] [done]
 - Para qué: `;;now` y `cmc release --now` con el agente ocupado entregan el mensaje, pero el modelo lo ignora más de la mitad de las veces y el mensaje se pierde de la cola; hoy la función promete más de lo que da.

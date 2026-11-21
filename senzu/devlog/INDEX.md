@@ -32,3 +32,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 026 | 2026-11-21 | F4-T1: configuración del plugin            | feature  | 012, 024 | F4-T1 |
 | 027 | 2026-11-21 | F4-T2: revisión de seguridad y arreglos    | fix      | 015, 021, 022, 024, 025 | F4-T2 |
 | 028 | 2026-11-21 | F4-T3: documentación e instalación         | docs     | 016      | F4-T3 |
+| 029 | 2026-11-21 | X-T5: prueba de la interfaz en el motor     | feature  | 006, 011 | X-T5 |

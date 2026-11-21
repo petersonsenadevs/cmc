@@ -48,6 +48,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-031 · Los ajustes están en `config.json` del directorio de datos, validados; un valor malo cae a su defecto con aviso; nunca `bypassPermissions` · ver 026
 - D-032 · El derivado tiene solo las herramientas integradas configuradas (`--tools`); `dispatch.restrictTools: false` lo quita a cambio de coste (el fork pierde la caché) · ver 027
 - D-033 · Licencia MIT (elegida por el agente; cambiable) y versión 1.0.0 · ver 028
+- D-034 · Un mensaje sale de la cola solo cuando su envío se ha aceptado (`send` lee, `take <ids>` saca) · ver 029
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012

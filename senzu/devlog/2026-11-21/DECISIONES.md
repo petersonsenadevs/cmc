@@ -160,3 +160,10 @@
 - **Elección:** D-033 MIT y versión 1.0.0.
 - **Motivo:** la más simple y permisiva para un plugin propio de Peterson con su autoría visible; Peterson prefiere que el agente decida y se lo diga.
 - **Consecuencias:** `LICENSE` en la raíz y en `plugins/cmc/`, campo `license` en el manifiesto; cambiarla es tocar esos ficheros.
+
+## dev-028 — Un mensaje sale de la cola solo cuando su envío se acepta
+- **Contexto:** `/send` con el agente parado envía el texto como prompt nuevo (`$.prompt.submit`). En la primera versión la cola se vaciaba antes y, en una sesión sin interfaz, el motor rechazó el envío: mensaje perdido (devlog 029).
+- **Opciones:** vaciar y reponer si falla; leer sin vaciar, enviar y vaciar por id si se acepta.
+- **Elección:** D-034 leer sin vaciar (`send`), enviar, y `take <ids>` solo con el prompt aceptado.
+- **Motivo:** reponer después cambia el orden y deja una ventana sin el mensaje; por id no importa lo que haya pasado entre medias.
+- **Consecuencias:** si el envío falla el mensaje sigue retenido y se avisa; un mensaje borrado entre enviar y tomar simplemente ya no está.

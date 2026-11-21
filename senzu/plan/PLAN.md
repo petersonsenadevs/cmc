@@ -308,6 +308,14 @@
 
 ## Tareas ad hoc (fuera del plan original)
 
+### X-T5 · Interfaz interactiva en el motor de plugins: prueba (retener al pulsar Enter, /held, /send)  [M] [doing]
+- Para qué: en el terminal interactivo el mensaje retenido volvía a la barra del chat, con un aviso de tres líneas, y no había forma visible de enviarlo, editarlo, borrarlo o derivarlo (prueba de Peterson, F1-T6b).
+- Skill: `plugin-authoring` (módulo de hooks: `prompt.submit`, `command.register`/`command.run`, `$.prompt`) + `code-quality §references/typescript`
+- Archivos: plugins/cmc/hooks/interface.ts, plugins/cmc/hooks/module.ts, plugins/cmc/hooks/indicator.ts, plugins/cmc/lib/release.ts, plugins/cmc/bin/cmc.ts, test/interface.test.ts
+- Hecho cuando: en el terminal interactivo de Peterson, `;; texto` desaparece de la barra con un aviso corto, `/held` y `/send` salen en el autocompletado y funcionan con el agente trabajando, y ningún mensaje se pierde si el envío falla. Con eso se decide construir el resto (/edit, /drop, /move, /agent, panel).
+- Verificar: `npm test`; `claude plugin validate ./plugins/cmc`; sesión real sin interfaz (retener, /held, /send); guion interactivo de Peterson.
+- Depende de: —
+
 ### X-T4 · Decidir qué hacer con el modo «ya» a mitad de turno  [M] [done]
 - Para qué: `;;now` y `cmc release --now` con el agente ocupado entregan el mensaje, pero el modelo lo ignora más de la mitad de las veces y el mensaje se pierde de la cola; hoy la función promete más de lo que da.
 - Skill: `code-quality §references/llm-apps "6. Seguridad"` + experimento con `scripts/e2e.ts`

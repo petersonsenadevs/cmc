@@ -69,3 +69,10 @@
 - **Elección:** D-016 el modo por defecto es el fork, en el modelo de la sesión origen; el paquete queda como alternativa (`--mode pack`) y como respaldo. D-017 el aislamiento usa el `--worktree <nombre>` de Claude Code (`cmc-<id>`); sin git no se pasa y se avisa.
 - **Motivo:** medido: el fork arranca a mitad de turno sin alterar el origen, ve la herramienta pendiente como interrumpida y, por la caché, costó menos que el paquete en una sesión corta.
 - **Consecuencias:** F3-T3 ya no crea el worktree: lo nombra, lo localiza y lo limpia. El fork hereda toda la conversación; el prompt de derivación lo acota a la tarea.
+
+## dev-015 — Cómo se lanza y se vigila un agente derivado
+- **Contexto:** el hook que deriva debe volver enseguida, pero alguien tiene que saber cuándo y cómo acaba el agente.
+- **Opciones:** lanzar `claude` desacoplado y deducir su final del log; o un proceso supervisor por agente.
+- **Elección:** D-018 un supervisor desacoplado (`lib/agent-runner.mjs`) ejecuta `claude`, le pasa el prompt por stdin, guarda la salida y anota el estado final. La línea de comandos se construye como array y nunca lleva texto del usuario.
+- **Motivo:** el supervisor da un estado fiable (terminado, fallido, cancelado) y un sitio donde, en F3-T6, devolver el resultado a la cola; stdin evita inyección y el límite de longitud de la línea de comandos en Windows.
+- **Consecuencias:** dos procesos por agente; cancelar mata el árbol (`taskkill /T /F` en Windows, grupo de procesos en POSIX).

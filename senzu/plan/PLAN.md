@@ -192,16 +192,17 @@
 - Devlog: senzu/devlog/2026-11-21/013-f3-t1-fork-a-mitad-de-turno.md
 - Notas: S4 confirmado. Modo por defecto: fork (D-016). El worktree lo crea `--worktree` de Claude Code (D-017), lo que simplifica F3-T3. Una ejecución válida, solo Windows.
 
-### F3-T2 · Implementar el lanzador de agentes derivados  [M] [doing]
+### F3-T2 · Implementar el lanzador de agentes derivados  [M] [done]
 - Para qué: arrancar el segundo agente sin bloquear ni interrumpir al principal.
 - Skill: `code-quality §references/security-owasp "Inyección (SQL, comandos, plantillas)"` + `code-quality §references/jobs-and-queues "Anatomía de un job bien hecho"`
 - Archivos: lib/dispatch.mjs, lib/agents-registry.mjs, test/dispatch.test.mjs
 - Hecho cuando: `dispatch(tarea, sesión)` lanza `claude -p` desacoplado con argumentos en array (sin shell), salida `stream-json` a un log por agente y ficha en el registro (id, pid, tarea, estado, inicio); permisos `acceptEdits` con lista de herramientas configurable, nunca `bypassPermissions`; el estado pasa a `terminado` o `fallido` con su código de salida; cancelar mata el proceso.
 - Verificar: `npm test` con un ejecutable falso en lugar de `claude`; prueba real con una tarea de solo lectura.
 - Depende de: F3-T1
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 146 pass, 0 fail, seis veces seguidas (con ejecutable de pega: termina, falla, resultado de error, ejecutable inexistente, cancelación, texto hostil por stdin); `npm run lint` → 36 modules checked, 0 failed; prueba real de solo lectura: `dispatched b901043e in 30 ms`, `state=finished exit=0 after 3.6 s`, resumen «The project codename is HERON…» (lo sabía por la sesión origen)
+- Cumple: el segundo agente arranca sin bloquear ni interrumpir al principal (el lanzador vuelve en 30 ms), que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/015-f3-t2-lanzador-de-agentes.md
+- Notas: supervisor desacoplado por agente (D-018). Archivo extra: lib/agent-runner.mjs, test-support/fake-claude.mjs. Cancelación solo probada en Windows.
 
 ### F3-T3 · Aislar al agente derivado en un worktree  [M] [todo]
 - Para qué: que dos agentes a la vez no pisen los mismos archivos.

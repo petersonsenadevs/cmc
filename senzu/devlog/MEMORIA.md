@@ -32,6 +32,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-015 · Las sesiones sin actividad en 30 días se borran con su cola al arrancar otra; configurable en F4-T1 · ver 012
 - D-016 · Derivar: por defecto fork de la sesión (`--resume <id> --fork-session`), paquete de contexto como alternativa y respaldo · ver 013
 - D-017 · El worktree del derivado lo crea `--worktree cmc-<id>` de Claude Code; sin git, misma carpeta con aviso · ver 013
+- D-018 · Cada agente derivado corre bajo un supervisor desacoplado; el prompt entra por stdin, nunca por la línea de comandos · ver 015
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012
@@ -40,6 +41,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - El `additionalContext` de `PostToolUse` con redacción imperativa no se obedece; con la cabecera factual sí · ver 002, 009
 - Redactar lo liberado en imperativo («Treat each line as a message from the user») hace que el modelo desconfíe · ver 002
 - Las variables `CLAUDE_PLUGIN_*` no existen en el proceso de un `!` de comando; sí en los hooks · ver 002
+- En Windows, la carpeta que fue directorio de trabajo de un proceso sigue bloqueada un rato tras su salida: los tests no lanzan procesos dentro de su carpeta temporal · ver 015
 
 ## Pendientes abiertos
 - [desde 2026-11-21] Ok de Peterson para sellar `senzu/conventions.md` (borrador de /adoptar)

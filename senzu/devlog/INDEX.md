@@ -18,3 +18,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 012 | 2026-11-21 | F2-T5: la cola se conserva al reanudar     | feature  | 010      | F2-T5 |
 | 013 | 2026-11-21 | F3-T1: el fork de sesión a mitad de turno  | decisión | —        | F3-T1 |
 | 014 | 2026-11-21 | X-T1: portabilidad Windows, macOS y Linux  | fix      | 004, 010 | X-T1  |
+| 015 | 2026-11-21 | F3-T2: lanzador de agentes derivados       | feature  | —        | F3-T2 |

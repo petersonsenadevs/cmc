@@ -218,18 +218,19 @@
 - Devlog: senzu/devlog/2026-11-21/021-f3-t3-worktree-del-derivado.md
 - Notas: el worktree lo crea `--worktree` de Claude Code (D-017); se levanta el bloqueo que deja su sesión terminada (D-027). Solo probado en Windows. `.claude/worktrees/` queda dentro del repositorio del usuario.
 
-### F3-T4 · Construir el paquete de contexto ligero  [M] [todo]
+### F3-T4 · Construir el paquete de contexto ligero  [M] [done]
 - Para qué: derivar tareas pequeñas sin pagar el historial entero (y plan B si S4 falla).
 - Skill: `code-quality §references/llm-apps "5. Costes y límites"` + `code-quality §references/llm-apps "6. Seguridad"`
 - Archivos: lib/context-pack.mjs, test/context-pack.test.mjs, test/fixtures/transcript.jsonl
 - Hecho cuando: a partir del transcript se obtiene un paquete acotado (petición original, últimos N intercambios, archivos tocados, carpeta y rama) que se pasa al agente nuevo; un transcript con formato desconocido no rompe: degrada a «tarea + carpeta» y lo avisa; `--modo fork|paquete` elige.
 - Verificar: `npm test` con transcripts de ejemplo, incluido uno malformado.
 - Depende de: F3-T2
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 170 pass, 0 fail (transcript de ejemplo, de formato desconocido, vacío e inexistente: los tres últimos degradan a «tarea + carpeta» con aviso); `npx tsc --noEmit` → 0; sobre un transcript real de Claude Code genera un prompt de 938 caracteres con carpeta, rama, primera petición, intercambio y ficheros leídos
+- Cumple: una tarea pequeña se puede derivar con un resumen acotado en vez de todo el historial, que era el «Para qué»; y es el camino disponible cuando el fork no conviene
+- Devlog: senzu/devlog/2026-11-21/022-f3-t4-paquete-de-contexto.md
+- Notas: sin agente real en modo paquete todavía (F3-T5). El respaldo automático fork→paquete no está hecho: el modo se elige.
 
-### F3-T5 · Derivar desde el prompt y ver los agentes  [M] [todo]
+### F3-T5 · Derivar desde el prompt y ver los agentes  [M] [doing]
 - Para qué: mandar una tarea al segundo agente con un gesto y saber cómo va.
 - Skill: `code-quality §references/errors-logging "Mensajes accionables"`
 - Archivos: hooks/prompt-capture.mjs, commands/dispatch.md, commands/agents.md, bin/cmc.mjs (`dispatch`, `agents`, `log`, `cancel`), test/prompt-dispatch.test.mjs

@@ -25,3 +25,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 019 | 2026-11-21 | X-T3: migración a TypeScript               | refactor | 018      | X-T3  |
 | 020 | 2026-11-21 | TypeScript frente a JavaScript: comparación | fix      | 019      | X-T3  |
 | 021 | 2026-11-21 | F3-T3: worktree del agente derivado        | feature  | 015      | F3-T3 |
+| 022 | 2026-11-21 | F3-T4: paquete de contexto ligero          | feature  | —        | F3-T4 |

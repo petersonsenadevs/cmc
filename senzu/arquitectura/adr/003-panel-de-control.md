@@ -136,6 +136,17 @@ one click (or one key) away:
   input box at the bottom holds (or, in Subagent mode, dispatches) without typing a prefix; every action leaves a line in Activity; the
   last two lines of Activity show under every view.
 
+### 8. A hub, with its name
+
+Peterson: "the name must have its title and say by r3v3rs3, and room for the logo when we have it; it will basically be a hub". The
+panel is the hub of cmc: the header reads "cmc — Claude Message Control" and "by r3v3rs3", with a fixed slot for the logo (a text mark
+until the logo exists; then `plugins/cmc/assets/logo.png` drawn with the terminal's `Image` element, the text mark where it cannot
+be drawn). The pane's tab reads "cmc hub".
+
+The hub also chooses how subagents work: their model (`dispatch.model`: inherit, or an alias such as `opus`, `sonnet`, `haiku`,
+`fable`, or a full model name) and their effort (`dispatch.effort`: inherit, `low`, `medium`, `high`, `xhigh`, `max`), passed to
+Claude Code as `--model` and `--effort`, for every subagent or for one task (F5-T11).
+
 ### 5. Data and actions
 
 Unchanged from F5-T1: the panel reads the session files (queue, state, agents) every second and redraws on change; every action goes

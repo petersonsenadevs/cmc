@@ -395,13 +395,29 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Verificar: `npm test`; guion de Peterson.
 - Depende de: F5-T3
 
+### F5-T10 · Cabecera del hub: título, autoría y sitio para el logotipo  [S] [todo]
+- Para qué: Peterson: «el nombre debe tener su título y decir by r3v3rs3, y espacio para el logotipo cuando lo tengamos; básicamente será un hub».
+- Skill: `plugin-authoring` (`ui.render` de `Pane`; elementos `Image`/`Raster` de la terminal para el logotipo) + `code-quality §references/typescript`
+- Archivos: plugins/cmc/hooks/panel.ts, plugins/cmc/assets/ (logotipo, cuando exista), test/panel.test.ts, senzu/arquitectura/adr/003-panel-de-control.md
+- Hecho cuando: la cabecera dice «cmc — Claude Message Control» y «by r3v3rs3», con un hueco fijo para el logotipo (marcador hasta que exista; con el fichero en `plugins/cmc/assets/logo.png` se pinta con `Image`, y si la terminal no lo dibuja, el marcador de texto); el título del panel (pestaña) es «cmc hub»; no empuja el contenido en terminales estrechas.
+- Verificar: `npm test`; `claude plugin validate ./plugins/cmc`; captura de Peterson.
+- Depende de: —
+
+### F5-T11 · Elegir el modelo y el esfuerzo de los subagentes  [M] [todo]
+- Para qué: Peterson: «que podamos elegir el modelo para el subagente y el effort»; cada tarea puede pedir un modelo más barato o más capaz.
+- Skill: `code-quality §references/typescript` + `plugin-authoring` (`Select`)
+- Archivos: plugins/cmc/lib/config.ts, plugins/cmc/lib/dispatch.ts, plugins/cmc/lib/agent-control.ts, plugins/cmc/bin/cmc.ts, plugins/cmc/hooks/panel.ts, test/config.test.ts, test/dispatch.test.ts, test/panel.test.ts
+- Hecho cuando: ajustes `dispatch.model` (`inherit` por defecto, o un alias `fable`/`opus`/`sonnet`/`haiku`, o un nombre completo de modelo) y `dispatch.effort` (`inherit`, `low`, `medium`, `high`, `xhigh`, `max`), validados; se pasan como `--model`/`--effort` (con `inherit`, no se pasa nada y manda la configuración del usuario); en el panel, dos selectores en la franja de modos y la opción de cambiarlos para una tarea concreta (To subagent, caja de nueva tarea); `>> --model sonnet --effort low tarea` y `cmc dispatch --model … --effort …`; cada subagente muestra con qué modelo y esfuerzo trabaja; el aviso de coste del README lo explica.
+- Verificar: `npm test` (el comando lleva `--model`/`--effort` solo cuando se eligen; valores raros rechazados); sesión real con `--model haiku --effort low`.
+- Depende de: —
+
 ### F5-T9 · Cierre de la fase: documentación y prueba completa  [M] [todo]
 - Para qué: que se pueda usar sin preguntarme y quede probado de punta a punta.
 - Skill: `code-quality §references/api-design` (documentación de uso) + skill `devlog`
 - Archivos: README.md, docs/manual-test.md (parte C: panel), CHANGELOG.md, manifiestos (versión 1.1.0)
 - Hecho cuando: README con el panel (captura), `/held`, `/send`, `sendAtEnd` y escribir a agentes; parte C del guion manual; versión 1.1.0; suite, tipos, lint y validación en verde; Peterson pasa la parte C.
 - Verificar: `npm test`, `npx tsc --noEmit`, `npm run lint`, `claude plugin validate .`; guion de Peterson.
-- Depende de: F5-T5, F5-T7, F5-T8
+- Depende de: F5-T5, F5-T7, F5-T8, F5-T10, F5-T11
 
 ## Tareas ad hoc (fuera del plan original)
 
@@ -494,6 +510,7 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 | 2026-11-21 | Tarjeta ad hoc X-T4: el modo «ya» a mitad de turno no es fiable (5 de 12) | Batería de comparación JavaScript/TypeScript |
 | 2026-11-21 | Q1 resuelta: el plugin se llama `cmc` (Claude Message Control); prefijos `;;` y `>>` por defecto, configurables en F4-T1 | Decisión de Peterson |
 | 2026-11-21 | X-T5 y X-T6: interfaz en el motor (retener al pulsar Enter, `/held`, `/send`) y lo retenido llega solo al acabar el turno (D-035) | Prueba interactiva de Peterson |
+| 2026-11-21 | F5-T10 (cabecera del hub: título, «by r3v3rs3», sitio para el logotipo) y F5-T11 (modelo y esfuerzo de los subagentes); F5-T9 depende de ellas | Petición de Peterson: «será un hub», elegir modelo y effort |
 | 2026-11-21 | Nueva fase F5: panel de control con ratón, agentes y mensajes a agentes; los adaptadores pasan a F6. Escribir a un agente entra en el alcance (le llega al acabar su turno); la conversación en tiempo real entre agentes que trabajan sigue fuera | Petición de Peterson: «haz el panel, eso es lo que nos aportaría, además de poder comunicar los agentes» |
 
 ## Riesgos y bloqueos

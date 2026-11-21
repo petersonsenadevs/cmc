@@ -48,3 +48,10 @@
 - **Elección:** D-013 el hook `SessionStart` deja `cmc.json` en el directorio de datos y la CLI busca esa marca; `--data-dir` o `CMC_DATA_DIR` lo fijan a mano.
 - **Motivo:** no se escribe estado fuera de `${CLAUDE_PLUGIN_DATA}`, como pide el brief.
 - **Consecuencias:** la CLI no ve una sesión hasta que su `SessionStart` se ha ejecutado con el plugin cargado.
+
+## dev-011 — Cómo se muestra el indicador
+- **Contexto:** el plan dudaba de que un plugin pudiera aportar la línea de estado.
+- **Opciones:** script de `statusLine` que el usuario activa a mano en `settings.json`; o un módulo de hooks del motor de plugins (`modules` en `hooks/hooks.json`) con `$.ui.status`.
+- **Elección:** D-014 módulo de hooks `hooks/indicator.mjs` que lee la cola cada segundo y fija `✉ N held`.
+- **Motivo:** se instala con el plugin, sin tocar la configuración del usuario, y no pisa su `statusLine` propia.
+- **Consecuencias:** el módulo corre en el motor (sin Node), así que no comparte código con el core; exige una versión de Claude Code con módulos de hooks (la 2.1.330 los tiene). El mismo motor ofrece el evento `prompt.submit` y la «puerta» `queue`, que podrían capturar un mensaje al teclearlo y no al acabar la herramienta: anotado como mejora posible, fuera del plan.

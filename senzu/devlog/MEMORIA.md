@@ -28,6 +28,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-011 · La cola se gestiona con palabras de control (`;;list`, `;;edit`, `;;rm`, `;;move`…), no con argumentos de comando; `/cmc:queue` solo lista · ver 008
 - D-012 · `cmc release --now` (desde fuera) entrega por `PostToolUse` con la cabecera factual y, si no hay más pasos, por `Stop` · ver 009
 - D-013 · La CLI encuentra el directorio de datos por la marca `cmc.json` (no hay estado fuera de `CLAUDE_PLUGIN_DATA`) y la sesión por carpeta · ver 010
+- D-014 · El indicador `✉ N held` es un módulo de hooks (`hooks/indicator.mjs`, `$.ui.status`), no la `statusLine` del usuario · ver 011
 
 ## Reglas del cliente y del proyecto
 

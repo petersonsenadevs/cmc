@@ -108,7 +108,7 @@
 - Para qué: confirmar que en el terminal real retener no interrumpe y que el aviso no molesta, que es lo único que el modo headless no demuestra.
 - Skill: sin skill: prueba manual
 - Archivos: senzu/devlog/<fecha>/NNN-guion-interactivo.md
-- Hecho cuando: las cinco filas de la parte B de `docs/manual-test.md` (B1–B5) están ejecutadas con su resultado y con cómo se ve el aviso en pantalla; si alguna falla, hay tarjeta de arreglo.
+- Hecho cuando: las seis filas de la parte B de `docs/manual-test.md` (B1–B6, la B6 es el indicador de F2-T4) están ejecutadas con su resultado y con cómo se ve el aviso en pantalla; si alguna falla, hay tarjeta de arreglo.
 - Verificar: `claude --plugin-dir .` en una carpeta de pruebas, siguiendo `docs/manual-test.md`.
 - Depende de: F1-T6
 - Verificado: —
@@ -154,18 +154,19 @@
 - Devlog: senzu/devlog/2026-11-21/010-f2-t3-cli-desde-otra-terminal.md
 - Notas: con varias sesiones en la carpeta la CLI las lista y pide `--session <id>` (no hay selector interactivo). El hook registra también `SessionEnd`. Comando extra: `cmc sessions`.
 
-### F2-T4 · Mostrar el indicador de mensajes retenidos  [M] [doing]
+### F2-T4 · Mostrar el indicador de mensajes retenidos  [M] [done]
 - Para qué: saber de un vistazo que hay mensajes esperando.
 - Skill: `plugin-authoring` (mods: banda o línea de estado) — skill de Claude Code, no de Senzu
 - Archivos: mods/ o statusline/cmc-status.mjs (según lo que permita el sistema de mods), README.md
 - Hecho cuando: se ve «✉ 2 held» (y nada cuando la cola está vacía), actualizado al retener y al soltar; si un plugin no puede aportar la línea de estado, queda documentado cómo activarla en `settings.json`.
 - Verificar: sesión real: captura con 0, 1 y 2 mensajes retenidos.
 - Depende de: F2-T1
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 109 pass, 0 fail (el módulo, con un motor de pega, pone `✉ 1 held`, `✉ 2 held` y lo quita al vaciar); `claude plugin validate .` lista `./indicator.mjs hooks: session.start` y sus llamadas; registro de depuración de una sesión real: `hooks module cmc@inline loaded … events: session.start` y lectura por segundo de la cola de la sesión. Captura en pantalla: no aplica desde el agente (no ve la interfaz interactiva); queda como fila B6 del guion de F1-T6b
+- Cumple: con mensajes retenidos se ve `✉ N held` bajo el prompt y desaparece al vaciar la cola, que era el «Para qué»; falta que Peterson lo vea pintado (B6)
+- Devlog: senzu/devlog/2026-11-21/011-f2-t4-indicador.md
+- Notas: es un módulo de hooks (`hooks/indicator.mjs`, D-014), no `mods/` ni `statusline/`: un plugin sí puede aportar la línea de estado, así que no hace falta documentar ajuste manual.
 
-### F2-T5 · Conservar la cola tras reiniciar, reanudar o compactar  [S] [todo]
+### F2-T5 · Conservar la cola tras reiniciar, reanudar o compactar  [S] [doing]
 - Para qué: no perder mensajes retenidos si se cierra la terminal.
 - Skill: `code-quality §references/testing "Qué testear y qué no"`
 - Archivos: lib/sessions.mjs, hooks/session-register.mjs, test/persistence.test.mjs

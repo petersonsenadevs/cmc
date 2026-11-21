@@ -40,6 +40,8 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-024 · El plugin va en TypeScript ejecutado directamente por Node, sin compilar; `tsc --noEmit` solo en desarrollo · ver 018
 - D-023 · Primero Claude Code; los adaptadores para otros agentes (Codex y los que falten) van después, en la fase 5 · ver 017
 - D-025 · Tipado estricto sin escapes (`strict`, sin `any` ni `@ts-ignore`; entradas como `unknown`; solo sintaxis borrable); `npm run types` en cada verificación · ver 019
+- D-026 · Los hooks arrancan por `hooks/run.js` (único fichero JavaScript, sin lógica), que activa la caché de compilación de Node y carga el núcleo en TypeScript: 45 ms por hook frente a 95 ms sin ella · ver 020
+- D-026 · Los hooks arrancan por `hooks/run.js` (único fichero JavaScript, sin lógica), que activa la caché de compilación de Node y carga el núcleo en TypeScript: 45 ms por hook frente a 95 ms sin ella · ver 020
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012
@@ -49,9 +51,10 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - Redactar lo liberado en imperativo («Treat each line as a message from the user») hace que el modelo desconfíe · ver 002
 - Las variables `CLAUDE_PLUGIN_*` no existen en el proceso de un `!` de comando; sí en los hooks · ver 002
 - En Windows, la carpeta que fue directorio de trabajo de un proceso sigue bloqueada un rato tras su salida: los tests no lanzan procesos dentro de su carpeta temporal · ver 015
+- El modo «ya» a mitad de turno (`;;now`, `cmc release --now`) NO es fiable: con `haiku` el modelo obedeció 5 de 12 veces, igual en JavaScript que en TypeScript; lo ignorado se pierde de la cola. Fiables: `;;end` y `;;now` en reposo · ver 020
+- El modo «ya» a mitad de turno (`;;now`, `cmc release --now`) NO es fiable: con `haiku` el modelo obedeció 5 de 12 veces, igual en JavaScript que en TypeScript; lo ignorado se pierde de la cola. Fiables: `;;end` y `;;now` en reposo · ver 020
 
 ## Pendientes abiertos
-- [desde 2026-11-21] Volver a ejecutar /adoptar con TypeScript al terminar X-T3 (las convenciones selladas se borraron) · ver 018
 - [desde 2026-11-21] El «types» de `verify-build` falla porque Senzu se instaló con stack `node-api` (lanza `tsc`): reinstalar Senzu con los comandos reales · ver 017
 - [desde 2026-11-21] F1-T6b: Peterson pasa la parte B de `docs/manual-test.md` en la interfaz interactiva
 - [desde 2026-11-21] Ejecutar la suite en macOS y Linux (solo se ha corrido en Windows) · ver 014

@@ -23,3 +23,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 017 | 2026-11-21 | /adoptar: convenciones del proyecto        | decisión | 002      | —     |
 | 018 | 2026-11-21 | Decisión corregida: TypeScript             | decisión | 017      | X-T3  |
 | 019 | 2026-11-21 | X-T3: migración a TypeScript               | refactor | 018      | X-T3  |
+| 020 | 2026-11-21 | TypeScript frente a JavaScript: comparación | fix      | 019      | X-T3  |

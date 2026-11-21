@@ -139,6 +139,38 @@ Measured again with the real plugin (`scripts/e2e.mjs`), one run each:
 - Selective release is done with control words (`;;now N…`, `;;end N…`), not with `/cmc:release N`:
   command arguments are substituted into the shell line of the command (D-011).
 
+## Update — 2026-11-21, after the TypeScript migration
+
+The two mid-turn "now" scenarios were repeated three times each on the JavaScript and on the TypeScript version
+(model `haiku`). The released text was delivered every time; the model acted on it in:
+
+| | `;;now 2` mid-turn | `cmc release --now` mid-turn |
+|---|---|---|
+| JavaScript | 1 of 3 | 1 of 3 |
+| TypeScript | 2 of 3 | 1 of 3 |
+
+So the single obeyed runs recorded above were luck, not evidence: **mid-turn delivery is unreliable** with this
+model, on both versions alike. When it is ignored the model says the text "appeared inside a tool result" and is
+not part of its task. Delivery at the end of the turn (`;;end`, `Stop` hook) and `;;now` typed while idle were
+obeyed in every run. Open work (plan card X-T4): measure with larger models and more runs, and decide whether
+`;;now` mid-turn should exist at all, or fall back to the end of the turn.
+
+## Update — 2026-11-21, after the TypeScript migration
+
+The two mid-turn "now" scenarios were repeated three times each on the JavaScript and on the TypeScript version
+(model `haiku`). The released text was delivered every time; the model acted on it in:
+
+| | `;;now 2` mid-turn | `cmc release --now` mid-turn |
+|---|---|---|
+| JavaScript | 1 of 3 | 1 of 3 |
+| TypeScript | 2 of 3 | 1 of 3 |
+
+So the single obeyed runs recorded above were luck, not evidence: **mid-turn delivery is unreliable** with this
+model, on both versions alike. When it is ignored the model says the text "appeared inside a tool result" and is
+not part of its task. Delivery at the end of the turn (`;;end`, `Stop` hook) and `;;now` typed while idle were
+obeyed in every run. Open work (plan card X-T4): measure with larger models and more runs, and decide whether
+`;;now` mid-turn should exist at all, or fall back to the end of the turn.
+
 ## How to reproduce
 
 ```

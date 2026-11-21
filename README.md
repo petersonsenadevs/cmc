@@ -34,7 +34,7 @@ To try it from a checkout without installing: `claude --plugin-dir /path/to/this
 |---|---|
 | `;; also update the README` | The message is **held**. The agent does not see it and keeps working. You get the receipt `Held (1 queued)`. |
 | `/cmc:release` | Every held message is handed to the agent, in delivery order. |
-| `;;now` | Hands everything over **now**: the agent gets it at its next step, without waiting for the turn to end. If the agent is idle, it starts a turn with them. |
+| `;;now` | Hands everything over **now**. If the agent is idle, it starts a turn with them. If it is busy, they arrive at its next step, but the model may set them aside (see below). |
 | `;;now 2` · `;;now 1 3` | Same, but only those messages. The rest stay held. |
 | `;;end` | The held messages are handed over automatically when the current turn ends. One-shot. |
 | `;;end 2` | Same, but only those messages. |
@@ -84,9 +84,12 @@ pick one with `--session <id>` (the first characters of the id are enough).
 How sure each delivery is:
 
 - **End of turn** (`;;end`, `/cmc:release`) is the dependable path: the text arrives as a new instruction.
-- **Now** (`;;now`, `cmc release`) rides on the turn that is running. The agent receives the text between
-  two steps and, in every test so far, acted on it; but it is the model that weighs text arriving
-  mid-task, so treat it as best effort. Whatever happens, a message is handed over exactly once.
+- **Now** (`;;now`, `cmc release`) rides on the turn that is running, and it is **unreliable while the agent
+  is busy**. The agent always receives the text between two steps, but it is the model that decides what to do
+  with text arriving mid-task: in repeated tests with a small model it acted on it in about four runs out of
+  ten and otherwise set it aside as not part of its task. A message is handed over exactly once, so one the
+  model ignores is gone from the queue. Use `;;now` when the agent is idle (it starts a turn with the
+  messages, which is dependable) and `;;end` while it is working.
 
 ### Indicator
 

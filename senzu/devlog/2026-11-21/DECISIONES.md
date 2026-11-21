@@ -104,3 +104,10 @@
 - **Elección:** D-025 `strict` + `noUncheckedIndexedAccess`, sin `any`, `@ts-ignore` ni `!`; lo que entra por un hook o sale de `JSON.parse` es `unknown` y se estrecha; solo sintaxis borrable (`erasableSyntaxOnly`), porque Node no transforma el código.
 - **Motivo:** el plugin intercepta los mensajes del usuario; el tipado estricto destapó seis fallos reales en la primera pasada.
 - **Consecuencias:** `npm run types` (`tsc --noEmit`) forma parte de la verificación de cada tarea.
+
+## dev-020 — Lanzador de los hooks y caché de compilación
+- **Contexto:** con los hooks en TypeScript, cada invocación pasó de unos 42 ms a unos 95 ms: Node quita los tipos de cada módulo en cada arranque. El hook `PostToolUse` corre en cada herramienta del agente.
+- **Opciones:** aceptar los 50 ms; activar la caché de compilación desde el propio hook `.ts` (72 ms: el fichero de entrada sigue pagando la carga del eliminador de tipos); o un lanzador en JavaScript que la active antes de cargar el núcleo.
+- **Elección:** D-026 `hooks/run.js`, único fichero JavaScript del plugin y sin lógica: llama a `enableCompileCache()` y carga `lib/hooks.ts`, que resuelve el hook por nombre. `hooks.json` invoca `node run.js <nombre>`.
+- **Motivo:** medido: 45 ms por hook, 3 ms más que en JavaScript.
+- **Consecuencias:** un fichero `.js` en un plugin por lo demás TypeScript; la caché vive en la carpeta temporal del sistema y Node la invalida sola cuando cambia el código.

@@ -300,6 +300,17 @@
 
 ## Tareas ad hoc (fuera del plan original)
 
+### X-T4 · Decidir qué hacer con el modo «ya» a mitad de turno  [M] [todo]
+- Para qué: `;;now` y `cmc release --now` con el agente ocupado entregan el mensaje, pero el modelo lo ignora más de la mitad de las veces y el mensaje se pierde de la cola; hoy la función promete más de lo que da.
+- Skill: `code-quality §references/llm-apps "6. Seguridad"` + experimento con `scripts/e2e.ts`
+- Archivos: plugins/cmc/lib/control.ts, plugins/cmc/lib/release.ts, README.md, senzu/arquitectura/adr/001-captura-y-liberacion.md
+- Hecho cuando: medido con el modelo por defecto y con al menos 10 ejecuciones por variante (redacción, canal); y tomada una de estas salidas: (a) una variante fiable, (b) `;;now` a mitad de turno pasa a entregar al terminar el turno, o (c) el mensaje no sale de la cola hasta que el turno acaba y se confirma. README y ADR reflejan lo decidido.
+- Verificar: tabla de resultados en el ADR; `npm test`; sesión real del camino elegido.
+- Depende de: —
+- Verificado: —
+- Cumple: —
+- Devlog: —
+
 ### X-T3 · Migrar el plugin a TypeScript ejecutado por Node  [M] [done]
 - Para qué: Peterson quería el plugin en TypeScript; el agente lo dejó en JavaScript por un malentendido.
 - Skill: `code-quality §references/typescript` (tipado estricto, validación en los bordes)
@@ -354,6 +365,7 @@
 | 2026-11-21 | Nueva fase F5 (adaptadores para otros agentes), sin tarjetas todavía: se planifica cuando Claude Code esté terminado | Decisión de Peterson: «primero Claude y luego, cuando esté perfecto, pasamos» |
 | 2026-11-21 | El lenguaje queda en JavaScript sobre Node, sin TypeScript (D-022) | Decisión de Peterson |
 | 2026-11-21 | Tarjeta ad hoc X-T3: migración a TypeScript; D-022 sustituida por D-024; F3-T3 espera | Peterson: «quería TypeScript» |
+| 2026-11-21 | Tarjeta ad hoc X-T4: el modo «ya» a mitad de turno no es fiable (5 de 12) | Batería de comparación JavaScript/TypeScript |
 | 2026-11-21 | Q1 resuelta: el plugin se llama `cmc` (Claude Message Control); prefijos `;;` y `>>` por defecto, configurables en F4-T1 | Decisión de Peterson |
 
 ## Riesgos y bloqueos
@@ -366,3 +378,4 @@
 | Agente derivado sin supervisión con permisos de edición | Alto | Worktree aislado, `acceptEdits` como máximo por defecto, lista de herramientas, nunca `bypassPermissions`; revisión en F4-T2 | Abierto |
 | Tope de 8 continuaciones seguidas del hook `Stop` | Bajo | Entregar toda la cola en una sola continuación | Abierto |
 | Un plugin quizá no pueda aportar línea de estado ni atajos de teclado | Bajo | F2-T4 usa el sistema de mods o documenta el ajuste manual en `settings.json` | Abierto |
+| El modo «ya» a mitad de turno depende de cómo pondere el modelo un texto que llega por un hook | Alto | Medido: lo obedece 5 de 12 veces (`haiku`) y lo ignorado se pierde de la cola. El README lo dice; tarjeta X-T4 | Abierto |

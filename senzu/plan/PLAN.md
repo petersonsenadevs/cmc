@@ -44,18 +44,19 @@
 - Devlog: senzu/devlog/2026-11-21/002-f1-t1-spike-hooks-mitad-de-turno.md
 - Notas: medido en modo headless (stream-json); la interfaz interactiva se comprueba en F1-T6. S3 refutado para mitad de turno: el comando se expande al terminar el turno. Archivos reales: spike/hooks/hooks.json, spike/probe.mjs, spike/drain.mjs, spike/drive.mjs.
 
-### F1-T2 · Crear el esqueleto del plugin y el repositorio  [S] [todo]
+### F1-T2 · Crear el esqueleto del plugin y el repositorio  [S] [done]
 - Para qué: tener un plugin que carga y un sitio donde probar cada pieza.
 - Skill: `code-quality §references/git-and-reviews "Conventional Commits"`
 - Archivos: .claude-plugin/plugin.json, hooks/hooks.json, package.json (`"type":"module"`, script `test`), .gitignore, README.md, senzu/devlog/INDEX.md, test/smoke.test.mjs
 - Hecho cuando: `git init` hecho; el plugin carga sin errores; `npm test` ejecuta un test trivial en verde; autoría en `plugin.json`.
 - Verificar: `claude plugin validate .` sin errores; `npm test` → 1 verde.
 - Depende de: F1-T1 (Q1: nombre y prefijos)
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 2 pass, 0 fail; `npm run lint` → 2 modules checked, 0 failed; `claude plugin validate .` → Validation passed with warnings (CLAUDE.md de Senzu en la raíz; LICENSE e icono, de F4-T3)
+- Cumple: hay un plugin que carga y valida y un `npm test` donde colgar cada pieza, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/003-f1-t2-esqueleto-plugin.md
+- Notas: `git init` hecho antes (entrada 001). Archivos extra: scripts/lint.mjs, .gitattributes. Licencia sin fijar hasta F4-T3.
 
-### F1-T3 · Implementar la cola por sesión en el core  [M] [todo]
+### F1-T3 · Implementar la cola por sesión en el core  [M] [doing]
 - Para qué: que los mensajes retenidos no se pierdan ni se entreguen dos veces.
 - Skill: `code-quality §references/testing "TDD pragmático"` + `code-quality §references/jobs-and-queues "Idempotencia (el job llegará dos veces)"`
 - Archivos: lib/queue.mjs, lib/paths.mjs, test/queue.test.mjs

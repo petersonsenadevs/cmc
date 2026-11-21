@@ -1,7 +1,7 @@
 // cmc — prompt capture. Author: Peterson Sena (r3v3rs3).
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { handlePrompt } from '../plugins/cmc/lib/capture.ts';
 import { sessionDir } from '../plugins/cmc/lib/paths.ts';
 import { listMessages, MAX_TEXT_LENGTH } from '../plugins/cmc/lib/queue.ts';
+import { readState } from '../plugins/cmc/lib/session-state.ts';
 import { blocked } from '../test-support/expect.ts';
 
 const hook = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc', 'hooks', 'run.js');
@@ -34,7 +35,10 @@ describe('handlePrompt', () => {
     assert.equal(submit('fix the failing test'), null);
     assert.equal(submit(' ;; not at the very start'), null);
     assert.equal(submit('/cmc:release'), null);
-    assert.equal(existsSync(join(dataDir, 'sessions')), false, 'nothing is written for ordinary prompts');
+    assert.deepEqual(held(), [], 'nothing is held');
+    // The only trace: a turn of the agent is now running (it refines ";;now").
+    assert.deepEqual(readdirSync(sessionDir(dataDir, SESSION)), ['state.json']);
+    assert.equal(readState(sessionDir(dataDir, SESSION)).turnActive, true);
   });
 
   it('holds a prefixed prompt and blocks it with a short receipt', () => {

@@ -4,7 +4,8 @@
 // so nothing about them reaches the agent.
 import { clearMessages, editMessage, listMessages, moveMessage, removeMessages, type QueueResult } from './queue.ts';
 import { formatQueue } from './queue-view.ts';
-import { arm, release, select } from './release.ts';
+import { armAtEnd, release, select } from './release.ts';
+import { readState } from './session-state.ts';
 
 const POSITION = /^[1-9]\d{0,5}$/;
 
@@ -35,7 +36,7 @@ export const CONTROL_HELP = [
   '  ;;move N M        move message N to position M',
   '  ;;up N  ;;down N  move message N one place',
   '  ;;top N  ;;bottom N   make message N the first or the last to be delivered',
-  '  ;;now [N…]        release now: everything, or only those messages',
+  '  ;;now [N…]        release now if the agent is idle, or when its turn ends if it is working',
   '  ;;end [N…]        release when this turn ends: everything, or only those messages',
   '  ;;dispatch N [--pack] [--auto]   hand held message N to a second agent instead',
   '  ;;agents          show the dispatched agents',
@@ -118,8 +119,15 @@ function answerControl(dir: string, control: Control): string | { context: strin
       return result.warning ? `${formatQueue(result.messages)}\n${result.warning}` : formatQueue(result.messages);
     }
     case 'now': {
-      const { selection, held } = select(dir, control.positions);
+      const { selection, count, held } = select(dir, control.positions);
       if (held === 0) return 'Nothing is held, so there is nothing to release.';
+      // Text handed over in the middle of a turn is set aside by the model too
+      // often (ADR 001), and a released message has left the queue: while the
+      // agent works, ";;now" waits for the end of the turn like ";;end".
+      if (readState(dir).turnActive) {
+        armAtEnd(dir, selection);
+        return `The agent is working: ${count} held message(s) will be released when this turn ends.`;
+      }
       const result = release(dir, selection, ';;now');
       // Someone else (the CLI, another hook) took the messages between the two steps.
       if (result.text === null) {
@@ -131,7 +139,7 @@ function answerControl(dir: string, control: Control): string | { context: strin
     }
     case 'end': {
       const { selection, count, held } = select(dir, control.positions);
-      arm(dir, 'atEnd', selection);
+      armAtEnd(dir, selection);
       if (held === 0) return 'Nothing is held yet. Whatever you hold next will be released when this turn ends.';
       return `${count} held message(s) will be released when this turn ends.`;
     }

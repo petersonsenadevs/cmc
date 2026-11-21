@@ -9,7 +9,7 @@ import { CmcError, errorCode } from '../lib/errors.ts';
 import { describeError, logEvent } from '../lib/log.ts';
 import { resolveDataDir, sessionDir } from '../lib/paths.ts';
 import { addMessage } from '../lib/queue.ts';
-import { arm, release, select } from '../lib/release.ts';
+import { armAtEnd, release, select } from '../lib/release.ts';
 import { candidateDataDirs, formatSessions, listSessions, openSessionsIn, resolveSession } from '../lib/sessions.ts';
 
 const USAGE = `cmc — Claude Message Control (Peterson Sena · r3v3rs3)
@@ -27,9 +27,7 @@ The session is the one started in the current folder; name it with --session
   move <N> <M>         move message N to position M
   up <N> | down <N>    move message N one place
   top <N> | bottom <N> make message N the first or the last to be delivered
-  release [<N>…] [--now|--end]
-                       hand messages to the agent from outside the session: at its next
-                       step (--now, the default) or when its turn ends (--end)
+  release [<N>…]       hand messages (all, or those) to the agent when its turn ends
   dispatch [--pack] [--auto] <task>
                        start a second agent on a task, as ">> task" does in the session
                        (--pack: it gets a short summary instead of the whole conversation;
@@ -43,7 +41,7 @@ The session is the one started in the current folder; name it with --session
 `;
 
 type ValueFlag = 'session' | 'data-dir' | 'format';
-type BooleanFlag = 'now' | 'end' | 'all' | 'pack' | 'auto';
+type BooleanFlag = 'all' | 'pack' | 'auto';
 type Flags = Partial<Record<ValueFlag, string> & Record<BooleanFlag, boolean>>;
 
 interface ParsedArgs {
@@ -58,8 +56,6 @@ const VALUE_FLAGS: ReadonlyMap<string, ValueFlag> = new Map([
   ['--format', 'format'],
 ]);
 const BOOLEAN_FLAGS: ReadonlyMap<string, BooleanFlag> = new Map([
-  ['--now', 'now'],
-  ['--end', 'end'],
   ['--all', 'all'],
   ['--pack', 'pack'],
   ['--auto', 'auto'],
@@ -131,17 +127,14 @@ function drain({ flags }: ParsedArgs): string {
  * so it leaves a note that the plugin's hooks act on.
  */
 function releaseCommand({ flags, positional }: ParsedArgs): string {
-  if (flags.now && flags.end) throw new CmcError('BAD_USAGE', 'Use --now or --end, not both.');
   if (!positional.every((word) => POSITION.test(word))) {
     throw new CmcError('BAD_USAGE', `Wrong arguments for "release".\n\n${USAGE}`);
   }
   const dir = targetDir(flags);
   const { selection, count, held } = select(dir, positional.map(Number));
   if (held === 0) return 'Nothing is held, so there is nothing to release.';
-  arm(dir, flags.end ? 'atEnd' : 'atNextStep', selection);
-  return flags.end
-    ? `${count} held message(s) will be released when the agent's turn ends.`
-    : `${count} held message(s) will be released at the agent's next step, or when its turn ends if it takes none.`;
+  armAtEnd(dir, selection);
+  return `${count} held message(s) will be released when the agent's turn ends.`;
 }
 
 /**

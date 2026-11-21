@@ -7,8 +7,6 @@ import { logEvent } from './log.ts';
 const HOOKS: Record<string, () => Promise<HookHandler>> = {
   // UserPromptSubmit: holds the prompts that start with the hold prefix.
   'prompt-capture': async () => (await import('./capture.ts')).handlePrompt,
-  // PostToolUse: delivers a release armed from outside the session.
-  'tool-release': async () => (await import('./release.ts')).handlePostToolUse,
   // Stop: delivers the held messages at the end of the turn when asked to.
   'stop-release': async () => (await import('./release.ts')).handleStop,
   // SessionStart and SessionEnd: keeps the registry the command line uses to

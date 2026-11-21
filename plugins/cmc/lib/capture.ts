@@ -6,6 +6,7 @@ import { parseControl, runControl } from './control.ts';
 import { CmcError } from './errors.ts';
 import { assertSessionId, sessionDir } from './paths.ts';
 import { addMessage } from './queue.ts';
+import { updateState } from './session-state.ts';
 import type { HookContext, HookInput } from './types.ts';
 
 export const DEFAULT_HOLD_PREFIX = ';;';
@@ -33,6 +34,18 @@ export interface CaptureOptions {
 
 function block(reason: string): PromptBlock {
   return { decision: 'block', reason };
+}
+
+/**
+ * Notes that a prompt reached the agent. It never stops the prompt: the flag
+ * only refines ";;now", and without it the prompt is still the user's.
+ */
+function markTurnActive(input: HookInput, dataDir: string): void {
+  try {
+    updateState(sessionDir(dataDir, input.session_id), { turnActive: true });
+  } catch {
+    // A session id cmc cannot use as a folder: there is no state to keep for it.
+  }
 }
 
 /** The session a prompt came from, as a dispatch needs it. */
@@ -87,10 +100,17 @@ export function handlePrompt(
   { dataDir, prefix = DEFAULT_HOLD_PREFIX, dispatchPrefix = DEFAULT_DISPATCH_PREFIX, ...rest }: HookContext & CaptureOptions,
 ): PromptBlock | PromptContext | null {
   const prompt = input.prompt;
-  if (typeof prompt !== 'string' || !(prompt.startsWith(prefix) || prompt.startsWith(dispatchPrefix))) return null;
+  if (typeof prompt !== 'string') return null;
+  if (!(prompt.startsWith(prefix) || prompt.startsWith(dispatchPrefix))) {
+    // It goes to the agent: a turn is running from now until the Stop hook.
+    markTurnActive(input, dataDir);
+    return null;
+  }
 
   try {
-    return answer(input, prompt, dataDir, { ...rest, prefix, dispatchPrefix });
+    const output = answer(input, prompt, dataDir, { ...rest, prefix, dispatchPrefix });
+    if ('hookSpecificOutput' in output) markTurnActive(input, dataDir);
+    return output;
   } catch (error) {
     // What cmc refuses on purpose (too long, no such position, no such agent)
     // is explained to the user. Anything else is a bug and goes up, where the

@@ -1,10 +1,10 @@
 // cmc — test helper: assertions that also narrow the type of what they check. Author: Peterson Sena (r3v3rs3).
 import assert from 'node:assert/strict';
 import type { PromptBlock, PromptContext } from '../plugins/cmc/lib/capture.ts';
-import type { PostToolUseContext, StopBlock } from '../plugins/cmc/lib/release.ts';
+import type { StopBlock } from '../plugins/cmc/lib/release.ts';
 
 /** Anything a hook handler can answer; `null` lets Claude Code carry on untouched. */
-type HookAnswer = PromptBlock | PromptContext | StopBlock | PostToolUseContext | null;
+type HookAnswer = PromptBlock | PromptContext | StopBlock | null;
 
 /** The first item of a list; fails the test when the list is empty. */
 export function first<T>(items: readonly T[]): T {

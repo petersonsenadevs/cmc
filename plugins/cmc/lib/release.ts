@@ -25,10 +25,6 @@ export interface StopBlock {
 }
 
 /** A `PostToolUse` hook answer that hands text to the agent. */
-export interface PostToolUseContext {
-  hookSpecificOutput: { hookEventName: 'PostToolUse'; additionalContext: string };
-}
-
 /**
  * Formats released messages for the agent.
  *
@@ -110,9 +106,8 @@ export function select(dir: string, positions: readonly number[] = []): { select
  * Arms a release for later: at the end of the turn, or at the agent's next step.
  * @param dir Session folder.
  */
-export function arm(dir: string, when: 'atEnd' | 'atNextStep', selection: Selection): void {
-  const merged = mergeSelection(readState(dir)[when], selection);
-  updateState(dir, when === 'atEnd' ? { atEnd: merged } : { atNextStep: merged });
+export function armAtEnd(dir: string, selection: Selection): void {
+  updateState(dir, { atEnd: mergeSelection(readState(dir).atEnd, selection) });
 }
 
 /**
@@ -123,18 +118,22 @@ export function arm(dir: string, when: 'atEnd' | 'atNextStep', selection: Select
 export function handleStop(input: HookInput, { dataDir }: HookContext): StopBlock | null {
   const dir = sessionDir(dataDir, input.session_id);
   touchSession(dir);
+  const answer = stopAnswer(dir, input.stop_hook_active === true);
+  // The turn goes on only when cmc itself continues it.
+  updateState(dir, { turnActive: answer !== null });
+  return answer;
+}
+
+function stopAnswer(dir: string, continuing: boolean): StopBlock | null {
   // Already continuing because of a Stop hook: never chain a second continuation.
-  if (input.stop_hook_active === true) return null;
+  if (continuing) return null;
 
   const state = readState(dir);
-  // A release armed for "the next step" that found no step to ride on is
-  // delivered here: the end of the turn is the last chance.
-  const pending = mergeSelection(state.atEnd, state.atNextStep);
-  if (pending === null && state.autoReturn === null) return null;
+  if (state.atEnd === null && state.autoReturn === null) return null;
 
   const parts: string[] = [];
-  if (pending !== null) {
-    const { text } = release(dir, pending, state.atEnd === null ? 'cmc release --now' : ';;end');
+  if (state.atEnd !== null) {
+    const { text } = release(dir, state.atEnd, ';;end');
     if (text !== null) parts.push(text);
   }
   // Results the user asked to get back by themselves. One the user already
@@ -143,21 +142,8 @@ export function handleStop(input: HookInput, { dataDir }: HookContext): StopBloc
     const { messages } = drainMessages(dir, state.autoReturn === 'all' ? undefined : state.autoReturn);
     if (messages.length > 0) parts.push(formatAutoReturn(messages));
   }
-  updateState(dir, { atEnd: null, atNextStep: null, autoReturn: null });
+  updateState(dir, { atEnd: null, autoReturn: null });
   // One continuation for everything: the Stop hook never chains a second one.
   return parts.length === 0 ? null : { decision: 'block', reason: parts.join('\n\n') };
 }
 
-/**
- * Handles a `PostToolUse` hook call: delivers a release that was armed from
- * outside the session (`cmc release --now`) right after the tool that just ran.
- */
-export function handlePostToolUse(input: HookInput, { dataDir }: HookContext): PostToolUseContext | null {
-  const dir = sessionDir(dataDir, input.session_id);
-  const { atNextStep } = readState(dir);
-  if (atNextStep === null) return null;
-
-  const { text } = release(dir, atNextStep, 'cmc release --now');
-  updateState(dir, { atNextStep: null });
-  return text === null ? null : { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: text } };
-}

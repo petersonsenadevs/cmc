@@ -16,11 +16,17 @@ export type Selection = null | 'all' | string[];
 export interface SessionState {
   /** Deliver when the current turn ends. */
   atEnd: Selection;
-  /** Deliver at the agent's next step (armed from outside the session). */
-  atNextStep: Selection;
   /** Results of agents dispatched with `--auto`: delivered when a turn ends. */
   autoReturn: Selection;
+  /**
+   * Whether a turn of the agent is running: set when a prompt goes through to
+   * it, cleared when its turn ends. It decides whether ";;now" can hand
+   * messages over at once (agent idle) or waits for the end of the turn.
+   */
+  turnActive: boolean;
 }
+
+const EMPTY: SessionState = Object.freeze({ atEnd: null, autoReturn: null, turnActive: false });
 
 function selection(value: unknown): Selection {
   if (value === 'all') return 'all';
@@ -45,15 +51,15 @@ export function mergeSelection(current: Selection, added: Selection): Selection 
  */
 export function readState(dir: string): SessionState {
   const file = join(dir, STATE_FILE);
-  if (!existsSync(file)) return { atEnd: null, atNextStep: null, autoReturn: null };
+  if (!existsSync(file)) return { ...EMPTY };
   try {
     const stored: unknown = JSON.parse(readFileSync(file, 'utf8'));
     const fields = isRecord(stored) ? stored : {};
-    return { atEnd: selection(fields.atEnd), atNextStep: selection(fields.atNextStep), autoReturn: selection(fields.autoReturn) };
+    return { atEnd: selection(fields.atEnd), autoReturn: selection(fields.autoReturn), turnActive: fields.turnActive === true };
   } catch (error) {
     // An unreadable state file only means "no release pending": the queue
     // itself is untouched, so falling back to the defaults loses nothing.
-    if (error instanceof SyntaxError) return { atEnd: null, atNextStep: null, autoReturn: null };
+    if (error instanceof SyntaxError) return { ...EMPTY };
     throw error;
   }
 }

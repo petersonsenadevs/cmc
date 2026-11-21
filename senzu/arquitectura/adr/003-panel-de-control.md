@@ -1,6 +1,6 @@
 # ADR 003 — The control panel
 
-- **Status:** proposed (awaiting Peterson's approval of the mockup)
+- **Status:** accepted (Peterson approved the mockup on 2026-11-21, with the two additions in §3 and §6)
 - **Date:** 2026-11-21
 - **Task:** F5-T2 · **Follows:** F5-T1 (devlog 032–034)
 
@@ -58,15 +58,46 @@ person never needs a command, a toast or the transcript to know where things sta
 
 ### 3. Send now
 
-Send means "now", whatever the agent is doing:
+Peterson: "when I press Send it must go straight away, as Ctrl+Enter would". What Ctrl+Enter does in Claude Code 2.1.330
+(`chat:sendNow`, documented in code.claude.com/docs/en/keybindings and interactive-mode): it sends the draft and the queued messages
+at once; work that can move to the background (shell commands, subagents) keeps running and Claude reads the message in the same turn;
+otherwise it interrupts the turn and sends the message next. No plugin call presses that key or invokes the action, and neither
+`$.prompt.submit` (it waits until the session is idle) nor `$.session.send` (live sessions are addressed by a name the engine does not
+give a plugin, and it is not the local prompt box) does the same; a probe confirmed the second refuses.
+
+So Send hands the message to Claude Code's own send-now:
 
 - **Agent idle:** submitted as a new prompt at once (as today).
-- **Agent working:** delivered into the running turn through Claude Code's own channel for messages that reach a live session
-  (`$.session.send`). To address it, the panel learns the session's own name once, by calling the `ListAgents` tool (`$.tool.run`),
-  which states "This session is <name>".
-- **If the engine refuses that** (a message to oneself, or no live session): the text goes into the prompt box and the row says
-  "Press Enter to deliver it now". Enter hands it to Claude Code's own queue, which delivers it after the current step as a real
-  message from the person: the native behaviour, one key away. Never a silent fall back to the end of the turn.
+- **Agent working:** the text goes into the prompt box (`$.prompt.fill`, which works mid-turn; after the draft, if there is one) and the
+  row says "Ctrl+Enter to send it now". Ctrl+Enter (or Ctrl+X Ctrl+S, where the terminal does not report Ctrl+Enter) sends it with the
+  engine's own behaviour, as a real message from the person. The message leaves cmc's queue when the person sends it: the interface's
+  `prompt.submit` hook sees the text go and takes the message then; until then it stays held, and Escape or deleting the draft loses
+  nothing.
+- This replaces D-037 (`$.session.send` to the session itself).
+
+### 6. A conversation per subagent
+
+Peterson: "I want to see what is sent to the subagent and what it answers". Selecting a subagent opens its conversation in the panel:
+
+```
+ ─ SUBAGENT e3a6971f · working · 0:42 · whole conversation · branch worktree-cmc-e3a6971f ── [ Back ]
+  You   summarise what we talked about
+  ⟳     Read README.md · Grep "release" · …                      (its steps, as they happen)
+  Agent We set up a plugin that holds messages…                  (its answer, whole, scrollable)
+  You   now list the open tasks                                  (a message written to it afterwards)
+  Agent 1. F5-T3 …
+ ┌──────────────────────────────────────────────────────────────┐
+ │ Write to e3a6971f…                                           │ [ Send ] [ Send to main ] [ Stop ]
+ └──────────────────────────────────────────────────────────────┘
+```
+
+- **What was sent:** the task as the person wrote it, and what context went with it (the whole conversation, or the summary, which can
+  be expanded).
+- **What it does:** its steps while it works (tools and their target), from its log.
+- **What it answers:** its final answer, whole, not only the first lines; and each answer to a later message.
+- **Writing to it:** the box at the bottom (F5-T6). A message to a working subagent reaches it after its current step, through its own
+  input (`stream-json` on its standard input, the native way a headless session takes messages mid-turn); to a finished one, its
+  session is resumed in its worktree.
 
 ### 4. Colours
 

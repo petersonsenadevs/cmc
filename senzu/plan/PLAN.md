@@ -323,13 +323,17 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Devlog: senzu/devlog/2026-11-21/032-f5-t1-primer-panel.md, 033, 034
 - Notas: Send con el agente trabajando no llegó a entrar en el turno: las sesiones vivas se direccionan por nombre, no por id (ADR 003 §3). Peterson: «la UI debe ser el centro neurálgico»: lo recoge F5-T2.
 
-### F5-T2 · Diseñar el panel  [S] [doing]
+### F5-T2 · Diseñar el panel  [S] [done]
 - Para qué: decidir disposición, estados y uso con ratón y teclado antes de construir, para que sea intuitivo (petición de Peterson).
 - Skill: `plugin-authoring` (`reference.md §ui.render`: elementos de la terminal `Box`, `Text`, `Button`, `Input`, `Select`, `Progress`). Sin `ui-ux-pro-max`: no es una interfaz web, es una terminal con los elementos del motor.
 - Archivos: senzu/arquitectura/adr/003-panel-de-control.md
 - Hecho cuando: ADR con la maqueta en texto del panel (sección de mensajes, sección de agentes, barra de acciones), estados vacío, cargando y error, qué hace cada botón, atajos de teclado (`hotkey`), anchos estrecho y ancho, cuándo se abre solo y cuándo no, y de dónde lee los datos (ficheros del núcleo o la CLI); revisado con Peterson.
 - Verificar: Peterson aprueba la maqueta.
 - Depende de: F5-T1
+- Verificado: Peterson aprobó la maqueta del ADR 003 («sí lo apruebo»), con dos añadidos: conversación por subagente (§6) y Send como Ctrl+Enter (§3, D-038)
+- Cumple: diseño cerrado antes de construir, con lo que Peterson pidió que fuera intuitivo, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/035-f5-t2-diseno-del-panel.md
+- Notas: colores pendientes de que Peterson elija paleta.
 
 ### F5-T3 · Sección de mensajes  [M] [todo]
 - Para qué: gestionar lo retenido con el ratón: lo que hoy son `/held`, `;;edit`, `;;rm`, `;;top`… en un solo sitio.

@@ -38,3 +38,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 032 | 2026-11-21 | F5-T1: primer panel de control             | feature  | 030, 031 | F5-T1 |
 | 033 | 2026-11-21 | F5-T1: estado, avisos y To agent en el panel | fix    | 032      | F5-T1 |
 | 034 | 2026-11-21 | F5-T1: Send inmediato por el canal nativo  | feature  | 025, 033 | F5-T1 |
+| 035 | 2026-11-21 | F5-T2: diseño del panel aprobado           | decisión | 034      | F5-T2 |

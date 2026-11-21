@@ -44,14 +44,15 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-027 · Al acabar un derivado se levanta solo el bloqueo de worktree de su propia sesión ya terminada; sin cambios se retira sin forzar, con cambios se conserva · ver 021
 - D-028 · Derivar un retenido es `;;dispatch N [--pack]`, no `/cmc:dispatch N` · ver 023
 - D-029 · El resultado de un derivado vuelve a la cola como mensaje «de agente»; con `--auto` lo entrega `Stop` al terminar un turno, nunca a mitad de turno · ver 024
-- D-030 · Nada se entrega a mitad de turno: `;;now` es inmediato solo con el agente parado y si trabaja espera al final del turno; `cmc release` siempre al final; sin hook `PostToolUse` (salvo Send explícito por el canal nativo, D-037) · ver 025
+- D-030 · Nada se entrega a mitad de turno: `;;now` es inmediato solo con el agente parado y si trabaja espera al final del turno; `cmc release` siempre al final; sin hook `PostToolUse` (salvo Send explícito, D-038) · ver 025
 - D-031 · Los ajustes están en `config.json` del directorio de datos, validados; un valor malo cae a su defecto con aviso; nunca `bypassPermissions` · ver 026
 - D-032 · El derivado tiene solo las herramientas integradas configuradas (`--tools`); `dispatch.restrictTools: false` lo quita a cambio de coste (el fork pierde la caché) · ver 027
 - D-033 · Licencia MIT (elegida por el agente; cambiable) y versión 1.0.0 · ver 028
 - D-034 · Un mensaje sale de la cola solo cuando su envío se ha aceptado (`send` lee, `take <ids>` saca) · ver 029
 - D-035 · Lo retenido mientras el agente trabaja llega solo al acabar su turno (`sendAtEnd`, por defecto); `false` retiene hasta soltar · ver 031
 - D-036 · `Stop` entrega aunque otro hook Stop esté continuando el turno (sin bucle: lo entregado sale de la cola) · ver 031
-- D-037 · Send explícito con el agente trabajando entra en el turno por el canal nativo del motor (`$.session.send` a la propia sesión); si no se entrega, al final del turno · ver 034
+- D-037 · Send por `$.session.send` a la propia sesión: sustituida por D-038 · ver 034
+- D-038 · Send con el agente trabajando pone el texto en la caja de entrada y Ctrl+Enter (`chat:sendNow`, nativo) lo envía; sale de la cola cuando se envía de verdad (ADR 003 §3) · ver 035
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012

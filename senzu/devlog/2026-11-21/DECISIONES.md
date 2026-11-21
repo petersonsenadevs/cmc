@@ -62,3 +62,10 @@
 - **Elección:** D-015 se borran las sesiones sin actividad desde hace más de 30 días, al arrancar otra sesión.
 - **Motivo:** borrar al cerrar impediría reanudar con la cola intacta; no borrar nunca acumula mensajes olvidados.
 - **Consecuencias:** lo retenido en una sesión abandonada más de 30 días se pierde; el plazo será configurable (F4-T1) y 0 desactiva la limpieza.
+
+## dev-013 — Derivación: contexto y aislamiento (ADR 002)
+- **Contexto:** `>> tarea` debe arrancar un segundo agente con el contexto de la sesión, en paralelo y sin alterarla.
+- **Opciones:** fork de la sesión (`--resume <id> --fork-session`) o paquete de contexto; worktree creado por el plugin o por Claude Code.
+- **Elección:** D-016 el modo por defecto es el fork, en el modelo de la sesión origen; el paquete queda como alternativa (`--mode pack`) y como respaldo. D-017 el aislamiento usa el `--worktree <nombre>` de Claude Code (`cmc-<id>`); sin git no se pasa y se avisa.
+- **Motivo:** medido: el fork arranca a mitad de turno sin alterar el origen, ve la herramienta pendiente como interrumpida y, por la caché, costó menos que el paquete en una sesión corta.
+- **Consecuencias:** F3-T3 ya no crea el worktree: lo nombra, lo localiza y lo limpia. El fork hereda toda la conversación; el prompt de derivación lo acota a la tarea.

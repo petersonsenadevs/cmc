@@ -180,16 +180,17 @@
 
 ## F3 — Derivar a otro agente
 
-### F3-T1 · Comprobar el fork de sesión a mitad de turno en Windows  [S] [todo]
+### F3-T1 · Comprobar el fork de sesión a mitad de turno en Windows  [S] [done]
 - Para qué: saber si el segundo agente puede heredar el contexto mientras el principal sigue trabajando.
 - Skill: sin skill: experimento
 - Archivos: spike/fork-test.mjs, senzu/arquitectura/adr/002-derivacion-y-contexto.md
 - Hecho cuando: el ADR responde con evidencia a (a) ¿`claude -p --resume <id> --fork-session` arranca con la sesión origen a mitad de turno y no la altera?, (b) ¿qué ve el fork si el transcript acaba en una llamada a herramienta sin resultado?, (c) ¿cómo se lanza desacoplado en Windows y sobrevive al hook?, (d) ¿qué flags hay que volver a pasar (`--plugin-dir`, permisos, `--worktree`)?, (e) coste en tokens del fork frente a un paquete de contexto; y fija el modo por defecto.
 - Verificar: salida de las pruebas pegada en el ADR.
 - Depende de: F2-T5
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `node spike/fork-test.mjs` → cuatro forks lanzados con el origen a mitad del paso 2: todos responden con el nombre en clave del fichero leído por el origen y «step1 finished, step2 interrupted»; id de sesión distinto; el origen termina `HERON — step1, step2, step3`; el desacoplado acaba tras salir su lanzador; `git branch` muestra `worktree-cmc-spike-fork`; coste fork 45 767 tokens / 0,00089 $ frente a paquete 25 109 / 0,00174 $
+- Cumple: ya se sabe que el segundo agente puede heredar el contexto mientras el principal sigue trabajando, sin alterarlo, que era el «Para qué»; diseño fijado en el ADR 002
+- Devlog: senzu/devlog/2026-11-21/013-f3-t1-fork-a-mitad-de-turno.md
+- Notas: S4 confirmado. Modo por defecto: fork (D-016). El worktree lo crea `--worktree` de Claude Code (D-017), lo que simplifica F3-T3. Una ejecución válida, solo Windows.
 
 ### F3-T2 · Implementar el lanzador de agentes derivados  [M] [todo]
 - Para qué: arrancar el segundo agente sin bloquear ni interrumpir al principal.
@@ -319,15 +320,16 @@
 | 2026-11-21 | F1-T6 dividida: la parte interactiva del guion pasa a F1-T6b (bloqueada, la ejecuta Peterson) | El agente no puede conducir la interfaz interactiva |
 | 2026-11-21 | `;;end` adelantado de F2-T2 a F1-T5 (D-010) | Sin él no había forma de activar la entrega al terminar a mitad de turno |
 | 2026-11-21 | Tarjeta ad hoc X-T1: portabilidad entre sistemas operativos | Petición de Peterson: el plugin debe ser multi-OS |
+| 2026-11-21 | ADR 002: F3-T3 usa el `--worktree` de Claude Code en vez de crear el worktree a mano | Evidencia de F3-T1 |
 | 2026-11-21 | Q1 resuelta: el plugin se llama `cmc` (Claude Message Control); prefijos `;;` y `>>` por defecto, configurables en F4-T1 | Decisión de Peterson |
 
 ## Riesgos y bloqueos
 | Riesgo / bloqueo | Impacto | Mitigación / qué se necesita | Estado |
 |---|---|---|---|
 | `UserPromptSubmit` no se dispara (o interrumpe) con mensajes de mitad de turno: no documentado | Alto: es la captura principal | F1-T1 lo comprueba primero; plan B: captura a mitad de turno solo con la CLI `cmc` desde otra terminal (F2-T3 sube a F1) | Abierto |
-| El fork de una sesión a mitad de turno falla o hereda un estado incompleto | Alto para F3 | F3-T1 lo comprueba; plan B: paquete de contexto como modo por defecto (F3-T4) | Abierto |
+| El fork de una sesión a mitad de turno falla o hereda un estado incompleto | Alto para F3 | F3-T1 lo comprobó: funciona y ve la herramienta pendiente como interrumpida (ADR 002) | Mitigado |
 | El formato del transcript no está documentado y puede cambiar | Medio | Solo lo lee el paquete de contexto, con degradación a «tarea + carpeta» y test con transcript malformado | Abierto |
-| El fork hereda todo el historial: coste alto de tokens por derivación | Medio | F3-T1 lo mide; modo paquete para tareas pequeñas; el coste se indica al derivar | Abierto |
+| El fork hereda todo el historial: coste alto de tokens por derivación | Medio | Medido en F3-T1: en una sesión corta sale más barato que el paquete por la caché; crece con el historial. Modo paquete disponible; se avisa al derivar | Mitigado |
 | Agente derivado sin supervisión con permisos de edición | Alto | Worktree aislado, `acceptEdits` como máximo por defecto, lista de herramientas, nunca `bypassPermissions`; revisión en F4-T2 | Abierto |
 | Tope de 8 continuaciones seguidas del hook `Stop` | Bajo | Entregar toda la cola en una sola continuación | Abierto |
 | Un plugin quizá no pueda aportar línea de estado ni atajos de teclado | Bajo | F2-T4 usa el sistema de mods o documenta el ajuste manual en `settings.json` | Abierto |

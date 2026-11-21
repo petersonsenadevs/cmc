@@ -16,3 +16,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 010 | 2026-11-21 | F2-T3: CLI `cmc` desde otra terminal       | feature  | —        | F2-T3 |
 | 011 | 2026-11-21 | F2-T4: indicador de mensajes retenidos     | feature  | —        | F2-T4 |
 | 012 | 2026-11-21 | F2-T5: la cola se conserva al reanudar     | feature  | 010      | F2-T5 |
+| 013 | 2026-11-21 | F3-T1: el fork de sesión a mitad de turno  | decisión | —        | F3-T1 |

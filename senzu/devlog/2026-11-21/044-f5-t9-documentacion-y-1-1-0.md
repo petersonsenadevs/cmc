@@ -28,3 +28,6 @@ $ MSYS_NO_PATHCONV=1 node scripts/e2e.ts --mid ";; also say the word pineapple" 
 - Peterson: parte C del guion en su terminal.
 - Publicar (requiere su aprobación expresa): crear el repositorio, subir la rama, PR a main, etiqueta v1.1.0, `repository` en plugin.json.
 - Logotipo (brief listo). Fase 6: adaptadores.
+
+## Añadido después
+- Insignias en el README (versión, licencia, Claude Code, Node, TypeScript, plataformas, hub): estáticas, sin depender de que exista el repositorio. La de Claude Code en gris, no en el naranja de Anthropic (cmc no es oficial).

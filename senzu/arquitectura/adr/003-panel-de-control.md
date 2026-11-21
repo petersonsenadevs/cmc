@@ -112,7 +112,29 @@ any theme. Proposed for cmc (Peterson's product, r3v3rs3):
 | Error | `#E5484D` red |
 | Secondary text | the theme's dim colour |
 
-Pending Peterson's choice: this palette, another one of his, or the Sinapsis brand.
+Peterson chose the violet palette (2026-11-21).
+
+### 7. Modes and comfort
+
+Peterson: "the UI must be more interactive, with comfortable options and modes". The panel has three views and a strip of modes, all
+one click (or one key) away:
+
+```
+ cmc  ● Agent working      [ Messages 2 ] [ Subagents 1 ] [ Activity ]
+ Deliver: ( End of turn | Hold )   Typed ;; goes to: ( Main | Subagent )   Subagent context: ( Full | Summary )   Results: ( Hold | Auto )
+```
+
+- **Views:** Messages, Subagents, Activity, as tabs (keys `1` `2` `3`). The selected tab and the selected row are drawn in the accent.
+- **Deliver:** End of turn (`sendAtEnd: true`) or Hold (held until sent).
+- **Typed `;;` goes to:** Main (held for the main agent, as today) or Subagent: every `;; message` starts a subagent on it, so the
+  main conversation stays clean (setting `holdTarget`).
+- **Subagent context:** Full (a copy of the conversation) or Summary (`dispatch.context`).
+- **Results:** Hold (a subagent's result waits in the queue) or Auto (it goes to the main agent when a turn ends) (`dispatch.return`).
+- A mode is a setting: a click writes it to `config.json` through `cmc config set`, so the panel, the commands and the CLI agree, and
+  it survives a restart.
+- **Comfort:** rows highlight under the pointer; a click selects, a second action button does the rest; edits happen in the row; the
+  input box at the bottom holds (or, in Subagent mode, dispatches) without typing a prefix; every action leaves a line in Activity; the
+  last two lines of Activity show under every view.
 
 ### 5. Data and actions
 

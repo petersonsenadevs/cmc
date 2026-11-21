@@ -27,3 +27,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 021 | 2026-11-21 | F3-T3: worktree del agente derivado        | feature  | 015      | F3-T3 |
 | 022 | 2026-11-21 | F3-T4: paquete de contexto ligero          | feature  | —        | F3-T4 |
 | 023 | 2026-11-21 | F3-T5: derivar desde el prompt (>>)        | feature  | 015, 021, 022 | F3-T5 |
+| 024 | 2026-11-21 | F3-T6/T7: resultado del derivado a la cola | feature  | 015, 023 | F3-T6, F3-T7 |

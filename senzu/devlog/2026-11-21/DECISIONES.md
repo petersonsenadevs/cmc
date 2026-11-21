@@ -125,3 +125,10 @@
 - **Elección:** D-028 `;;dispatch N [--pack]`, contestada por el plugin; el mensaje sale de la cola solo cuando el agente ha arrancado.
 - **Motivo:** el mismo de D-011: los argumentos de un comando acaban en su línea de shell, y el comando no se procesa a mitad de turno.
 - **Consecuencias:** `/cmc:agents` existe solo para ver, sin argumentos.
+
+## dev-023 — Cuándo llega el resultado automático
+- **Contexto:** la tarjeta F3-T7 pedía entregar el resultado del derivado en el siguiente paso del principal o, si está parado, al terminar su turno.
+- **Opciones:** a mitad de turno por `PostToolUse` más el fin de turno; o solo al fin de turno (`Stop`).
+- **Elección:** D-029 solo al terminar un turno.
+- **Motivo:** medido en la entrada 020: a mitad de turno el modelo ignora el texto más de la mitad de las veces y el mensaje ya ha salido de la cola. Al fin de turno se obedeció siempre.
+- **Consecuencias:** con el principal parado, el resultado espera al final del siguiente turno; el plugin no puede despertar una sesión en reposo.

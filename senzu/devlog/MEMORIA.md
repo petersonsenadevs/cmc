@@ -44,6 +44,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-026 · Los hooks arrancan por `hooks/run.js` (único fichero JavaScript, sin lógica), que activa la caché de compilación de Node y carga el núcleo en TypeScript: 45 ms por hook frente a 95 ms sin ella · ver 020
 - D-027 · Al acabar un derivado se levanta solo el bloqueo de worktree de su propia sesión ya terminada; sin cambios se retira sin forzar, con cambios se conserva · ver 021
 - D-028 · Derivar un retenido es `;;dispatch N [--pack]`, no `/cmc:dispatch N` · ver 023
+- D-029 · El resultado de un derivado vuelve a la cola como mensaje «de agente»; con `--auto` lo entrega `Stop` al terminar un turno, nunca a mitad de turno · ver 024
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012

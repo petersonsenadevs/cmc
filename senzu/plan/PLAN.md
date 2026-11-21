@@ -26,7 +26,7 @@
 |---|---|---|
 | F1 | Esqueleto: escribes `;; texto` con el agente trabajando, no se interrumpe, y `/cmc:release` o el fin del turno se lo entrega | doing |
 | F2 | Control completo: ver, editar, borrar y soltar de forma selectiva, modo «ya», indicador visible y CLI `cmc` desde otra terminal | done |
-| F3 | Derivar: `>> tarea` arranca un segundo agente con contexto en su worktree, en paralelo; se ve, se cancela y su resultado vuelve a la cola (retenido o automático) | doing |
+| F3 | Derivar: `>> tarea` arranca un segundo agente con contexto en su worktree, en paralelo; se ve, se cancela y su resultado vuelve a la cola (retenido o automático) | done |
 | F4 | Entrega: configuración, revisión de seguridad, README e instalación desde marketplace local | todo |
 | F5 | Adaptadores para otros agentes: núcleo sin nada de Claude Code, adaptador de Codex y los que falten (se planifica al cerrar F4) | todo |
 
@@ -242,27 +242,29 @@
 - Devlog: senzu/devlog/2026-11-21/023-f3-t5-derivar-desde-el-prompt.md
 - Notas: `;;dispatch N` en lugar de `/cmc:dispatch N` (D-028). Corregido además: la respuesta del derivado se perdía si los hooks Stop del usuario lo hacían seguir. Pendiente: las sesiones de los derivados aparecen como abiertas para la CLI. Indicador con agentes sin ver en pantalla (B6).
 
-### F3-T6 · Devolver el resultado del agente derivado a la cola  [M] [todo]
+### F3-T6 · Devolver el resultado del agente derivado a la cola  [M] [done]
 - Para qué: que el trabajo del segundo agente vuelva a la conversación cuando tú quieras.
 - Skill: `code-quality §references/security-owasp "Prompt injection y seguridad de LLM"`
 - Archivos: lib/dispatch.mjs, lib/queue.mjs, test/dispatch-return.test.mjs
 - Hecho cuando: al terminar, el resumen final del derivado (más la rama y los archivos cambiados) entra en la cola como mensaje retenido (modo `held`, el de por defecto), marcado como salida de otro agente y no como instrucción del usuario; si falla, entra el error con la ruta del log.
 - Verificar: `npm test` y sesión real: derivar, esperar, `/cmc:queue` muestra el resultado, `/cmc:release` lo entrega.
 - Depende de: F3-T5
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 208 pass, 0 fail (tres veces); sesión real: tras `>>` a mitad de turno, `cmc list` muestra `(from agent e157ff93) Agent e157ff93 finished the task …` y `/cmc:release` lo entrega; el principal responde «The dispatched agent (e157ff93) replied "heron"…»; cola vacía después
+- Cumple: el trabajo del derivado vuelve a la conversación cuando el usuario quiere, como mensaje retenido marcado como salida de otro agente, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/024-f3-t6-t7-resultado-del-derivado.md
+- Notas: hecha junto con F3-T7 en un solo commit. Un agente cancelado no deja resultado.
 
-### F3-T7 · Añadir el retorno automático como ajuste  [S] [todo]
+### F3-T7 · Añadir el retorno automático como ajuste  [S] [done]
 - Para qué: poder elegir que el resultado del segundo agente llegue solo al principal, sin soltarlo a mano.
 - Skill: `code-quality §references/security-owasp "Prompt injection y seguridad de LLM"`
 - Archivos: lib/dispatch.mjs, lib/release.mjs, lib/config.mjs, test/dispatch-return.test.mjs
 - Hecho cuando: el ajuste `dispatch.return` admite `held` (por defecto) y `auto`; con `auto` el resultado se entrega al agente principal en su siguiente paso o, si está parado, al terminar su turno, por el mismo mecanismo que el modo «ya»; se puede fijar por derivación (`>> --auto tarea`); el resultado sigue marcado como salida de otro agente.
 - Verificar: `npm test` y sesión real: derivar con `auto` y comprobar que el principal recibe el resultado sin `/cmc:release`.
 - Depende de: F3-T6
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 208 pass (8 tests del modo automático); sesión real con `>> --auto`: al terminar el turno del principal llega «[cmc] Results of the agent the user dispatched with ">> --auto"… Report of dispatched agent 68e7467a…» sin `/cmc:release`
+- Cumple: se puede elegir que el resultado llegue solo al principal, sin soltarlo a mano, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/024-f3-t6-t7-resultado-del-derivado.md
+- Notas: se entrega solo al terminar un turno, no a mitad (D-029). El valor por defecto configurable (`dispatch.return`) queda para F4-T1, que crea el fichero de configuración.
 
 ## F4 — Entrega
 

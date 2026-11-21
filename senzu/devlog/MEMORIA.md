@@ -38,7 +38,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-021 · El repositorio es un marketplace (`r3v3rs3`) y el plugin vive en `plugins/cmc/`; se instala con `marketplace add` + `install cmc@r3v3rs3` · ver 016
 - D-022 · JavaScript sin TypeScript: sustituida por D-024 (fue un malentendido del agente) · ver 017
 - D-024 · El plugin va en TypeScript ejecutado directamente por Node, sin compilar; `tsc --noEmit` solo en desarrollo · ver 018
-- D-023 · Primero Claude Code; los adaptadores para otros agentes (Codex y los que falten) van después, en la fase 5 · ver 017
+- D-023 · Primero todo para Claude Code; los adaptadores para otros agentes (Codex y los que falten) van al final, en la fase 6 (Peterson lo reafirmó el 2026-11-21) · ver 017, 039
 - D-025 · Tipado estricto sin escapes (`strict`, sin `any` ni `@ts-ignore`; entradas como `unknown`; solo sintaxis borrable); `npm run types` en cada verificación · ver 019
 - D-026 · Los hooks arrancan por `hooks/run.js` (único fichero JavaScript, sin lógica), que activa la caché de compilación de Node y carga el núcleo en TypeScript: 45 ms por hook frente a 95 ms sin ella · ver 020
 - D-027 · Al acabar un derivado se levanta solo el bloqueo de worktree de su propia sesión ya terminada; sin cambios se retira sin forzar, con cambios se conserva · ver 021
@@ -53,6 +53,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-036 · `Stop` entrega aunque otro hook Stop esté continuando el turno (sin bucle: lo entregado sale de la cola) · ver 031
 - D-037 · Send por `$.session.send` a la propia sesión: sustituida por D-038 · ver 034
 - D-038 · Send con el agente trabajando pone el texto en la caja de entrada y Ctrl+Enter (`chat:sendNow`, nativo) lo envía; sale de la cola cuando se envía de verdad (ADR 003 §3) · ver 035
+- D-039 · Modelo y esfuerzo de subagentes: `dispatch.model`/`dispatch.effort`, `inherit` por defecto (manda la config del usuario); por tarea con `--model`/`--effort` · ver 039
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012

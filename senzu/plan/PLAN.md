@@ -29,7 +29,7 @@
 | F3 | Derivar: `>> tarea` arranca un segundo agente con contexto en su worktree, en paralelo; se ve, se cancela y su resultado vuelve a la cola (retenido o automático) | done |
 | F4 | Entrega: configuración, revisión de seguridad, README e instalación desde marketplace local | done |
 | F5 | Panel de control: un panel junto al chat, manejable con el ratón, con la cola y los agentes en vivo; enviar, editar, borrar, reordenar y derivar mensajes; ver, parar y escribir a los agentes, y pasar el resultado de uno a otro | todo |
-| F6 | Adaptadores para otros agentes: núcleo sin nada de Claude Code, adaptador de Codex y los que falten (se planifica al cerrar F5) | todo |
+| F6 | Adaptadores para otros agentes: núcleo sin nada de Claude Code, adaptador de Codex y los que falten (al final, cuando todo lo de Claude esté terminado) | todo |
 
 ---
 
@@ -403,13 +403,17 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Verificar: `npm test`; `claude plugin validate ./plugins/cmc`; captura de Peterson.
 - Depende de: —
 
-### F5-T11 · Elegir el modelo y el esfuerzo de los subagentes  [M] [todo]
+### F5-T11 · Elegir el modelo y el esfuerzo de los subagentes  [M] [done]
 - Para qué: Peterson: «que podamos elegir el modelo para el subagente y el effort»; cada tarea puede pedir un modelo más barato o más capaz.
 - Skill: `code-quality §references/typescript` + `plugin-authoring` (`Select`)
 - Archivos: plugins/cmc/lib/config.ts, plugins/cmc/lib/dispatch.ts, plugins/cmc/lib/agent-control.ts, plugins/cmc/bin/cmc.ts, plugins/cmc/hooks/panel.ts, test/config.test.ts, test/dispatch.test.ts, test/panel.test.ts
 - Hecho cuando: ajustes `dispatch.model` (`inherit` por defecto, o un alias `fable`/`opus`/`sonnet`/`haiku`, o un nombre completo de modelo) y `dispatch.effort` (`inherit`, `low`, `medium`, `high`, `xhigh`, `max`), validados; se pasan como `--model`/`--effort` (con `inherit`, no se pasa nada y manda la configuración del usuario); en el panel, dos selectores en la franja de modos y la opción de cambiarlos para una tarea concreta (To subagent, caja de nueva tarea); `>> --model sonnet --effort low tarea` y `cmc dispatch --model … --effort …`; cada subagente muestra con qué modelo y esfuerzo trabaja; el aviso de coste del README lo explica.
 - Verificar: `npm test` (el comando lleva `--model`/`--effort` solo cuando se eligen; valores raros rechazados); sesión real con `--model haiku --effort low`.
 - Depende de: —
+- Verificado: npm test 337 (14 nuevos); prueba real con --model haiku --effort low: el subagente corrió con claude-haiku-5-5
+- Cumple: se elige modelo y esfuerzo para todos o para una tarea, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/039-f5-t11-modelo-y-esfuerzo.md
+- Notas: por tarea desde el panel queda por la vía de los modos (por defecto para los siguientes); por tarea concreta, con >> / ;;dispatch / cmc.
 
 ### F5-T9 · Cierre de la fase: documentación y prueba completa  [M] [todo]
 - Para qué: que se pueda usar sin preguntarme y quede probado de punta a punta.

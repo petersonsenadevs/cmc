@@ -13,7 +13,7 @@
 - Fase F5 (adaptadores) añadida al plan, sin tarjetas todavía.
 
 ## Commits
-- (este) docs(senzu): seal the executable conventions and add phase 5
+- `84ce676` docs(senzu): seal the executable conventions and add phase 5
 
 ## Decisiones (resumen; detalle en DECISIONES.md)
 - D-022 JavaScript sobre Node, sin TypeScript; D-023 primero Claude Code, adaptadores después (ver DECISIONES.md#dev-017).

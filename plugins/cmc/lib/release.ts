@@ -43,6 +43,16 @@ export function formatRelease(messages: readonly HeldMessage[], trigger: string)
 }
 
 /**
+ * Formats messages the user typed while the agent worked, handed over by
+ * themselves when its turn ended (`sendAtEnd`).
+ */
+export function formatHeldAtEnd(messages: readonly HeldMessage[]): string {
+  const [what, them] = messages.length === 1 ? ['this message', 'it'] : ['these messages', 'them'];
+  return `[cmc] The user typed ${what} while you were working; cmc held ${them} until your turn ended:
+${formatItems(messages)}`;
+}
+
+/**
  * Formats results that come back by themselves, from agents the user
  * dispatched with `>> --auto`.
  */
@@ -123,32 +133,47 @@ export function armAtEnd(dir: string, selection: Selection): void {
 export function handleStop(input: HookInput, { dataDir }: HookContext): StopBlock | null {
   const dir = sessionDir(dataDir, input.session_id);
   touchSession(dir);
-  // Already continuing because of a Stop hook: never chain a second continuation.
-  if (input.stop_hook_active === true) {
-    updateState(dir, { turnActive: false });
-    return null;
-  }
+  // A Stop hook (cmc's or another plugin's) may already be continuing the turn:
+  // cmc still delivers what is pending. It cannot loop, since whatever it
+  // delivers leaves the queue, and the next stop finds nothing.
   // The pending releases are taken and cleared in one step, and only then are
   // messages taken out of the queue: if anything fails before that, the
   // messages are still held. Taking them out is the last thing that touches the
   // disk before the answer is printed.
-  let pending: { atEnd: Selection; autoReturn: Selection } = { atEnd: null, autoReturn: null };
+  const { config } = loadConfig(dataDir);
+  // Messages the user typed go by themselves when sendAtEnd is on; results of
+  // agents wait as their return mode says.
+  const typed = config.sendAtEnd ? listMessages(dir).messages.filter((message) => agentOf(message.source) === null).map((message) => message.id) : [];
+  let pending: Pending = { atEnd: null, autoReturn: null, typed: [] };
   updateStateWith(dir, (state) => {
-    pending = { atEnd: state.atEnd, autoReturn: state.autoReturn };
+    pending = { atEnd: state.atEnd, autoReturn: state.autoReturn, typed };
+    const continues = state.atEnd !== null || state.autoReturn !== null || typed.length > 0;
     // The turn goes on only when cmc itself continues it.
-    return { atEnd: null, autoReturn: null, turnActive: state.atEnd !== null || state.autoReturn !== null };
+    return { atEnd: null, autoReturn: null, turnActive: continues };
   });
-  return stopAnswer(dir, pending, loadConfig(dataDir).config.holdPrefix);
+  return stopAnswer(dir, pending, config.holdPrefix);
+}
+
+/** What a stop has to deliver: releases the user armed, results to return, and messages typed meanwhile. */
+interface Pending {
+  atEnd: Selection;
+  autoReturn: Selection;
+  typed: string[];
 }
 
 /** What the state looked like before `handleStop` cleared it: the releases to deliver. */
-function stopAnswer(dir: string, pending: { atEnd: Selection; autoReturn: Selection }, holdPrefix: string): StopBlock | null {
-  if (pending.atEnd === null && pending.autoReturn === null) return null;
+function stopAnswer(dir: string, pending: Pending, holdPrefix: string): StopBlock | null {
+  if (pending.atEnd === null && pending.autoReturn === null && pending.typed.length === 0) return null;
 
   const parts: string[] = [];
   if (pending.atEnd !== null) {
     const { text } = release(dir, pending.atEnd, `${holdPrefix}end`);
     if (text !== null) parts.push(text);
+  }
+  // Typed while the agent worked and not released above: they go now.
+  if (pending.typed.length > 0) {
+    const { messages } = drainMessages(dir, pending.typed);
+    if (messages.length > 0) parts.push(formatHeldAtEnd(messages));
   }
   // Results the user asked to get back by themselves. One the user already
   // released above (or deleted) is gone from the queue and is not repeated.
@@ -197,4 +222,14 @@ export function sendMessages(dir: string, positions: number[], trigger = '/send'
 export function takeMessages(dir: string, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
   return drainMessages(dir, [...ids]).messages.length;
+}
+
+/**
+ * The receipt for a held message: what will happen to it.
+ * @param atEnd The agent is working and sendAtEnd is on: it goes when the turn ends.
+ */
+export function holdReceipt(count: number, atEnd: boolean): string {
+  return atEnd
+    ? `Held (${count} queued). It goes to the agent when its turn ends; /held to change or delete it.`
+    : `Held (${count} queued). /held or /send to send it.`;
 }

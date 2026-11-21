@@ -26,6 +26,9 @@ let dir: string;
 beforeEach(() => {
   base = realpathSync.native(mkdtempSync(join(tmpdir(), 'cmc-return-')));
   dataDir = join(base, 'data');
+  // These tests are about releases the user asks for: messages do not go by themselves at the end of a turn.
+  mkdirSync(dataDir, { recursive: true });
+  writeFileSync(join(dataDir, 'config.json'), JSON.stringify({ sendAtEnd: false }));
   dir = sessionDir(dataDir, SESSION);
 });
 
@@ -198,10 +201,10 @@ describe('automatic return (">> --auto")', () => {
     assert.equal(stopReason(), null);
   });
 
-  it('does nothing while a Stop continuation is already running', async () => {
+  it('delivers even while another Stop hook is continuing the turn, and only once', async () => {
     await returned(start('review', 'ok', { returnMode: 'auto' }).id);
+    assert.ok(handleStop({ session_id: SESSION, stop_hook_active: true }, { dataDir }));
     assert.equal(handleStop({ session_id: SESSION, stop_hook_active: true }, { dataDir }), null);
-    assert.ok(stopReason(), 'still delivered at the next clean stop');
   });
 
   it('is announced in the receipt, and held is the default', () => {

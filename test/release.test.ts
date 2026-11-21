@@ -1,7 +1,7 @@
 // cmc — selective release, release "now" (idle or busy agent) and release armed from the CLI. Author: Peterson Sena (r3v3rs3).
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
@@ -21,6 +21,8 @@ let dataDir: string;
 let dir: string;
 beforeEach(() => {
   dataDir = mkdtempSync(join(tmpdir(), 'cmc-release-now-'));
+  // These tests are about releases the user asks for: messages do not go by themselves at the end of a turn.
+  writeFileSync(join(dataDir, 'config.json'), JSON.stringify({ sendAtEnd: false }));
   dir = sessionDir(dataDir, SESSION);
 });
 afterEach(() => {

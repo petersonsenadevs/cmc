@@ -44,9 +44,9 @@ describe('handlePrompt', () => {
   it('holds a prefixed prompt and blocks it with a short receipt', () => {
     assert.deepEqual(submit(';; also update the README'), {
       decision: 'block',
-      reason: 'Held (1 queued). Release with /cmc:release.',
+      reason: 'Held (1 queued). /held or /send to send it.',
     });
-    assert.equal(blocked(submit(';;second, no space')).reason, 'Held (2 queued). Release with /cmc:release.');
+    assert.equal(blocked(submit(';;second, no space')).reason, 'Held (2 queued). /held or /send to send it.');
     assert.deepEqual(held(), ['also update the README', 'second, no space']);
   });
 
@@ -82,7 +82,7 @@ describe('prompt-capture hook script', () => {
   it('prints the block decision for a held prompt', () => {
     const result = runHookScript(JSON.stringify({ session_id: SESSION, prompt: ';; from the hook' }));
     assert.equal(result.status, 0);
-    assert.deepEqual(JSON.parse(result.stdout), { decision: 'block', reason: 'Held (1 queued). Release with /cmc:release.' });
+    assert.deepEqual(JSON.parse(result.stdout), { decision: 'block', reason: 'Held (1 queued). /held or /send to send it.' });
     assert.deepEqual(held(), ['from the hook']);
   });
 

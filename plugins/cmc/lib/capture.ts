@@ -7,7 +7,8 @@ import { DEFAULT_CONFIG, loadConfig, withPrefixes, type CmcConfig } from './conf
 import { CmcError } from './errors.ts';
 import { assertSessionId, sessionDir } from './paths.ts';
 import { addMessage } from './queue.ts';
-import { updateState } from './session-state.ts';
+import { holdReceipt } from './release.ts';
+import { updateState, readState } from './session-state.ts';
 import type { HookContext, HookInput } from './types.ts';
 
 export const DEFAULT_HOLD_PREFIX = DEFAULT_CONFIG.holdPrefix;
@@ -99,7 +100,7 @@ function answer(
   if (agentControl) return block(runAgentControl(originOf(input, dir, options, config), agentControl));
 
   const { messages, warning } = addMessage(dir, { text });
-  const receipt = `Held (${messages.length} queued). Release with /cmc:release.`;
+  const receipt = holdReceipt(messages.length, config.sendAtEnd && readState(dir).turnActive);
   return block(warning ? `${receipt}\n${warning}` : receipt);
 }
 

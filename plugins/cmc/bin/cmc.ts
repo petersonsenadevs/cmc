@@ -11,8 +11,8 @@ import { CmcError, errorCode } from '../lib/errors.ts';
 import { describeError, logEvent } from '../lib/log.ts';
 import { resolveDataDir, sessionDir } from '../lib/paths.ts';
 import { addMessage, listMessages } from '../lib/queue.ts';
-import { updateState } from '../lib/session-state.ts';
-import { armAtEnd, release, select, sendMessages, takeMessages } from '../lib/release.ts';
+import { updateState, readState } from '../lib/session-state.ts';
+import { armAtEnd, holdReceipt, release, select, sendMessages, takeMessages } from '../lib/release.ts';
 import { candidateDataDirs, formatSessions, listSessions, openSessionsIn, resolveSession } from '../lib/sessions.ts';
 
 const USAGE = `cmc — Claude Message Control (Peterson Sena · r3v3rs3)
@@ -133,8 +133,9 @@ function hold({ flags, positional }: ParsedArgs): string {
   // --stdin: the text comes on standard input (the plugin's interface sends it
   // so; no length limit of the command line, nothing to quote).
   const text = flags.stdin ? readFileSync(0, 'utf8') : positional.join(' ');
-  const { messages, warning } = addMessage(targetDir(flags), { text });
-  const receipt = `Held (${messages.length} queued).`;
+  const dir = targetDir(flags);
+  const { messages, warning } = addMessage(dir, { text });
+  const receipt = holdReceipt(messages.length, settingsOf(dir).config.sendAtEnd && readState(dir).turnActive);
   return warning ? `${receipt}\n${warning}` : receipt;
 }
 

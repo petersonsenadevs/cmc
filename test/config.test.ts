@@ -43,6 +43,7 @@ describe('validateConfig', () => {
     const { config, warnings } = validateConfig({
       holdPrefix: '%%',
       dispatchPrefix: '=>',
+      sendAtEnd: false,
       retentionDays: 0,
       dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'], restrictTools: false },
     });
@@ -50,6 +51,7 @@ describe('validateConfig', () => {
     assert.deepEqual(config, {
       holdPrefix: '%%',
       dispatchPrefix: '=>',
+      sendAtEnd: false,
       retentionDays: 0,
       dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'], restrictTools: false },
     });

@@ -185,8 +185,8 @@ describe('one folder, several spellings', () => {
 
     // As on macOS, where the hook can be told /var/… while the terminal is in /private/var/….
     start(FIRST, link);
-    assert.equal(cmc(['hold', 'through the link'], { cwd: realpathSync.native(project) }).stdout, 'Held (1 queued).\n');
-    assert.equal(cmc(['hold', 'from the link'], { cwd: join(link, 'src') }).stdout, 'Held (2 queued).\n');
+    assert.equal(cmc(['hold', 'through the link'], { cwd: realpathSync.native(project) }).stdout, 'Held (1 queued). /held or /send to send it.\n');
+    assert.equal(cmc(['hold', 'from the link'], { cwd: join(link, 'src') }).stdout, 'Held (2 queued). /held or /send to send it.\n');
     assert.deepEqual(held(FIRST), ['through the link', 'from the link']);
   });
 
@@ -261,7 +261,7 @@ describe('cmc from another terminal', () => {
     start(FIRST);
     const result = cmc(['hold', 'also', 'update the README']);
     assert.equal(result.status, 0);
-    assert.equal(result.stdout, 'Held (1 queued).\n');
+    assert.equal(result.stdout, 'Held (1 queued). /held or /send to send it.\n');
     assert.deepEqual(held(FIRST), ['also update the README']);
     assert.match(cmc(['list']).stdout, /^1 held message, in delivery order:/);
   });
@@ -304,7 +304,7 @@ describe('cmc from another terminal', () => {
     dataDir = join(config, 'plugins', 'data', 'cmc-from-marketplace');
     start(FIRST);
     const result = cmc(['hold', 'found it'], { env: { CLAUDE_CONFIG_DIR: config } });
-    assert.equal(result.stdout, 'Held (1 queued).\n');
+    assert.equal(result.stdout, 'Held (1 queued). /held or /send to send it.\n');
     assert.deepEqual(held(FIRST), ['found it']);
   });
 

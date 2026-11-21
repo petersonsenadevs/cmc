@@ -18,6 +18,8 @@ import { countHeld } from './indicator.ts';
 const DEFAULT_HOLD_PREFIX = ';;';
 /** How much of a message a menu option shows. */
 const LABEL_LENGTH = 48;
+/** How long after its command answers /send submits the prompt. */
+const SUBMIT_DELAY_MS = 300;
 
 /** The result of a command run through `$.process.run`. */
 export interface RunResult {
@@ -159,6 +161,14 @@ export function readPick(answer: string, entries: readonly HeldEntry[]): number 
   return position >= 1 && position <= entries.length ? position : null;
 }
 
+/** The one-line notice for a held message, from the receipt of `cmc hold`. */
+export function noticeFor(receipt: string): string {
+  const count = receipt.match(/Held \((\d+) queued\)/)?.[1] ?? '?';
+  return /when its turn ends/.test(receipt)
+    ? `cmc: held (${count}) · goes to the agent when its turn ends · /held to change it`
+    : `cmc: held (${count}) · /held or /send to send it`;
+}
+
 /** The reminder shown when a turn ends with messages still held. */
 export function reminderFor(held: number): string | null {
   if (held <= 0) return null;
@@ -233,16 +243,34 @@ async function sendHeld($: InterfaceEngine, positions: readonly string[]): Promi
     return display(sent.stdout.trim() || 'cmc could not send the messages.');
   }
   if (outcome.mode === 'now' && typeof outcome.text === 'string' && Array.isArray(outcome.ids)) {
-    const accepted = await $.prompt.submit({ text: outcome.text }).then(
-      (result) => !(typeof result === 'object' && result !== null && 'drop' in result && typeof result.drop === 'string'),
-      () => false,
-    );
-    if (!accepted) return display('Could not send them now; they are still held. /cmc:release sends them as a prompt.');
-    await cli($, ['take', ...outcome.ids]);
-    return display(`${outcome.count ?? 0} held message(s) sent.`);
+    // The engine takes a plugin's prompt once the session is idle, and a command
+    // still running counts as busy: submit once this command has answered.
+    void submitThenTake($, outcome.text, outcome.ids);
+    return display(`Sending ${outcome.count ?? 0} held message(s)…`);
   }
   if (outcome.mode === 'end') return display(`The agent is working; ${outcome.count ?? 0} held message(s) will be sent when its turn ends.`);
   return display('Nothing is held.');
+}
+
+/**
+ * Submits released text as a prompt and takes the messages out of the queue
+ * only once it was accepted. A refusal is shown with the engine's reason and
+ * leaves them held.
+ */
+async function submitThenTake($: InterfaceEngine, text: string, ids: readonly string[]): Promise<void> {
+  await $.clock.sleep(SUBMIT_DELAY_MS);
+  let refusal: string | null = null;
+  try {
+    const result = await $.prompt.submit({ text });
+    if (typeof result === 'object' && result !== null && 'drop' in result && typeof result.drop === 'string') refusal = result.drop;
+  } catch (error) {
+    refusal = error instanceof Error ? error.message : String(error);
+  }
+  if (refusal !== null) {
+    $.ui.log(`cmc: could not send them (${refusal}); they are still held. /cmc:release sends them as a prompt.`);
+    return;
+  }
+  await cli($, ['take', ...ids]);
 }
 
 /** The text shown when the menu cannot open (headless) or is closed. */
@@ -306,8 +334,7 @@ export const register = (on: InterfaceOn): void => {
 
     // If the box still shows what was just held, empty it.
     void clearBoxIfStill($, e.text).catch(() => undefined);
-    const count = held.stdout.match(/Held \((\d+) queued\)/)?.[1] ?? '?';
-    return { drop: `cmc: held (${count}). /held to send, edit or delete.` };
+    return { drop: noticeFor(held.stdout) };
   });
 
   on('command.run', async ($, e, next) => {

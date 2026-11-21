@@ -39,6 +39,11 @@ export interface CmcConfig {
   /** Starts a task for a second agent. */
   dispatchPrefix: string;
   dispatch: DispatchSettings;
+  /**
+   * Messages held while the agent works go to it by themselves when its turn
+   * ends. `false`: they stay held until the user sends them.
+   */
+  sendAtEnd: boolean;
   /** Sessions inactive for longer are deleted with their queue; 0 keeps them forever. */
   retentionDays: number;
 }
@@ -46,6 +51,7 @@ export interface CmcConfig {
 export const DEFAULT_CONFIG: CmcConfig = Object.freeze({
   holdPrefix: ';;',
   dispatchPrefix: '>>',
+  sendAtEnd: true,
   dispatch: Object.freeze({
     context: 'fork',
     return: 'held',
@@ -83,7 +89,7 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
   if (!isRecord(raw) || Array.isArray(raw)) return { config, warnings: ['the file must hold a JSON object; using the defaults'] };
 
   const ignored = (key: string, why: string) => warnings.push(`"${key}" ignored: ${why}; using the default`);
-  const known = new Set(['holdPrefix', 'dispatchPrefix', 'dispatch', 'retentionDays']);
+  const known = new Set(['holdPrefix', 'dispatchPrefix', 'sendAtEnd', 'dispatch', 'retentionDays']);
   for (const key of Object.keys(raw)) if (!known.has(key) && !key.startsWith('$')) warnings.push(`unknown setting "${key}" ignored`);
 
   for (const key of ['holdPrefix', 'dispatchPrefix'] as const) {
@@ -97,6 +103,11 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
     warnings.push(`"holdPrefix" and "dispatchPrefix" overlap ("${config.holdPrefix}", "${config.dispatchPrefix}"); using the defaults for both`);
     config.holdPrefix = DEFAULT_CONFIG.holdPrefix;
     config.dispatchPrefix = DEFAULT_CONFIG.dispatchPrefix;
+  }
+
+  if (raw.sendAtEnd !== undefined) {
+    if (typeof raw.sendAtEnd === 'boolean') config.sendAtEnd = raw.sendAtEnd;
+    else ignored('sendAtEnd', 'it must be true or false');
   }
 
   if (raw.retentionDays !== undefined) {

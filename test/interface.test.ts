@@ -11,6 +11,7 @@ import {
   ACTIONS,
   COMMANDS,
   labelFor,
+  noticeFor,
   pickOptions,
   readPick,
   reminderFor,
@@ -117,6 +118,10 @@ async function started(world: ReturnType<typeof engine>): Promise<Required<Hooks
 
 const passed = async <E>(e: E) => ({ passed: e });
 const settle = () => new Promise((done) => setImmediate(done));
+/** Waits for what /send does after its command has answered. */
+async function until(check: () => boolean): Promise<void> {
+  for (let i = 0; i < 200 && !check(); i += 1) await new Promise((done) => setTimeout(done, 10));
+}
 
 describe('interface: what counts as a message to hold', () => {
   it('holds the prefix followed by a space, and leaves control words and lone prefixes to the command hooks', () => {
@@ -127,6 +132,11 @@ describe('interface: what counts as a message to hold', () => {
     assert.equal(messageToHold(';;   ', ';;'), null);
     assert.equal(messageToHold('fix the bug ;; now', ';;'), null);
     assert.equal(messageToHold('>> do this', '>>'), 'do this');
+  });
+
+  it('says in the notice whether the message goes by itself when the turn ends', () => {
+    assert.equal(noticeFor('Held (2 queued). It goes to the agent when its turn ends; /held to change or delete it.'), 'cmc: held (2) · goes to the agent when its turn ends · /held to change it');
+    assert.equal(noticeFor('Held (1 queued). /held or /send to send it.'), 'cmc: held (1) · /held or /send to send it');
   });
 
   it('takes the hold prefix from the settings only when it is a valid one', () => {
@@ -159,7 +169,7 @@ describe('interface: in a session', () => {
     const world = engine(data, ';; also say mango');
     const { submit } = await started(world);
     const answer = await submit(world.$, { text: ';; also say mango' }, passed);
-    assert.deepEqual(answer, { drop: 'cmc: held (1). /held to send, edit or delete.' });
+    assert.deepEqual(answer, { drop: 'cmc: held (1) · /held or /send to send it' });
     await settle();
     assert.deepEqual(world.filled, ['']);
     const { messages } = listMessages(sessionDir(data, SESSION));
@@ -219,9 +229,11 @@ describe('interface: in a session', () => {
     await submit(world.$, { text: ';; one' }, passed);
     await submit(world.$, { text: ';; two' }, passed);
     const answer = await command(world.$, { command: 'send', args: '2' }, passed);
-    assert.deepEqual(answer, { text: '1 held message(s) sent.', isTextDisplayOnly: true });
+    assert.deepEqual(answer, { text: 'Sending 1 held message(s)…', isTextDisplayOnly: true });
+    const left = () => listMessages(sessionDir(data, SESSION)).messages.map((message) => message.text);
+    await until(() => left().length === 1);
     assert.deepEqual(world.submitted, ['[cmc] The user released their held message with "/send":\n1. two']);
-    assert.deepEqual(listMessages(sessionDir(data, SESSION)).messages.map((message) => message.text), ['one']);
+    assert.deepEqual(left(), ['one']);
   });
 
   it('/send keeps the messages held when the engine refuses the prompt (as it does headless)', async () => {
@@ -232,8 +244,9 @@ describe('interface: in a session', () => {
     world.$.prompt.submit = async () => {
       throw new Error('no prompt box');
     };
-    const answer = (await command(world.$, { command: 'send', args: '' }, passed)) as { text: string };
-    assert.match(answer.text, /could not send.*still held/i);
+    await command(world.$, { command: 'send', args: '' }, passed);
+    await until(() => world.logged.length > 0);
+    assert.deepEqual(world.logged, ['cmc: could not send them (no prompt box); they are still held. /cmc:release sends them as a prompt.']);
     assert.deepEqual(listMessages(sessionDir(data, SESSION)).messages.map((message) => message.text), ['mango']);
   });
 
@@ -244,6 +257,8 @@ describe('interface: in a session', () => {
     await submit(world.$, { text: ';; mango' }, passed);
     world.$.prompt.submit = async () => ({ drop: 'blocked by policy' });
     await command(world.$, { command: 'send', args: '' }, passed);
+    await until(() => world.logged.length > 0);
+    assert.match(world.logged[0] ?? '', /blocked by policy/);
     assert.deepEqual(listMessages(sessionDir(data, SESSION)).messages.map((message) => message.text), ['mango']);
   });
 
@@ -307,7 +322,8 @@ describe('interface: the /held menu', () => {
     assert.equal(world.asked.length, 1);
     assert.deepEqual(world.asked[0]?.options, [...ACTIONS]);
     assert.match(world.asked[0]?.question ?? '', /Message 1: «mango»/);
-    assert.equal(answer.text, '1 held message(s) sent.');
+    assert.equal(answer.text, 'Sending 1 held message(s)…');
+    await until(() => held().length === 0);
     assert.deepEqual(world.submitted, ['[cmc] The user released their held message with "/send":\n1. mango']);
     assert.deepEqual(held(), []);
   });
@@ -323,6 +339,7 @@ describe('interface: the /held menu', () => {
   it('"Send all" sends every message', async () => {
     const { world, held, run } = await withHeld('one', 'two');
     await run('Send all 2');
+    await until(() => held().length === 0);
     assert.equal(world.submitted.length, 1);
     assert.deepEqual(held(), []);
   });
@@ -392,7 +409,7 @@ describe('interface: the end of a turn', () => {
     updateState(sessionDir(data, SESSION), { turnActive: true });
     await turn(world.$, { reason: 'aborted' }, passed);
     assert.equal(readState(sessionDir(data, SESSION)).turnActive, false);
-    assert.deepEqual(await command(world.$, { command: 'send', args: '' }, passed), { text: '1 held message(s) sent.', isTextDisplayOnly: true });
+    assert.deepEqual(await command(world.$, { command: 'send', args: '' }, passed), { text: 'Sending 1 held message(s)…', isTextDisplayOnly: true });
   });
 });
 

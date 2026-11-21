@@ -20,6 +20,8 @@ const OTHER_SESSION = 'b06d5f9a-57e8-44f3-8b37-b14b890259fc';
 let dataDir: string;
 beforeEach(() => {
   dataDir = mkdtempSync(join(tmpdir(), 'cmc-release-'));
+  // These tests are about releases the user asks for: messages do not go by themselves at the end of a turn.
+  writeFileSync(join(dataDir, 'config.json'), JSON.stringify({ sendAtEnd: false }));
 });
 afterEach(() => {
   rmSync(dataDir, { recursive: true, force: true });
@@ -99,12 +101,13 @@ describe('release at the end of the turn', () => {
     assert.deepEqual(held(), ['later']);
   });
 
-  it('does nothing while a Stop hook continuation is already running', () => {
+  it('delivers even while another Stop hook is continuing the turn, and only once', () => {
     type(';; one');
     type(';;end');
-    assert.equal(stop({ stop_hook_active: true }), null);
-    assert.deepEqual(held(), ['one'], 'nothing is lost: it is delivered at the next clean stop');
-    assert.match(blocked(stop()).reason, /1\. one$/);
+    // Another plugin's Stop hook continued the turn: the final stop still delivers.
+    assert.match(blocked(stop({ stop_hook_active: true })).reason, /1\. one$/);
+    assert.deepEqual(held(), []);
+    assert.equal(stop({ stop_hook_active: true }), null, 'nothing left: no second continuation');
   });
 
   it('does nothing with an empty queue, and disarms', () => {

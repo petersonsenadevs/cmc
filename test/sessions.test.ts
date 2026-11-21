@@ -6,18 +6,28 @@ import { tmpdir } from 'node:os';
 import { dirname, join, parse } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { CmcError, errorCode } from '../plugins/cmc/lib/errors.ts';
 import { sessionDir } from '../plugins/cmc/lib/paths.ts';
 import { listMessages } from '../plugins/cmc/lib/queue.ts';
 import { handleStop } from '../plugins/cmc/lib/release.ts';
-import { candidateDataDirs, handleSessionEnd, handleSessionStart, listSessions, openSessionsIn, resolveSession } from '../plugins/cmc/lib/sessions.ts';
+import {
+  candidateDataDirs,
+  handleSessionEnd,
+  handleSessionStart,
+  listSessions,
+  openSessionsIn,
+  resolveSession,
+  type SessionRecord,
+} from '../plugins/cmc/lib/sessions.ts';
+import { first } from '../test-support/expect.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc');
 const FIRST = 'd0546eba-c080-415b-b5e2-863787cb5937';
 const SECOND = 'b06d5f9a-57e8-44f3-8b37-b14b890259fc';
 
-let base;
-let dataDir;
-let project;
+let base: string;
+let dataDir: string;
+let project: string;
 beforeEach(() => {
   base = mkdtempSync(join(tmpdir(), 'cmc-sessions-'));
   dataDir = join(base, 'data');
@@ -28,12 +38,12 @@ afterEach(() => {
   rmSync(base, { recursive: true, force: true });
 });
 
-const start = (id, cwd = project) => handleSessionStart({ hook_event_name: 'SessionStart', session_id: id, cwd }, { dataDir });
-const end = (id) => handleSessionEnd({ hook_event_name: 'SessionEnd', session_id: id }, { dataDir });
-const held = (id) => listMessages(sessionDir(dataDir, id)).messages.map((message) => message.text);
-const find = (cwd, wanted) => resolveSession({ dataDirs: [dataDir], cwd, wanted });
+const start = (id: string, cwd = project) => handleSessionStart({ hook_event_name: 'SessionStart', session_id: id, cwd }, { dataDir });
+const end = (id: string) => handleSessionEnd({ hook_event_name: 'SessionEnd', session_id: id }, { dataDir });
+const held = (id: string) => listMessages(sessionDir(dataDir, id)).messages.map((message) => message.text);
+const find = (cwd: string, wanted?: string) => resolveSession({ dataDirs: [dataDir], cwd, wanted });
 
-function cmc(args, { cwd = project, env = { CMC_DATA_DIR: dataDir } } = {}) {
+function cmc(args: string[], { cwd = project, env = { CMC_DATA_DIR: dataDir } }: { cwd?: string; env?: NodeJS.ProcessEnv } = {}) {
   const clean = { ...process.env };
   delete clean.CLAUDE_PLUGIN_DATA;
   delete clean.CMC_DATA_DIR;
@@ -43,7 +53,7 @@ function cmc(args, { cwd = project, env = { CMC_DATA_DIR: dataDir } } = {}) {
 describe('session registry', () => {
   it('records the session with its folder and marks the data directory', () => {
     assert.equal(start(FIRST), null);
-    const [record] = listSessions([dataDir]);
+    const record = first(listSessions([dataDir]));
     assert.equal(record.id, FIRST);
     assert.equal(record.cwd, project);
     assert.equal(record.endedAt, null);
@@ -56,9 +66,9 @@ describe('session registry', () => {
     const record = join(sessionDir(dataDir, FIRST), 'session.json');
     writeFileSync(record, JSON.stringify({ ...JSON.parse(readFileSync(record, 'utf8')), startedAt: '2026-01-01T00:00:00.000Z' }));
     end(FIRST);
-    assert.ok(listSessions([dataDir])[0].endedAt);
+    assert.ok(first(listSessions([dataDir])).endedAt);
     start(FIRST);
-    const [resumed] = listSessions([dataDir]);
+    const resumed = first(listSessions([dataDir]));
     assert.equal(resumed.startedAt, '2026-01-01T00:00:00.000Z');
     assert.equal(resumed.endedAt, null);
   });
@@ -68,7 +78,7 @@ describe('session registry', () => {
     const record = join(sessionDir(dataDir, FIRST), 'session.json');
     writeFileSync(record, JSON.stringify({ ...JSON.parse(readFileSync(record, 'utf8')), lastActiveAt: '2026-01-01T00:00:00.000Z' }));
     handleStop({ session_id: FIRST }, { dataDir });
-    assert.ok(listSessions([dataDir])[0].lastActiveAt > '2026-11-01');
+    assert.ok(first(listSessions([dataDir])).lastActiveAt > '2026-11-01');
   });
 
   it('ignores folders without a readable record', () => {
@@ -111,6 +121,7 @@ describe('resolveSession', () => {
     start(FIRST);
     start(SECOND);
     assert.throws(() => find(project), (error) => {
+      assert.ok(error instanceof CmcError);
       assert.equal(error.code, 'AMBIGUOUS_SESSION');
       assert.match(error.message, /^2 open sessions were started in this folder\. Nothing was done\. Pick one with --session <id>:/);
       assert.match(error.message, /d0546eba/);
@@ -134,12 +145,13 @@ describe('resolveSession', () => {
  * junction on Windows (which needs no privilege). Returns false where the
  * platform refuses, so the test can be skipped instead of failing.
  */
-function linkFolder(target, path) {
+function linkFolder(target: string, path: string): boolean {
   try {
     symlinkSync(target, path, 'junction');
     return true;
   } catch (error) {
-    if (['EPERM', 'EACCES', 'ENOSYS', 'EINVAL'].includes(error.code)) return false;
+    const code = errorCode(error);
+    if (code !== undefined && ['EPERM', 'EACCES', 'ENOSYS', 'EINVAL'].includes(code)) return false;
     throw error;
   }
 }
@@ -191,7 +203,7 @@ describe('one folder, several spellings', () => {
 
   it('treats a session started at the file system root as above every folder of that drive', () => {
     const { root: fsRoot } = parse(realpathSync.native(project));
-    const record = { id: FIRST, cwd: fsRoot, startedAt: '', lastActiveAt: '', endedAt: null, dir: '' };
+    const record: SessionRecord = { id: FIRST, cwd: fsRoot, startedAt: '', lastActiveAt: '', endedAt: null, dir: '' };
     assert.deepEqual(openSessionsIn([record], project), [record]);
     assert.deepEqual(openSessionsIn([record], fsRoot), [record]);
     const closer = { ...record, id: SECOND, cwd: project };
@@ -225,7 +237,7 @@ describe('candidateDataDirs', () => {
     // Restored one by one: replacing process.env with a plain object would lose
     // its case-insensitive lookup on Windows for the rest of the run.
     const names = ['CMC_DATA_DIR', 'CLAUDE_PLUGIN_DATA', 'CLAUDE_CONFIG_DIR'];
-    const saved = names.map((name) => [name, process.env[name]]);
+    const saved = names.map((name): [string, string | undefined] => [name, process.env[name]]);
     delete process.env.CMC_DATA_DIR;
     delete process.env.CLAUDE_PLUGIN_DATA;
     process.env.CLAUDE_CONFIG_DIR = config;
@@ -308,7 +320,7 @@ describe('cmc from another terminal', () => {
 });
 
 describe('session-register hook script', () => {
-  const run = (input) =>
+  const run = (input: Record<string, unknown>) =>
     spawnSync(process.execPath, [join(root, 'hooks', 'session-register.ts')], {
       input: JSON.stringify(input),
       encoding: 'utf8',

@@ -1,12 +1,12 @@
 // cmc — syntax check for every module (no dependencies, no build). Author: Peterson Sena (r3v3rs3).
 import { spawnSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { readdirSync, type Dirent } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOTS = ['plugins', 'test', 'test-support', 'scripts'];
 
-function modulesIn(dir) {
-  let entries;
+function modulesIn(dir: string): string[] {
+  let entries: Dirent[];
   try {
     entries = readdirSync(dir, { withFileTypes: true });
   } catch {

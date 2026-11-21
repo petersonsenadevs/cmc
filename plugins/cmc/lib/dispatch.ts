@@ -8,25 +8,63 @@ import { spawn, spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { agentDir, createAgent, findAgent, isAlive, newAgentId, PROMPT_FILE, readAgentAt, updateAgentAt } from './agents-registry.ts';
-import { CmcError } from './errors.ts';
+import {
+  agentDir,
+  createAgent,
+  findAgent,
+  isAlive,
+  newAgentId,
+  PROMPT_FILE,
+  readAgentAt,
+  updateAgentAt,
+  type AgentMode,
+  type AgentRecord,
+} from './agents-registry.ts';
+import { CmcError, errorCode } from './errors.ts';
 import { MAX_TEXT_LENGTH } from './queue.ts';
 
 const RUNNER = join(dirname(fileURLToPath(import.meta.url)), 'agent-runner.ts');
 
 export const DEFAULT_PERMISSION_MODE = 'acceptEdits';
 // Read and edit files; no shell, no network, unless the user configures more.
-export const DEFAULT_TOOLS = Object.freeze(['Read', 'Glob', 'Grep', 'Edit', 'Write']);
+export const DEFAULT_TOOLS: readonly string[] = Object.freeze(['Read', 'Glob', 'Grep', 'Edit', 'Write']);
 // What a dispatched agent may run with. `bypassPermissions` is never accepted.
-const PERMISSION_MODES = new Set(['default', 'acceptEdits', 'plan']);
+const PERMISSION_MODES: ReadonlySet<string> = new Set(['default', 'acceptEdits', 'plan']);
 const TOOL_NAME = /^[A-Za-z][A-Za-z0-9_]*(\([^()]*\))?$/;
+
+export interface BuildCommandOptions {
+  /** Executable (and fixed leading arguments, in tests). */
+  claude: readonly string[];
+  mode: AgentMode;
+  /** Session to fork (fork mode). */
+  sessionId: string;
+  worktree: string | null;
+  permissionMode: string;
+  tools: readonly string[];
+}
+
+export interface DispatchOptions {
+  /** Folder of the session it is dispatched from. */
+  sessionDir: string;
+  sessionId: string;
+  task: string;
+  /** Folder the agent starts in. */
+  cwd: string;
+  mode?: AgentMode;
+  /** Full prompt; by default the fork prompt for the task. */
+  prompt?: string;
+  /** Name of the git worktree to run in, or how to name it after the agent id. */
+  worktree?: string | null | ((id: string) => string | null);
+  permissionMode?: string;
+  tools?: readonly string[];
+  claude?: readonly string[];
+  env?: NodeJS.ProcessEnv;
+}
 
 /**
  * The prompt of a dispatched agent that forked the session.
- * @param {string} task
- * @returns {string}
  */
-export function forkPrompt(task) {
+export function forkPrompt(task: string): string {
   return [
     '[cmc] You are a second agent. The user dispatched you from the conversation above to work in parallel with it.',
     'The original agent is still running and keeps its own task: do not continue or repeat its work, and treat the',
@@ -42,16 +80,8 @@ export function forkPrompt(task) {
 /**
  * Builds the command line of a dispatched agent. Every value is one element
  * of the array; nothing is joined into a shell string.
- * @param {object} options
- * @param {string[]} options.claude Executable (and fixed leading arguments, in tests).
- * @param {'fork' | 'pack'} options.mode
- * @param {string} options.sessionId Session to fork (fork mode).
- * @param {string | null} options.worktree
- * @param {string} options.permissionMode
- * @param {readonly string[]} options.tools
- * @returns {string[]}
  */
-export function buildCommand({ claude, mode, sessionId, worktree, permissionMode, tools }) {
+export function buildCommand({ claude, mode, sessionId, worktree, permissionMode, tools }: BuildCommandOptions): string[] {
   if (!PERMISSION_MODES.has(permissionMode)) {
     throw new CmcError('BAD_PERMISSION_MODE', `A dispatched agent cannot run with permission mode "${permissionMode}".`);
   }
@@ -68,19 +98,6 @@ export function buildCommand({ claude, mode, sessionId, worktree, permissionMode
 /**
  * Dispatches a task to a new agent and returns at once; the agent runs under
  * a detached supervisor process that records how it ends.
- * @param {object} options
- * @param {string} options.sessionDir Folder of the session it is dispatched from.
- * @param {string} options.sessionId
- * @param {string} options.task
- * @param {string} options.cwd Folder the agent starts in.
- * @param {'fork' | 'pack'} [options.mode]
- * @param {string} [options.prompt] Full prompt; by default the fork prompt for the task.
- * @param {string | null} [options.worktree]
- * @param {string} [options.permissionMode]
- * @param {readonly string[]} [options.tools]
- * @param {string[]} [options.claude]
- * @param {NodeJS.ProcessEnv} [options.env]
- * @returns {import('./agents-registry.ts').AgentRecord}
  */
 export function dispatch({
   sessionDir,
@@ -94,7 +111,7 @@ export function dispatch({
   tools = DEFAULT_TOOLS,
   claude = [process.env.CMC_CLAUDE_BIN || 'claude'],
   env = process.env,
-}) {
+}: DispatchOptions): AgentRecord {
   if (typeof task !== 'string' || task.trim() === '') throw new CmcError('EMPTY_TASK', 'There is no task to dispatch.');
   if (task.length > MAX_TEXT_LENGTH) {
     throw new CmcError('TASK_TOO_LONG', `A dispatched task can be at most ${MAX_TEXT_LENGTH} characters long.`);
@@ -112,8 +129,8 @@ export function dispatch({
 }
 
 /** Ends a process and everything it started. */
-function killTree(pid) {
-  if (!isAlive(pid)) return;
+function killTree(pid: number | null): void {
+  if (pid === null || !isAlive(pid)) return;
   if (process.platform === 'win32') {
     spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true });
     return;
@@ -122,24 +139,23 @@ function killTree(pid) {
     // The supervisor is detached, so it leads its own process group.
     process.kill(-pid, 'SIGTERM');
   } catch (error) {
-    if (error.code !== 'ESRCH') process.kill(pid, 'SIGTERM');
+    if (errorCode(error) !== 'ESRCH') process.kill(pid, 'SIGTERM');
   }
 }
 
 /**
  * Stops a dispatched agent.
- * @param {string} sessionDir
- * @param {string} id An agent id, or the start of one.
- * @returns {import('./agents-registry.ts').AgentRecord}
+ * @param id An agent id, or the start of one.
  */
-export function cancelAgent(sessionDir, id) {
+export function cancelAgent(sessionDir: string, id: string): AgentRecord {
   const record = findAgent(sessionDir, id);
   if (record.state !== 'starting' && record.state !== 'running') {
     throw new CmcError('AGENT_NOT_RUNNING', `Agent ${record.id} is not running (${record.state}).`);
   }
   // Marked first, so the supervisor does not report the kill as a failure.
-  updateAgentAt(record.dir, { state: 'cancelled', endedAt: new Date().toISOString() });
+  const cancelled = updateAgentAt(record.dir, { state: 'cancelled', endedAt: new Date().toISOString() });
   killTree(record.runnerPid);
   killTree(record.pid);
-  return readAgentAt(agentDir(sessionDir, record.id));
+  // Read again for what the supervisor wrote meanwhile; if the record is gone, what was just saved stands.
+  return readAgentAt(agentDir(sessionDir, record.id)) ?? cancelled;
 }

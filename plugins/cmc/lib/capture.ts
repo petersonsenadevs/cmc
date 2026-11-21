@@ -5,21 +5,34 @@ import { parseControl, runControl } from './control.ts';
 import { CmcError } from './errors.ts';
 import { sessionDir } from './paths.ts';
 import { addMessage } from './queue.ts';
+import type { HookContext, HookInput } from './types.ts';
 
 export const DEFAULT_HOLD_PREFIX = ';;';
 
-function block(reason) {
+/** The prompt goes no further; `reason` is shown to the user. */
+export interface PromptBlock {
+  decision: 'block';
+  reason: string;
+}
+
+/** The prompt goes through, with text for the agent to read next to it. */
+export interface PromptContext {
+  hookSpecificOutput: { hookEventName: 'UserPromptSubmit'; additionalContext: string };
+}
+
+function block(reason: string): PromptBlock {
   return { decision: 'block', reason };
 }
 
 /**
  * Handles a `UserPromptSubmit` hook call.
- * @param {{ prompt?: unknown, session_id?: string }} input
- * @param {{ dataDir: string, prefix?: string }} context
- * @returns {object | null} A hook answer (block the prompt, or add context to it); `null` lets the
+ * @returns A hook answer (block the prompt, or add context to it); `null` lets the
  *   prompt through untouched.
  */
-export function handlePrompt(input, { dataDir, prefix = DEFAULT_HOLD_PREFIX }) {
+export function handlePrompt(
+  input: HookInput,
+  { dataDir, prefix = DEFAULT_HOLD_PREFIX }: HookContext & { prefix?: string },
+): PromptBlock | PromptContext | null {
   const prompt = input.prompt;
   if (typeof prompt !== 'string' || !prompt.startsWith(prefix)) return null;
 

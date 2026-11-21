@@ -5,7 +5,8 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { writeFileAtomic } from './atomic-write.ts';
-import { CmcError } from './errors.ts';
+import { CmcError, errorCode } from './errors.ts';
+import { isRecord } from './types.ts';
 
 const AGENTS_DIR = 'agents';
 const RECORD_FILE = 'agent.json';
@@ -15,62 +16,73 @@ export const PROMPT_FILE = 'prompt.txt';
 export const OUTPUT_FILE = 'output.jsonl';
 export const STDERR_FILE = 'stderr.log';
 
-/**
- * @typedef {'starting' | 'running' | 'finished' | 'failed' | 'cancelled' | 'lost'} AgentState
- * `lost`: recorded as running, but its process is gone and it left no result.
- */
+/** `lost`: recorded as running, but its process is gone and it left no result. */
+export type AgentState = 'starting' | 'running' | 'finished' | 'failed' | 'cancelled' | 'lost';
 
-/**
- * @typedef {object} AgentRecord
- * @property {string} id
- * @property {string} task What the user asked for.
- * @property {AgentState} state
- * @property {'fork' | 'pack'} mode How it got its context.
- * @property {string} cwd Folder it was started in.
- * @property {string | null} worktree Name of its git worktree, if it has one.
- * @property {string[]} command Executable and arguments, as an array.
- * @property {number | null} runnerPid Process that supervises the agent.
- * @property {number | null} pid The agent process itself.
- * @property {string} startedAt
- * @property {string | null} endedAt
- * @property {number | null} exitCode
- * @property {string | null} summary Final answer of the agent, or why it failed.
- * @property {string} dir Agent folder (not stored; filled in when read).
- */
+/** How a dispatched agent got its context. */
+export type AgentMode = 'fork' | 'pack';
+
+export interface AgentRecord {
+  id: string;
+  /** What the user asked for. */
+  task: string;
+  state: AgentState;
+  /** How it got its context. */
+  mode: AgentMode;
+  /** Folder it was started in. */
+  cwd: string;
+  /** Name of its git worktree, if it has one. */
+  worktree: string | null;
+  /** Executable and arguments, as an array. */
+  command: string[];
+  /** Process that supervises the agent. */
+  runnerPid: number | null;
+  /** The agent process itself. */
+  pid: number | null;
+  startedAt: string;
+  endedAt: string | null;
+  exitCode: number | null;
+  /** Final answer of the agent, or why it failed. */
+  summary: string | null;
+  /** Claude Code session the agent ran as; set by the supervisor when it ends. */
+  agentSessionId?: string | null;
+  /** What the run cost, when the agent reported it; set by the supervisor when it ends. */
+  costUsd?: number | null;
+  /** Agent folder (not stored; filled in when read). */
+  dir: string;
+}
+
+/** What the caller decides about a new agent; the rest of the record starts empty. */
+export type NewAgentFields = Pick<AgentRecord, 'task' | 'mode' | 'cwd' | 'worktree' | 'command'>;
 
 /** Whether a process with this pid exists. */
-export function isAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
+export function isAlive(pid: unknown): boolean {
+  if (typeof pid !== 'number' || !Number.isInteger(pid) || pid <= 0) return false;
   try {
     process.kill(pid, 0);
     return true;
   } catch (error) {
     // EPERM: it exists but belongs to someone else.
-    return error.code === 'EPERM';
+    return errorCode(error) === 'EPERM';
   }
 }
 
 /**
- * @param {string} sessionDir
- * @param {string} id
- * @returns {string} The agent's folder.
+ * @returns The agent's folder.
  */
-export function agentDir(sessionDir, id) {
+export function agentDir(sessionDir: string, id: string): string {
   if (typeof id !== 'string' || !AGENT_ID.test(id)) throw new CmcError('NO_SUCH_AGENT', `There is no dispatched agent "${id}".`);
   return join(sessionDir, AGENTS_DIR, id);
 }
 
 /**
  * Creates the folder and the record of a new agent.
- * @param {string} sessionDir
- * @param {Omit<AgentRecord, 'id' | 'dir' | 'state' | 'runnerPid' | 'pid' | 'startedAt' | 'endedAt' | 'exitCode' | 'summary'>} fields
- * @param {string} [id] Chosen beforehand when other fields are derived from it.
- * @returns {AgentRecord}
+ * @param id Chosen beforehand when other fields are derived from it.
  */
-export function createAgent(sessionDir, fields, id = newAgentId()) {
+export function createAgent(sessionDir: string, fields: NewAgentFields, id: string = newAgentId()): AgentRecord {
   const dir = agentDir(sessionDir, id);
   mkdirSync(dir, { recursive: true });
-  const record = {
+  const record: Omit<AgentRecord, 'dir'> = {
     id,
     ...fields,
     state: 'starting',
@@ -85,32 +97,34 @@ export function createAgent(sessionDir, fields, id = newAgentId()) {
   return { ...record, dir };
 }
 
-/** @returns {string} A new agent id: eight hex characters. */
-export function newAgentId() {
+/** @returns A new agent id: eight hex characters. */
+export function newAgentId(): string {
   return randomBytes(4).toString('hex');
 }
 
 /**
  * Reads an agent record from its folder.
- * @param {string} dir Agent folder.
- * @returns {AgentRecord | null} `null` when there is no readable record.
+ * @param dir Agent folder.
+ * @returns `null` when there is no readable record.
  */
-export function readAgentAt(dir) {
+export function readAgentAt(dir: string): AgentRecord | null {
   try {
-    const stored = JSON.parse(readFileSync(join(dir, RECORD_FILE), 'utf8'));
-    return typeof stored?.id === 'string' ? { ...stored, dir } : null;
+    const stored: unknown = JSON.parse(readFileSync(join(dir, RECORD_FILE), 'utf8'));
+    if (!isRecord(stored) || typeof stored.id !== 'string') return null;
+    // Only the id is checked: agent.json is written by this module alone
+    // (createAgent, updateAgentAt), always with the whole record.
+    return { ...stored, dir } as AgentRecord;
   } catch (error) {
-    if (error.code === 'ENOENT' || error.code === 'ENOTDIR' || error instanceof SyntaxError) return null;
+    const code = errorCode(error);
+    if (code === 'ENOENT' || code === 'ENOTDIR' || error instanceof SyntaxError) return null;
     throw error;
   }
 }
 
 /**
- * @param {string} dir Agent folder.
- * @param {Partial<AgentRecord>} patch
- * @returns {AgentRecord}
+ * @param dir Agent folder.
  */
-export function updateAgentAt(dir, patch) {
+export function updateAgentAt(dir: string, patch: Partial<AgentRecord>): AgentRecord {
   const current = readAgentAt(dir);
   if (!current) throw new CmcError('NO_SUCH_AGENT', 'The record of that dispatched agent is gone.');
   const { dir: _dir, ...stored } = { ...current, ...patch };
@@ -119,29 +133,27 @@ export function updateAgentAt(dir, patch) {
 }
 
 /** An agent recorded as active whose processes are gone did not end well. */
-function withLiveness(record) {
+function withLiveness(record: AgentRecord): AgentRecord {
   const active = record.state === 'starting' || record.state === 'running';
   if (!active || isAlive(record.runnerPid) || isAlive(record.pid)) return record;
   return { ...record, state: 'lost' };
 }
 
 /**
- * @param {string} sessionDir
- * @param {string} id An agent id, or the start of one.
- * @returns {AgentRecord}
+ * @param id An agent id, or the start of one.
  */
-export function findAgent(sessionDir, id) {
+export function findAgent(sessionDir: string, id: string): AgentRecord {
   const matches = listAgents(sessionDir).filter((record) => typeof id === 'string' && id !== '' && record.id.startsWith(id));
-  if (matches.length === 1) return matches[0];
+  const [match] = matches;
+  if (matches.length === 1 && match) return match;
   if (matches.length > 1) throw new CmcError('AMBIGUOUS_AGENT', `Several dispatched agents start with "${id}". Type more of the id.`);
   throw new CmcError('NO_SUCH_AGENT', `There is no dispatched agent "${id}".`);
 }
 
 /**
- * @param {string} sessionDir
- * @returns {AgentRecord[]} Every agent dispatched from the session, oldest first.
+ * @returns Every agent dispatched from the session, oldest first.
  */
-export function listAgents(sessionDir) {
+export function listAgents(sessionDir: string): AgentRecord[] {
   const root = join(sessionDir, AGENTS_DIR);
   if (!existsSync(root)) return [];
   return readdirSync(root)

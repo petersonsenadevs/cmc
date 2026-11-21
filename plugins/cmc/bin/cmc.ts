@@ -3,7 +3,7 @@
 // Command line over the same core the hooks use. Run it from another terminal,
 // in the folder where the Claude Code session was started.
 import { parseControl, runControl } from '../lib/control.ts';
-import { CmcError } from '../lib/errors.ts';
+import { CmcError, errorCode } from '../lib/errors.ts';
 import { describeError, logEvent } from '../lib/log.ts';
 import { resolveDataDir, sessionDir } from '../lib/paths.ts';
 import { addMessage } from '../lib/queue.ts';
@@ -33,22 +33,44 @@ The session is the one started in the current folder; name it with --session
                        take every held message out of the queue and print it
 `;
 
-const VALUE_FLAGS = new Set(['--session', '--data-dir', '--format']);
-const BOOLEAN_FLAGS = new Set(['--now', '--end', '--all']);
-const QUEUE_COMMANDS = new Set(['list', 'edit', 'rm', 'clear', 'move', 'up', 'down', 'top', 'bottom']);
+type ValueFlag = 'session' | 'data-dir' | 'format';
+type BooleanFlag = 'now' | 'end' | 'all';
+type Flags = Partial<Record<ValueFlag, string> & Record<BooleanFlag, boolean>>;
+
+interface ParsedArgs {
+  flags: Flags;
+  positional: string[];
+}
+
+// The option as typed, and the name its value is kept under.
+const VALUE_FLAGS: ReadonlyMap<string, ValueFlag> = new Map([
+  ['--session', 'session'],
+  ['--data-dir', 'data-dir'],
+  ['--format', 'format'],
+]);
+const BOOLEAN_FLAGS: ReadonlyMap<string, BooleanFlag> = new Map([
+  ['--now', 'now'],
+  ['--end', 'end'],
+  ['--all', 'all'],
+]);
+const QUEUE_COMMANDS: ReadonlySet<string> = new Set(['list', 'edit', 'rm', 'clear', 'move', 'up', 'down', 'top', 'bottom']);
 const POSITION = /^[1-9]\d{0,5}$/;
 
 /** Splits argv into flags and positional arguments. */
-function parseArgs(argv) {
-  const flags = {};
-  const positional = [];
+function parseArgs(argv: readonly string[]): ParsedArgs {
+  const flags: Flags = {};
+  const positional: string[] = [];
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (VALUE_FLAGS.has(arg)) {
-      if (i + 1 >= argv.length) throw new CmcError('BAD_USAGE', `${arg} needs a value.`);
-      flags[arg.slice(2)] = argv[(i += 1)];
-    } else if (BOOLEAN_FLAGS.has(arg)) {
-      flags[arg.slice(2)] = true;
+    if (arg === undefined) continue;
+    const valueFlag = VALUE_FLAGS.get(arg);
+    const booleanFlag = BOOLEAN_FLAGS.get(arg);
+    if (valueFlag) {
+      const value = argv[(i += 1)];
+      if (value === undefined) throw new CmcError('BAD_USAGE', `${arg} needs a value.`);
+      flags[valueFlag] = value;
+    } else if (booleanFlag) {
+      flags[booleanFlag] = true;
     } else if (arg.startsWith('--')) {
       throw new CmcError('BAD_USAGE', `Unknown option ${arg}.`);
     } else {
@@ -65,24 +87,25 @@ function parseArgs(argv) {
  * id, and that pair is used as given. From a terminal, the session is looked
  * up in the registry by folder or by the id the user typed.
  */
-function targetDir(flags) {
+function targetDir(flags: Flags): string {
   const dataDirs = candidateDataDirs(flags['data-dir']);
   try {
     return resolveSession({ dataDirs, cwd: process.cwd(), wanted: flags.session }).dir;
   } catch (error) {
-    const direct = error.code === 'NO_SESSION' && flags.session && flags['data-dir'];
-    if (direct) return sessionDir(resolveDataDir(flags['data-dir']), flags.session);
+    if (errorCode(error) === 'NO_SESSION' && flags.session && flags['data-dir']) {
+      return sessionDir(resolveDataDir(flags['data-dir']), flags.session);
+    }
     throw error;
   }
 }
 
-function hold({ flags, positional }) {
+function hold({ flags, positional }: ParsedArgs): string {
   const { messages, warning } = addMessage(targetDir(flags), { text: positional.join(' ') });
   const receipt = `Held (${messages.length} queued).`;
   return warning ? `${receipt}\n${warning}` : receipt;
 }
 
-function drain({ flags }) {
+function drain({ flags }: ParsedArgs): string {
   const format = flags.format ?? 'prompt';
   if (format !== 'prompt' && format !== 'json') throw new CmcError('BAD_USAGE', '--format must be "prompt" or "json".');
 
@@ -96,7 +119,7 @@ function drain({ flags }) {
  * Arms a release from outside the session. The CLI cannot talk to the agent,
  * so it leaves a note that the plugin's hooks act on.
  */
-function releaseCommand({ flags, positional }) {
+function releaseCommand({ flags, positional }: ParsedArgs): string {
   if (flags.now && flags.end) throw new CmcError('BAD_USAGE', 'Use --now or --end, not both.');
   if (!positional.every((word) => POSITION.test(word))) {
     throw new CmcError('BAD_USAGE', `Wrong arguments for "release".\n\n${USAGE}`);
@@ -110,7 +133,7 @@ function releaseCommand({ flags, positional }) {
     : `${count} held message(s) will be released at the agent's next step, or when its turn ends if it takes none.`;
 }
 
-function sessions({ flags }) {
+function sessions({ flags }: ParsedArgs): string {
   const records = listSessions(candidateDataDirs(flags['data-dir']));
   if (flags.all) return records.length > 0 ? `Sessions known to cmc:\n${formatSessions(records)}` : 'cmc knows no sessions yet.';
   const here = openSessionsIn(records, process.cwd());
@@ -120,13 +143,16 @@ function sessions({ flags }) {
 }
 
 /** The queue commands share their grammar with the control words of the prompt. */
-function queueCommand(name, { flags, positional }) {
+function queueCommand(name: string, { flags, positional }: ParsedArgs): string {
   const control = parseControl([name, ...positional].join(' '));
   if (!control) throw new CmcError('BAD_USAGE', `Wrong arguments for "${name}".\n\n${USAGE}`);
-  return runControl(targetDir(flags), control).reply;
+  const answer = runControl(targetDir(flags), control);
+  // No queue command hands text to the agent (that is ";;now", which the CLI does not offer).
+  if (!('reply' in answer)) throw new Error(`"${name}" answered with context for the agent, not with a reply`);
+  return answer.reply;
 }
 
-function main(argv) {
+function main(argv: readonly string[]): string {
   const [name, ...rest] = argv;
   if (!name || name === 'help' || name === '--help') return USAGE;
   const parsed = parseArgs(rest);

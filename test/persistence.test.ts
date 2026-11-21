@@ -9,12 +9,13 @@ import { sessionDir } from '../plugins/cmc/lib/paths.ts';
 import { listMessages } from '../plugins/cmc/lib/queue.ts';
 import { handleStop, releaseAll } from '../plugins/cmc/lib/release.ts';
 import { handleSessionEnd, handleSessionStart, listSessions, pruneSessions } from '../plugins/cmc/lib/sessions.ts';
+import { blocked, present } from '../test-support/expect.ts';
 
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
 const OLD = 'b06d5f9a-57e8-44f3-8b37-b14b890259fc';
 const DAY = 24 * 60 * 60 * 1000;
 
-let dataDir;
+let dataDir: string;
 beforeEach(() => {
   dataDir = mkdtempSync(join(tmpdir(), 'cmc-persist-'));
 });
@@ -22,14 +23,14 @@ afterEach(() => {
   rmSync(dataDir, { recursive: true, force: true });
 });
 
-const start = (source, id = SESSION, options = {}) =>
+const start = (source: string, id = SESSION, options: { retentionDays?: number } = {}) =>
   handleSessionStart({ hook_event_name: 'SessionStart', session_id: id, cwd: dataDir, source }, { dataDir, ...options });
-const type = (prompt, id = SESSION) => handlePrompt({ session_id: id, prompt }, { dataDir });
+const type = (prompt: string, id = SESSION) => handlePrompt({ session_id: id, prompt }, { dataDir });
 const held = (id = SESSION) => listMessages(sessionDir(dataDir, id)).messages.map((message) => message.text);
 
-function age(id, days) {
+function age(id: string, days: number) {
   const file = join(sessionDir(dataDir, id), 'session.json');
-  const record = JSON.parse(readFileSync(file, 'utf8'));
+  const record = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
   writeFileSync(file, JSON.stringify({ ...record, lastActiveAt: new Date(Date.now() - days * DAY).toISOString() }));
 }
 
@@ -44,7 +45,7 @@ describe('resuming a session', () => {
       systemMessage: 'cmc: 2 held message(s) are waiting in this session. Type ;;list to see them.',
     });
     assert.deepEqual(held(), ['one', 'two']);
-    assert.match(releaseAll(dataDir, SESSION, '/cmc:release').text, /1\. one\n2\. two$/);
+    assert.match(present(releaseAll(dataDir, SESSION, '/cmc:release').text), /1\. one\n2\. two$/);
   });
 
   it('keeps a pending ";;end" across the restart', () => {
@@ -53,7 +54,7 @@ describe('resuming a session', () => {
     type(';;end');
     handleSessionEnd({ session_id: SESSION }, { dataDir });
     start('resume');
-    assert.match(handleStop({ session_id: SESSION }, { dataDir }).reason, /1\. one$/);
+    assert.match(blocked(handleStop({ session_id: SESSION }, { dataDir })).reason, /1\. one$/);
   });
 
   it('says nothing after a compaction and leaves the queue alone', () => {

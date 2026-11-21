@@ -5,11 +5,15 @@ import { existsSync } from 'node:fs';
 import { addMessage, drainMessages } from '../plugins/cmc/lib/queue.ts';
 
 const [mode, dir, third, label] = process.argv.slice(2);
+if (dir === undefined || third === undefined) {
+  process.stderr.write('usage: queue-worker.ts add <dir> <count> <label> | drain <dir> <stopFile>\n');
+  process.exit(2);
+}
 
 if (mode === 'add') {
   for (let i = 0; i < Number(third); i += 1) addMessage(dir, { text: `${label}-${i}` });
 } else {
-  const texts = [];
+  const texts: string[] = [];
   // Keep draining until the writers are done and the queue is empty.
   for (;;) {
     const writersDone = existsSync(third);

@@ -3,49 +3,51 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { writeFileAtomic } from './atomic-write.ts';
+import { isRecord } from './types.ts';
 
 const STATE_FILE = 'state.json';
 
 /**
  * Which held messages a pending release covers: nothing, the whole queue
  * (including what gets held later), or the messages with these ids.
- * @typedef {null | 'all' | string[]} Selection
  */
+export type Selection = null | 'all' | string[];
 
-/**
- * @typedef {object} SessionState
- * @property {Selection} atEnd Deliver when the current turn ends.
- * @property {Selection} atNextStep Deliver at the agent's next step (armed from outside the session).
- */
+export interface SessionState {
+  /** Deliver when the current turn ends. */
+  atEnd: Selection;
+  /** Deliver at the agent's next step (armed from outside the session). */
+  atNextStep: Selection;
+}
 
-function selection(value) {
+function selection(value: unknown): Selection {
   if (value === 'all') return 'all';
-  if (Array.isArray(value) && value.length > 0 && value.every((id) => typeof id === 'string')) return value;
+  if (Array.isArray(value) && value.length > 0) {
+    const ids: unknown[] = value;
+    if (ids.every((id): id is string => typeof id === 'string')) return ids;
+  }
   return null;
 }
 
 /**
  * Adds a selection to one that is already pending.
- * @param {Selection} current
- * @param {Selection} added
- * @returns {Selection}
  */
-export function mergeSelection(current, added) {
+export function mergeSelection(current: Selection, added: Selection): Selection {
   if (current === 'all' || added === 'all') return 'all';
   const ids = [...(current ?? []), ...(added ?? [])];
   return ids.length > 0 ? [...new Set(ids)] : null;
 }
 
 /**
- * @param {string} dir Session folder.
- * @returns {SessionState}
+ * @param dir Session folder.
  */
-export function readState(dir) {
+export function readState(dir: string): SessionState {
   const file = join(dir, STATE_FILE);
   if (!existsSync(file)) return { atEnd: null, atNextStep: null };
   try {
-    const stored = JSON.parse(readFileSync(file, 'utf8'));
-    return { atEnd: selection(stored?.atEnd), atNextStep: selection(stored?.atNextStep) };
+    const stored: unknown = JSON.parse(readFileSync(file, 'utf8'));
+    const fields = isRecord(stored) ? stored : {};
+    return { atEnd: selection(fields.atEnd), atNextStep: selection(fields.atNextStep) };
   } catch (error) {
     // An unreadable state file only means "no release pending": the queue
     // itself is untouched, so falling back to the defaults loses nothing.
@@ -55,11 +57,9 @@ export function readState(dir) {
 }
 
 /**
- * @param {string} dir Session folder.
- * @param {Partial<SessionState>} patch
- * @returns {SessionState}
+ * @param dir Session folder.
  */
-export function updateState(dir, patch) {
+export function updateState(dir: string, patch: Partial<SessionState>): SessionState {
   const next = { ...readState(dir), ...patch };
   writeFileAtomic(join(dir, STATE_FILE), `${JSON.stringify(next)}\n`);
   return next;

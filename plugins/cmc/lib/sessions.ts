@@ -5,9 +5,10 @@ import { existsSync, readdirSync, readFileSync, realpathSync, rmSync, statSync }
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { writeFileAtomic } from './atomic-write.ts';
-import { CmcError } from './errors.ts';
-import { sessionDir } from './paths.ts';
+import { CmcError, errorCode } from './errors.ts';
+import { assertSessionId, sessionDir } from './paths.ts';
 import { listMessages } from './queue.ts';
+import { isRecord, type HookContext, type HookInput } from './types.ts';
 
 const SESSION_FILE = 'session.json';
 // Marks a plugin data directory as cmc's, whatever name Claude Code gave it.
@@ -18,24 +19,28 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // Only folders named like a session id are ever deleted.
 const SESSION_FOLDER = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 
-/**
- * @typedef {object} SessionRecord
- * @property {string} id
- * @property {string} cwd Folder the session was started in.
- * @property {string} startedAt ISO timestamp.
- * @property {string} lastActiveAt ISO timestamp of the last start or end of turn.
- * @property {string | null} endedAt ISO timestamp, once the session was closed.
- * @property {string} dir Session folder (not stored; filled in when read).
- */
+export interface SessionRecord {
+  id: string;
+  /** Folder the session was started in. */
+  cwd: string;
+  /** ISO timestamp. */
+  startedAt: string;
+  /** ISO timestamp of the last start or end of turn. */
+  lastActiveAt: string;
+  /** ISO timestamp, once the session was closed. */
+  endedAt: string | null;
+  /** Session folder (not stored; filled in when read). */
+  dir: string;
+}
 
-function writeJson(file, value) {
+function writeJson(file: string, value: unknown): void {
   writeFileAtomic(file, `${JSON.stringify(value)}\n`);
 }
 
-function readRecord(dir) {
+function readRecord(dir: string): SessionRecord | null {
   try {
-    const stored = JSON.parse(readFileSync(join(dir, SESSION_FILE), 'utf8'));
-    if (typeof stored?.id !== 'string' || typeof stored?.cwd !== 'string') return null;
+    const stored: unknown = JSON.parse(readFileSync(join(dir, SESSION_FILE), 'utf8'));
+    if (!isRecord(stored) || typeof stored.id !== 'string' || typeof stored.cwd !== 'string') return null;
     return {
       id: stored.id,
       cwd: stored.cwd,
@@ -47,12 +52,13 @@ function readRecord(dir) {
   } catch (error) {
     // No record, or one that cannot be read: the folder is not a known session.
     // ENOTDIR is a stray file among the session folders (macOS leaves .DS_Store).
-    if (error.code === 'ENOENT' || error.code === 'ENOTDIR' || error instanceof SyntaxError) return null;
+    const code = errorCode(error);
+    if (code === 'ENOENT' || code === 'ENOTDIR' || error instanceof SyntaxError) return null;
     throw error;
   }
 }
 
-function save(record) {
+function save(record: SessionRecord): void {
   const { dir, ...stored } = record;
   writeJson(join(dir, SESSION_FILE), stored);
 }
@@ -60,24 +66,27 @@ function save(record) {
 /**
  * Handles a `SessionStart` hook call: records the session and its folder.
  * A resumed session keeps its original start time.
- * @param {{ session_id?: string, cwd?: string }} input
- * @param {{ dataDir: string }} context
- * @returns {{ systemMessage: string } | null} A reminder for the user when messages are still held.
+ * @returns A reminder for the user when messages are still held.
  */
-export function handleSessionStart(input, { dataDir, retentionDays = DEFAULT_RETENTION_DAYS }) {
-  const dir = sessionDir(dataDir, input.session_id);
+export function handleSessionStart(
+  input: HookInput,
+  { dataDir, retentionDays = DEFAULT_RETENTION_DAYS }: HookContext & { retentionDays?: number },
+): { systemMessage: string } | null {
+  const sessionId = input.session_id;
+  assertSessionId(sessionId);
+  const dir = sessionDir(dataDir, sessionId);
   const now = new Date().toISOString();
   const previous = readRecord(dir);
   writeJson(join(dataDir, MARKER_FILE), { plugin: 'cmc' });
   save({
-    id: input.session_id,
+    id: sessionId,
     cwd: resolve(typeof input.cwd === 'string' && input.cwd !== '' ? input.cwd : process.cwd()),
     startedAt: previous?.startedAt || now,
     lastActiveAt: now,
     endedAt: null,
     dir,
   });
-  pruneSessions(dataDir, { maxAgeDays: retentionDays, keep: input.session_id });
+  pruneSessions(dataDir, { maxAgeDays: retentionDays, keep: sessionId });
 
   // A compaction restarts the context, not the session: the user has not left,
   // and the indicator is still on screen, so there is nothing to remind them of.
@@ -90,14 +99,16 @@ export function handleSessionStart(input, { dataDir, retentionDays = DEFAULT_RET
 /**
  * Deletes the folders of sessions that have been inactive for too long, with
  * whatever they still held.
- * @param {string} dataDir
- * @param {{ maxAgeDays: number, keep?: string, now?: number }} options `keep` is a session id never deleted.
- * @returns {string[]} Ids of the sessions removed.
+ * @param options `keep` is a session id never deleted.
+ * @returns Ids of the sessions removed.
  */
-export function pruneSessions(dataDir, { maxAgeDays, keep, now = Date.now() }) {
+export function pruneSessions(
+  dataDir: string,
+  { maxAgeDays, keep, now = Date.now() }: { maxAgeDays: number; keep?: string; now?: number },
+): string[] {
   const root = join(dataDir, 'sessions');
   if (!existsSync(root) || !(maxAgeDays > 0)) return [];
-  const removed = [];
+  const removed: string[] = [];
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     if (!entry.isDirectory() || !SESSION_FOLDER.test(entry.name) || entry.name === keep) continue;
     const dir = join(root, entry.name);
@@ -115,11 +126,8 @@ export function pruneSessions(dataDir, { maxAgeDays, keep, now = Date.now() }) {
 /**
  * Handles a `SessionEnd` hook call: the session stops being offered to the CLI.
  * Its queue stays on disk, so resuming the session finds it again.
- * @param {{ session_id?: string }} input
- * @param {{ dataDir: string }} context
- * @returns {null}
  */
-export function handleSessionEnd(input, { dataDir }) {
+export function handleSessionEnd(input: HookInput, { dataDir }: HookContext): null {
   const record = readRecord(sessionDir(dataDir, input.session_id));
   if (record) save({ ...record, endedAt: new Date().toISOString() });
   return null;
@@ -127,9 +135,9 @@ export function handleSessionEnd(input, { dataDir }) {
 
 /**
  * Notes that the session is alive (called when a turn ends).
- * @param {string} dir Session folder.
+ * @param dir Session folder.
  */
-export function touchSession(dir) {
+export function touchSession(dir: string): void {
   const record = readRecord(dir);
   if (record) save({ ...record, lastActiveAt: new Date().toISOString(), endedAt: null });
 }
@@ -137,31 +145,28 @@ export function touchSession(dir) {
 /**
  * The data directories the CLI should look in: the one it was told about, or
  * every plugin data directory that cmc has marked as its own.
- * @param {string} [explicit]
- * @returns {string[]}
  */
-export function candidateDataDirs(explicit) {
+export function candidateDataDirs(explicit?: string): string[] {
   const given = [explicit, process.env.CMC_DATA_DIR, process.env.CLAUDE_PLUGIN_DATA].find(
     (value) => typeof value === 'string' && value.trim() !== '' && !value.includes('${'),
   );
   if (given) return [resolve(given)];
 
   const root = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'), 'plugins', 'data');
-  let names;
+  let names: string[];
   try {
     names = readdirSync(root);
   } catch (error) {
-    if (error.code === 'ENOENT') return [];
+    if (errorCode(error) === 'ENOENT') return [];
     throw error;
   }
   return names.map((name) => join(root, name)).filter((dir) => existsSync(join(dir, MARKER_FILE)));
 }
 
 /**
- * @param {string[]} dataDirs
- * @returns {SessionRecord[]} Every recorded session, most recently active first.
+ * @returns Every recorded session, most recently active first.
  */
-export function listSessions(dataDirs) {
+export function listSessions(dataDirs: readonly string[]): SessionRecord[] {
   const records = dataDirs.flatMap((dataDir) => {
     const root = join(dataDir, 'sessions');
     if (!existsSync(root)) return [];
@@ -179,9 +184,9 @@ const CASE_INSENSITIVE = process.platform === 'win32' || process.platform === 'd
  * Windows this also expands 8.3 short names and junctions). A part that no
  * longer exists is kept as written, under the real path of what does exist.
  */
-function realPath(path) {
+function realPath(path: string): string {
   const full = resolve(path);
-  const missing = [];
+  const missing: string[] = [];
   for (let current = full; ; ) {
     try {
       return join(realpathSync.native(current), ...missing);
@@ -194,24 +199,21 @@ function realPath(path) {
   }
 }
 
-function comparable(path) {
+function comparable(path: string): string {
   const real = realPath(path);
   return CASE_INSENSITIVE ? real.toLowerCase() : real;
 }
 
 /** Whether `folder` is strictly inside `ancestor` (both already comparable). */
-function isInside(folder, ancestor) {
+function isInside(folder: string, ancestor: string): boolean {
   // A file system root ("/", "C:\") already ends with the separator.
   return folder.startsWith(ancestor.endsWith(sep) ? ancestor : ancestor + sep);
 }
 
 /**
  * Open sessions started in `cwd`, or failing that in the closest folder above it.
- * @param {SessionRecord[]} records
- * @param {string} cwd
- * @returns {SessionRecord[]}
  */
-export function openSessionsIn(records, cwd) {
+export function openSessionsIn(records: readonly SessionRecord[], cwd: string): SessionRecord[] {
   const here = comparable(cwd);
   const open = records
     .filter((record) => record.endedAt === null)
@@ -226,10 +228,8 @@ export function openSessionsIn(records, cwd) {
 
 /**
  * Describes sessions in one line each, for the user to pick from.
- * @param {SessionRecord[]} records
- * @returns {string}
  */
-export function formatSessions(records) {
+export function formatSessions(records: readonly SessionRecord[]): string {
   return records
     .map((record) => {
       const state = record.endedAt ? 'closed' : `last active ${record.lastActiveAt.replace('T', ' ').slice(0, 16)} UTC`;
@@ -240,15 +240,15 @@ export function formatSessions(records) {
 
 /**
  * Picks the session a CLI command is meant for.
- * @param {{ dataDirs: string[], cwd: string, wanted?: string }} query `wanted` is a session id or the start of one.
- * @returns {SessionRecord}
+ * @param query `wanted` is a session id or the start of one.
  */
-export function resolveSession({ dataDirs, cwd, wanted }) {
+export function resolveSession({ dataDirs, cwd, wanted }: { dataDirs: readonly string[]; cwd: string; wanted?: string }): SessionRecord {
   const records = listSessions(dataDirs);
 
   if (wanted) {
     const matches = records.filter((record) => record.id.startsWith(wanted));
-    if (matches.length === 1) return matches[0];
+    const [match] = matches;
+    if (matches.length === 1 && match) return match;
     if (matches.length > 1) {
       throw new CmcError('AMBIGUOUS_SESSION', `Several sessions start with "${wanted}":\n${formatSessions(matches)}`);
     }
@@ -256,7 +256,8 @@ export function resolveSession({ dataDirs, cwd, wanted }) {
   }
 
   const here = openSessionsIn(records, cwd);
-  if (here.length === 1) return here[0];
+  const [only] = here;
+  if (here.length === 1 && only) return only;
   if (here.length === 0) {
     throw new CmcError(
       'NO_SESSION',

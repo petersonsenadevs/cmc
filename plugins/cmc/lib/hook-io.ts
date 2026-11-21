@@ -3,8 +3,13 @@
 // stdin, run a handler from the core, print its answer.
 import { readSync } from 'node:fs';
 import { sleep } from './atomic-write.ts';
+import { errorCode } from './errors.ts';
 import { describeError, logEvent } from './log.ts';
 import { resolveDataDir } from './paths.ts';
+import { isRecord, type HookContext, type HookInput } from './types.ts';
+
+/** A hook handler: its answer is printed as JSON; `null` prints nothing. */
+export type HookHandler = (input: HookInput, context: HookContext) => object | null;
 
 /**
  * Reads everything Claude Code wrote to stdin.
@@ -14,21 +19,21 @@ import { resolveDataDir } from './paths.ts';
  * the writer is still busy, and on Windows a closed pipe can answer `EOF`
  * instead of a zero-length read. A hook that failed here would let a prompt
  * the user meant to hold through to the agent.
- * @returns {string}
  */
-function readStdin() {
-  const chunks = [];
+function readStdin(): string {
+  const chunks: Buffer[] = [];
   const buffer = Buffer.alloc(65536);
   for (;;) {
-    let length;
+    let length: number;
     try {
       length = readSync(0, buffer, 0, buffer.length, null);
     } catch (error) {
-      if (error.code === 'EAGAIN') {
+      const code = errorCode(error);
+      if (code === 'EAGAIN') {
         sleep(5);
         continue;
       }
-      if (error.code === 'EOF') break;
+      if (code === 'EOF') break;
       throw error;
     }
     if (length === 0) break;
@@ -41,14 +46,14 @@ function readStdin() {
  * Runs a hook handler and never lets a failure of cmc get in the user's way:
  * on any error the hook prints nothing and exits 0, so Claude Code carries on
  * as if the plugin were not installed, and the error is logged.
- * @param {string} name Hook name for the log.
- * @param {(input: object, context: { dataDir: string }) => object | null} handler
+ * @param name Hook name for the log.
  */
-export function runHook(name, handler) {
-  let dataDir;
+export function runHook(name: string, handler: HookHandler): void {
+  let dataDir: string | undefined;
   try {
     dataDir = resolveDataDir();
-    const input = JSON.parse(readStdin());
+    const input: unknown = JSON.parse(readStdin());
+    if (!isRecord(input)) throw new Error('the hook input is not a JSON object');
     const output = handler(input, { dataDir });
     if (output) process.stdout.write(JSON.stringify(output));
   } catch (error) {

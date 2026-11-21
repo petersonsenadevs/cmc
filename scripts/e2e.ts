@@ -30,13 +30,46 @@ const TASK =
   'After the third one, reply with one line listing the three outputs.';
 const TIMEOUT_MS = 240000;
 
+interface Options {
+  mid: string[];
+  after: string[];
+  cli: string | null;
+  model: string;
+  keep: boolean;
+}
+
+/** One block of a message's content in Claude Code's stream-json output. */
+type ContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; input: { command?: string; [key: string]: unknown } }
+  | { type: 'tool_result'; content: unknown };
+
+/** The stream-json messages this script reads; any other line is ignored. */
+type StreamMessage =
+  | { type: 'system'; subtype: 'init'; session_id: string }
+  | { type: 'system'; subtype: 'informational'; content: unknown }
+  | { type: 'user'; message: { content: string | ContentBlock[] } }
+  | { type: 'assistant'; message: { content: ContentBlock[] } }
+  | { type: 'result'; num_turns: number };
+
 const args = process.argv.slice(2);
-const options = { mid: [], after: [], cli: null, model: 'haiku', keep: false };
+const options: Options = { mid: [], after: [], cli: null, model: 'haiku', keep: false };
+
+/** The value that follows a flag; stops when the flag is the last argument. */
+function valueAt(index: number): string {
+  const value = args[index];
+  if (value === undefined) {
+    process.stderr.write(`missing value for ${args[index - 1]}\n`);
+    process.exit(2);
+  }
+  return value;
+}
+
 for (let i = 0; i < args.length; i += 1) {
-  if (args[i] === '--mid') options.mid.push(args[(i += 1)]);
-  else if (args[i] === '--after') options.after.push(args[(i += 1)]);
-  else if (args[i] === '--cli') options.cli = args[(i += 1)];
-  else if (args[i] === '--model') options.model = args[(i += 1)];
+  if (args[i] === '--mid') options.mid.push(valueAt((i += 1)));
+  else if (args[i] === '--after') options.after.push(valueAt((i += 1)));
+  else if (args[i] === '--cli') options.cli = valueAt((i += 1));
+  else if (args[i] === '--model') options.model = valueAt((i += 1));
   else if (args[i] === '--keep') options.keep = true;
   else {
     process.stderr.write(`unknown argument: ${args[i]}\n`);
@@ -48,13 +81,13 @@ const pluginDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins',
 const workDir = mkdtempSync(join(tmpdir(), 'cmc-e2e-'));
 const started = Date.now();
 const stamp = () => `${((Date.now() - started) / 1000).toFixed(1).padStart(5)}s`;
-const print = (label, text = '') => process.stdout.write(`${stamp()}  ${label.padEnd(10)} ${text}\n`);
-const oneLine = (text, max = 300) => String(text).replace(/\s+/g, ' ').slice(0, max);
+const print = (label: string, text = '') => process.stdout.write(`${stamp()}  ${label.padEnd(10)} ${text}\n`);
+const oneLine = (text: unknown, max = 300) => String(text).replace(/\s+/g, ' ').slice(0, max);
 
 const claudeBin = process.env.CLAUDE_BIN || 'claude';
 
 /** Stops before anything is typed: Claude Code itself could not be started. */
-function cannotStart(error) {
+function cannotStart(error: NodeJS.ErrnoException): never {
   if (!options.keep) rmSync(workDir, { recursive: true, force: true });
   process.stderr.write(
     [
@@ -68,12 +101,12 @@ function cannotStart(error) {
   process.exit(2);
 }
 
-function startClaude(claudeArgs) {
+function startClaude(claudeArgs: string[]) {
   try {
     // A missing executable is reported through the 'error' event; a .cmd or .bat on Windows throws here.
     return spawn(claudeBin, claudeArgs, { cwd: workDir, stdio: ['pipe', 'pipe', 'inherit'] }).on('error', cannotStart);
   } catch (error) {
-    return cannotStart(error);
+    return cannotStart(error instanceof Error ? error : new Error(String(error)));
   }
 }
 
@@ -92,29 +125,29 @@ const child = startClaude([
 // The task may be written before a failed start is reported; that report is the one that matters.
 child.stdin.on('error', () => {});
 
-function type(text) {
+function type(text: string) {
   print('TYPED', text);
   child.stdin.write(`${JSON.stringify({ type: 'user', message: { role: 'user', content: text } })}\n`);
 }
 
-let sessionId;
+let sessionId: string | undefined;
 let midSent = false;
 let toolCalls = 0;
 // With --plugin-dir, Claude Code names the data directory "<plugin>-inline".
 const dataDir = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'), 'plugins', 'data', 'cmc-inline');
 
-function runCli() {
+function runCli(cli: string) {
   // Like a second terminal opened in the same folder: no session id, no data directory.
-  const result = spawnSync(process.execPath, [join(pluginDir, 'bin', 'cmc.ts'), ...options.cli.split(' ')], {
+  const result = spawnSync(process.execPath, [join(pluginDir, 'bin', 'cmc.ts'), ...cli.split(' ')], {
     cwd: workDir,
     encoding: 'utf8',
   });
-  print('CLI', `cmc ${options.cli} → ${oneLine(result.stdout)}`);
+  print('CLI', `cmc ${cli} → ${oneLine(result.stdout)}`);
 }
 let buffer = '';
 const after = [...options.after];
 
-function onMessage(message) {
+function onMessage(message: StreamMessage) {
   if (message.type === 'system' && message.subtype === 'init') sessionId = message.session_id;
   if (message.type === 'system' && message.subtype === 'informational') print('NOTICE', oneLine(message.content));
   if (message.type === 'user') {
@@ -133,7 +166,7 @@ function onMessage(message) {
       if (block.type === 'tool_use') {
         print('TOOL', oneLine(block.input.command ?? JSON.stringify(block.input), 80));
         toolCalls += 1;
-        if (toolCalls === 2 && options.cli) runCli();
+        if (toolCalls === 2 && options.cli) runCli(options.cli);
         if (!midSent) {
           midSent = true;
           setTimeout(() => options.mid.forEach(type), 2000);
@@ -149,7 +182,7 @@ function onMessage(message) {
   }
 }
 
-child.stdout.on('data', (chunk) => {
+child.stdout.on('data', (chunk: Buffer) => {
   buffer += chunk;
   let newline;
   while ((newline = buffer.indexOf('\n')) >= 0) {
@@ -157,9 +190,9 @@ child.stdout.on('data', (chunk) => {
     buffer = buffer.slice(newline + 1);
     if (line === '') continue;
     try {
-      onMessage(JSON.parse(line));
+      onMessage(JSON.parse(line) as StreamMessage);
     } catch (error) {
-      print('UNPARSED', oneLine(`${error.message}: ${line}`, 120));
+      print('UNPARSED', oneLine(`${error instanceof Error ? error.message : String(error)}: ${line}`, 120));
     }
   }
 });
@@ -169,11 +202,11 @@ const timer = setTimeout(() => {
   child.kill();
 }, TIMEOUT_MS);
 
-child.on('exit', (code) => {
+child.on('exit', (code: number | null) => {
   clearTimeout(timer);
   const queue = join(dataDir, 'sessions', String(sessionId), 'queue.jsonl');
   const left = existsSync(queue)
-    ? readFileSync(queue, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line).text)
+    ? readFileSync(queue, 'utf8').split('\n').filter(Boolean).map((line) => (JSON.parse(line) as { text: string }).text)
     : [];
   print('QUEUE', `${left.length} held after the session: ${JSON.stringify(left)}`);
   print('SESSION', `${sessionId} in ${workDir}${options.keep ? ' (kept)' : ''}`);

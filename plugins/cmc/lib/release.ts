@@ -3,9 +3,30 @@
 // words them so the agent reads them as what they are, things the user typed.
 import { CmcError } from './errors.ts';
 import { sessionDir } from './paths.ts';
-import { drainMessages, listMessages } from './queue.ts';
-import { mergeSelection, readState, updateState } from './session-state.ts';
+import { drainMessages, listMessages, type HeldMessage } from './queue.ts';
+import { mergeSelection, readState, updateState, type Selection } from './session-state.ts';
 import { touchSession } from './sessions.ts';
+import type { HookContext, HookInput } from './types.ts';
+
+/** What a release took out of the queue. */
+export interface ReleaseResult {
+  count: number;
+  /** The messages worded for the agent; `null` when nothing was released. */
+  text: string | null;
+  /** Set when a damaged queue file had to be repaired. */
+  warning?: string;
+}
+
+/** A `Stop` hook answer that makes the turn continue with `reason`. */
+export interface StopBlock {
+  decision: 'block';
+  reason: string;
+}
+
+/** A `PostToolUse` hook answer that hands text to the agent. */
+export interface PostToolUseContext {
+  hookSpecificOutput: { hookEventName: 'PostToolUse'; additionalContext: string };
+}
 
 /**
  * Formats released messages for the agent.
@@ -13,11 +34,9 @@ import { touchSession } from './sessions.ts';
  * The header is short and factual on purpose: it names the plugin and the
  * user's own action. Imperative framing ("treat the following as…") made the
  * model distrust the text (ADR 001, finding f).
- * @param {import('./queue.ts').HeldMessage[]} messages
- * @param {string} trigger What the user did to release them, e.g. `/cmc:release`.
- * @returns {string}
+ * @param trigger What the user did to release them, e.g. `/cmc:release`.
  */
-export function formatRelease(messages, trigger) {
+export function formatRelease(messages: readonly HeldMessage[], trigger: string): string {
   const noun = messages.length === 1 ? 'message' : 'messages';
   const lines = messages.map((message, index) => {
     const label = `${index + 1}. `;
@@ -30,12 +49,9 @@ export function formatRelease(messages, trigger) {
 
 /**
  * Takes messages out of a session queue and formats them.
- * @param {string} dir Session folder.
- * @param {import('./session-state.ts').Selection} selection
- * @param {string} trigger
- * @returns {{ count: number, text: string | null, warning?: string }}
+ * @param dir Session folder.
  */
-export function release(dir, selection, trigger) {
+export function release(dir: string, selection: Selection, trigger: string): ReleaseResult {
   if (selection === null) return { count: 0, text: null };
   const { messages, warning } = drainMessages(dir, selection === 'all' ? undefined : selection);
   return { count: messages.length, text: messages.length > 0 ? formatRelease(messages, trigger) : null, warning };
@@ -43,22 +59,17 @@ export function release(dir, selection, trigger) {
 
 /**
  * Takes the whole queue of a session and formats it.
- * @param {string} dataDir
- * @param {string} sessionId
- * @param {string} trigger
  */
-export function releaseAll(dataDir, sessionId, trigger) {
+export function releaseAll(dataDir: string, sessionId: string, trigger: string): ReleaseResult {
   return release(sessionDir(dataDir, sessionId), 'all', trigger);
 }
 
 /**
  * Turns the positions the user sees into a selection of message ids.
  * No positions means the whole queue.
- * @param {string} dir Session folder.
- * @param {number[]} [positions]
- * @returns {{ selection: import('./session-state.ts').Selection, count: number, held: number }}
+ * @param dir Session folder.
  */
-export function select(dir, positions = []) {
+export function select(dir: string, positions: readonly number[] = []): { selection: Selection; count: number; held: number } {
   const { messages } = listMessages(dir);
   if (positions.length === 0) return { selection: 'all', count: messages.length, held: messages.length };
   const ids = positions.map((position) => {
@@ -74,22 +85,19 @@ export function select(dir, positions = []) {
 
 /**
  * Arms a release for later: at the end of the turn, or at the agent's next step.
- * @param {string} dir Session folder.
- * @param {'atEnd' | 'atNextStep'} when
- * @param {import('./session-state.ts').Selection} selection
+ * @param dir Session folder.
  */
-export function arm(dir, when, selection) {
-  updateState(dir, { [when]: mergeSelection(readState(dir)[when], selection) });
+export function arm(dir: string, when: 'atEnd' | 'atNextStep', selection: Selection): void {
+  const merged = mergeSelection(readState(dir)[when], selection);
+  updateState(dir, when === 'atEnd' ? { atEnd: merged } : { atNextStep: merged });
 }
 
 /**
  * Handles a `Stop` hook call: when a release is pending and something is held,
  * the turn continues with the held messages.
- * @param {{ session_id?: string, stop_hook_active?: boolean }} input
- * @param {{ dataDir: string }} context
- * @returns {{ decision: 'block', reason: string } | null} `null` lets the turn end.
+ * @returns `null` lets the turn end.
  */
-export function handleStop(input, { dataDir }) {
+export function handleStop(input: HookInput, { dataDir }: HookContext): StopBlock | null {
   const dir = sessionDir(dataDir, input.session_id);
   touchSession(dir);
   // Already continuing because of a Stop hook: never chain a second continuation.
@@ -110,11 +118,8 @@ export function handleStop(input, { dataDir }) {
 /**
  * Handles a `PostToolUse` hook call: delivers a release that was armed from
  * outside the session (`cmc release --now`) right after the tool that just ran.
- * @param {{ session_id?: string }} input
- * @param {{ dataDir: string }} context
- * @returns {{ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: string } } | null}
  */
-export function handlePostToolUse(input, { dataDir }) {
+export function handlePostToolUse(input: HookInput, { dataDir }: HookContext): PostToolUseContext | null {
   const dir = sessionDir(dataDir, input.session_id);
   const { atNextStep } = readState(dir);
   if (atNextStep === null) return null;

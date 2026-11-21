@@ -8,15 +8,16 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { handlePrompt } from '../plugins/cmc/lib/capture.ts';
 import { sessionDir } from '../plugins/cmc/lib/paths.ts';
-import { listMessages } from '../plugins/cmc/lib/queue.ts';
+import { listMessages, type HeldMessage } from '../plugins/cmc/lib/queue.ts';
 import { formatRelease, handleStop, releaseAll } from '../plugins/cmc/lib/release.ts';
 import { readState } from '../plugins/cmc/lib/session-state.ts';
+import { blocked, present } from '../test-support/expect.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc');
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
 const OTHER_SESSION = 'b06d5f9a-57e8-44f3-8b37-b14b890259fc';
 
-let dataDir;
+let dataDir: string;
 beforeEach(() => {
   dataDir = mkdtempSync(join(tmpdir(), 'cmc-release-'));
 });
@@ -24,12 +25,12 @@ afterEach(() => {
   rmSync(dataDir, { recursive: true, force: true });
 });
 
-const type = (prompt, session = SESSION) => handlePrompt({ session_id: session, prompt }, { dataDir });
-const stop = (extra = {}) => handleStop({ hook_event_name: 'Stop', session_id: SESSION, ...extra }, { dataDir });
+const type = (prompt: string, session = SESSION) => handlePrompt({ session_id: session, prompt }, { dataDir });
+const stop = (extra: { stop_hook_active?: boolean } = {}) => handleStop({ hook_event_name: 'Stop', session_id: SESSION, ...extra }, { dataDir });
 const held = (session = SESSION) => listMessages(sessionDir(dataDir, session)).messages.map((message) => message.text);
-const message = (text) => ({ id: 'x', text, at: '2026-11-21T00:00:00.000Z', source: 'user' });
+const message = (text: string): HeldMessage => ({ id: 'x', text, at: '2026-11-21T00:00:00.000Z', source: 'user' });
 
-function run(script, args, options = {}) {
+function run(script: string, args: string[], options: { input?: string; env?: NodeJS.ProcessEnv } = {}) {
   return spawnSync(process.execPath, [join(root, script), ...args], { encoding: 'utf8', ...options });
 }
 
@@ -59,7 +60,7 @@ describe('releaseAll', () => {
     type(';; two');
     const first = releaseAll(dataDir, SESSION, '/cmc:release');
     assert.equal(first.count, 2);
-    assert.match(first.text, /1\. one\n2\. two$/);
+    assert.match(present(first.text), /1\. one\n2\. two$/);
     assert.deepEqual(releaseAll(dataDir, SESSION, '/cmc:release'), { count: 0, text: null, warning: undefined });
   });
 
@@ -103,11 +104,11 @@ describe('release at the end of the turn', () => {
     type(';;end');
     assert.equal(stop({ stop_hook_active: true }), null);
     assert.deepEqual(held(), ['one'], 'nothing is lost: it is delivered at the next clean stop');
-    assert.match(stop().reason, /1\. one$/);
+    assert.match(blocked(stop()).reason, /1\. one$/);
   });
 
   it('does nothing with an empty queue, and disarms', () => {
-    assert.match(type(';;end').reason, /^Nothing is held yet\./);
+    assert.match(blocked(type(';;end')).reason, /^Nothing is held yet\./);
     assert.equal(stop(), null);
     assert.equal(readState(sessionDir(dataDir, SESSION)).atEnd, null);
   });
@@ -115,7 +116,7 @@ describe('release at the end of the turn', () => {
   it('covers messages held after ";;end" in the same turn', () => {
     type(';;end');
     type(';; typed afterwards');
-    assert.match(stop().reason, /1\. typed afterwards$/);
+    assert.match(blocked(stop()).reason, /1\. typed afterwards$/);
   });
 
   it('holds ";; end" (with a space) as an ordinary message', () => {
@@ -133,7 +134,7 @@ describe('release at the end of the turn', () => {
 });
 
 describe('stop-release hook script', () => {
-  const runHookScript = (input) =>
+  const runHookScript = (input: Record<string, unknown>) =>
     run('hooks/stop-release.ts', [], { input: JSON.stringify(input), env: { ...process.env, CLAUDE_PLUGIN_DATA: dataDir } });
 
   it('prints the block decision when delivery was requested', () => {
@@ -163,7 +164,7 @@ describe('stop-release hook script', () => {
 });
 
 describe('cmc drain', () => {
-  const drain = (...args) => run('bin/cmc.ts', ['drain', '--data-dir', dataDir, ...args]);
+  const drain = (...args: string[]) => run('bin/cmc.ts', ['drain', '--data-dir', dataDir, ...args]);
 
   it('prints the release text and empties the queue', () => {
     type(';; one');
@@ -182,7 +183,8 @@ describe('cmc drain', () => {
 
   it('prints JSON on request', () => {
     type(';; one');
-    assert.equal(JSON.parse(drain('--session', SESSION, '--format', 'json').stdout).count, 1);
+    const printed = JSON.parse(drain('--session', SESSION, '--format', 'json').stdout) as { count: number };
+    assert.equal(printed.count, 1);
   });
 
   it('never runs the text of a message as a command', () => {

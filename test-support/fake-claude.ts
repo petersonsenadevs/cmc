@@ -10,7 +10,7 @@ const stdin = readFileSync(0, 'utf8');
 if (process.env.FAKE_CLAUDE_RECORD) {
   writeFileSync(process.env.FAKE_CLAUDE_RECORD, JSON.stringify({ argv: process.argv.slice(2), stdin, cwd: process.cwd() }));
 }
-const line = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);
+const line = (message: Record<string, unknown>) => process.stdout.write(`${JSON.stringify(message)}\n`);
 const behaviour = process.env.FAKE_CLAUDE ?? 'ok';
 
 line({ type: 'system', subtype: 'init', session_id: 'fake-session' });

@@ -3,13 +3,9 @@
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-/**
- * @param {string | undefined} dataDir
- * @param {'info' | 'warn' | 'error'} level
- * @param {string} event
- * @param {Record<string, unknown>} [details]
- */
-export function logEvent(dataDir, level, event, details = {}) {
+export type LogLevel = 'info' | 'warn' | 'error';
+
+export function logEvent(dataDir: string | undefined, level: LogLevel, event: string, details: Record<string, unknown> = {}): void {
   const line = `${JSON.stringify({ t: new Date().toISOString(), level, event, ...details })}\n`;
   try {
     if (!dataDir) throw new Error('no data directory');
@@ -23,8 +19,8 @@ export function logEvent(dataDir, level, event, details = {}) {
 }
 
 /** Reduces an error to what is safe and useful to log. */
-export function describeError(error) {
+export function describeError(error: unknown): Record<string, unknown> {
   return error instanceof Error
-    ? { name: error.name, code: error.code, message: error.message, stack: error.stack }
+    ? { name: error.name, code: 'code' in error ? error.code : undefined, message: error.message, stack: error.stack }
     : { message: String(error) };
 }

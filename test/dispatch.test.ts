@@ -5,16 +5,25 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { findAgent, isAlive, listAgents, readAgentAt } from '../plugins/cmc/lib/agents-registry.ts';
-import { buildCommand, cancelAgent, DEFAULT_TOOLS, dispatch, forkPrompt } from '../plugins/cmc/lib/dispatch.ts';
+import { findAgent, isAlive, listAgents, readAgentAt, type AgentRecord } from '../plugins/cmc/lib/agents-registry.ts';
+import {
+  buildCommand,
+  cancelAgent,
+  DEFAULT_TOOLS,
+  dispatch,
+  forkPrompt,
+  type BuildCommandOptions,
+  type DispatchOptions,
+} from '../plugins/cmc/lib/dispatch.ts';
 import { sessionDir } from '../plugins/cmc/lib/paths.ts';
+import { present } from '../test-support/expect.ts';
 
 const fake = join(dirname(fileURLToPath(import.meta.url)), '..', 'test-support', 'fake-claude.ts');
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
 
-let base;
-let dir;
-let recordFile;
+let base: string;
+let dir: string;
+let recordFile: string;
 beforeEach(() => {
   base = mkdtempSync(join(tmpdir(), 'cmc-dispatch-'));
   dir = sessionDir(join(base, 'data'), SESSION);
@@ -29,12 +38,14 @@ afterEach(async () => {
   // not delete a folder that is still some process's working directory.
   const pids = agents.flatMap((agent) => [agent.runnerPid, agent.pid]);
   for (let i = 0; i < 100 && pids.some(isAlive); i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await pause(50);
   }
   rmSync(base, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
 });
 
-function start(task, behaviour = 'ok', extra = {}) {
+const pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function start(task: string, behaviour = 'ok', extra: Partial<DispatchOptions> = {}): AgentRecord {
   return dispatch({
     sessionDir: dir,
     sessionId: SESSION,
@@ -48,17 +59,20 @@ function start(task, behaviour = 'ok', extra = {}) {
   });
 }
 
-async function settled(id, wanted = (agent) => agent.state !== 'starting' && agent.state !== 'running') {
+async function settled(
+  id: string,
+  wanted: (agent: AgentRecord) => boolean = (agent) => agent.state !== 'starting' && agent.state !== 'running',
+): Promise<AgentRecord> {
   for (let i = 0; i < 200; i += 1) {
     const agent = findAgent(dir, id);
     if (wanted(agent)) return agent;
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await pause(50);
   }
   throw new Error(`agent ${id} did not settle: ${JSON.stringify(findAgent(dir, id))}`);
 }
 
 describe('buildCommand', () => {
-  const base = { claude: ['claude'], mode: 'fork', sessionId: SESSION, worktree: null, permissionMode: 'acceptEdits', tools: DEFAULT_TOOLS };
+  const base: BuildCommandOptions = { claude: ['claude'], mode: 'fork', sessionId: SESSION, worktree: null, permissionMode: 'acceptEdits', tools: DEFAULT_TOOLS };
 
   it('forks the session with limited permissions and a tool list', () => {
     assert.deepEqual(buildCommand(base), [
@@ -91,14 +105,14 @@ describe('dispatch', () => {
     assert.ok(Date.now() - before < 2000, 'does not wait for the agent');
     assert.match(agent.id, /^[a-f0-9]{8}$/);
     assert.equal(agent.task, 'review the tests of module X');
-    assert.ok(agent.runnerPid > 0);
+    assert.ok(present(agent.runnerPid) > 0);
 
     const done = await settled(agent.id);
     assert.equal(done.state, 'finished');
     assert.equal(done.exitCode, 0);
     assert.equal(done.summary, 'Summary: changed notes.txt.');
     assert.equal(done.agentSessionId, 'fake-session');
-    assert.ok(done.endedAt >= done.startedAt);
+    assert.ok(present(done.endedAt) >= done.startedAt);
     assert.match(readFileSync(join(done.dir, 'output.jsonl'), 'utf8'), /"type":"result"/);
   });
 
@@ -106,7 +120,7 @@ describe('dispatch', () => {
     const task = 'fix it"; rm -rf / #\n$(whoami) `id` && echo INJECTED';
     const agent = start(task);
     await settled(agent.id);
-    const called = JSON.parse(readFileSync(recordFile, 'utf8'));
+    const called = JSON.parse(readFileSync(recordFile, 'utf8')) as { argv: string[]; stdin: string; cwd: string };
     assert.equal(called.stdin, forkPrompt(task));
     assert.equal(called.argv.join(' ').includes('INJECTED'), false);
     assert.deepEqual(called.argv.slice(0, 3), ['-p', '--output-format', 'stream-json']);
@@ -118,7 +132,7 @@ describe('dispatch', () => {
     const failed = await settled(start('will fail', 'fail').id);
     assert.equal(failed.state, 'failed');
     assert.equal(failed.exitCode, 3);
-    assert.match(failed.summary, /something broke/);
+    assert.match(present(failed.summary), /something broke/);
   });
 
   it('marks the agent failed when its result is an error, even with exit code 0', async () => {
@@ -130,20 +144,20 @@ describe('dispatch', () => {
   it('marks the agent failed when the executable cannot be started', async () => {
     const failed = await settled(start('no executable', 'ok', { claude: [join(base, 'no-such-claude')] }).id);
     assert.equal(failed.state, 'failed');
-    assert.match(failed.summary, /^The agent could not be started: /);
+    assert.match(present(failed.summary), /^The agent could not be started: /);
   });
 
   it('cancels a running agent and ends its process', async () => {
     const agent = start('takes a minute', 'slow');
-    const running = await settled(agent.id, (current) => current.state === 'running' && current.pid > 0);
+    const running = await settled(agent.id, (current) => current.state === 'running' && current.pid !== null && current.pid > 0);
     const cancelled = cancelAgent(dir, agent.id.slice(0, 4));
     assert.equal(cancelled.state, 'cancelled');
     for (let i = 0; i < 100 && (isAlive(running.pid) || isAlive(running.runnerPid)); i += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await pause(50);
     }
     assert.equal(isAlive(running.pid), false);
     assert.equal(isAlive(running.runnerPid), false);
-    assert.equal(readAgentAt(running.dir).state, 'cancelled', 'the supervisor does not overwrite the cancellation');
+    assert.equal(present(readAgentAt(running.dir)).state, 'cancelled', 'the supervisor does not overwrite the cancellation');
     assert.throws(() => cancelAgent(dir, agent.id), { code: 'AGENT_NOT_RUNNING' });
   });
 
@@ -160,13 +174,13 @@ describe('dispatch', () => {
     const first = start('first');
     await settled(first.id);
     const second = start('second', 'slow');
-    const running = await settled(second.id, (current) => current.state === 'running' && current.pid > 0);
+    const running = await settled(second.id, (current) => current.state === 'running' && current.pid !== null && current.pid > 0);
     assert.deepEqual(listAgents(dir).map((agent) => agent.task), ['first', 'second']);
 
     // Kill the processes behind the registry's back.
     cancelAgent(dir, second.id);
     for (let i = 0; i < 100 && (isAlive(running.pid) || isAlive(running.runnerPid)); i += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await pause(50);
     }
     const { updateAgentAt } = await import('../plugins/cmc/lib/agents-registry.ts');
     updateAgentAt(running.dir, { state: 'running' });

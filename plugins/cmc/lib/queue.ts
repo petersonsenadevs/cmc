@@ -8,7 +8,8 @@ import { randomUUID } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { sleep, writeFileAtomic } from './atomic-write.ts';
-import { CmcError } from './errors.ts';
+import { CmcError, errorCode } from './errors.ts';
+import { isRecord } from './types.ts';
 
 const QUEUE_FILE = 'queue.jsonl';
 const LOCK_DIR = 'queue.lock';
@@ -18,39 +19,39 @@ const LOCK_RETRY_MS = 15;
 
 export const MAX_TEXT_LENGTH = 20000;
 
-/**
- * @typedef {object} HeldMessage
- * @property {string} id
- * @property {string} text
- * @property {string} at ISO timestamp of the moment it was held.
- * @property {string} source `user`, or the origin of a message cmc queued itself.
- */
+export interface HeldMessage {
+  id: string;
+  text: string;
+  /** ISO timestamp of the moment it was held. */
+  at: string;
+  /** `user`, or the origin of a message cmc queued itself. */
+  source: string;
+}
 
-/**
- * @typedef {object} QueueResult
- * @property {HeldMessage[]} messages
- * @property {string} [warning] Set when a damaged queue file had to be repaired.
- */
+export interface QueueResult {
+  messages: HeldMessage[];
+  /** Set when a damaged queue file had to be repaired. */
+  warning?: string;
+}
 
 /**
  * Whether a failed attempt to create the lock directory means "someone else
  * holds it". On Windows a directory that is being deleted answers `EPERM` for
  * a moment; anywhere else `EPERM` is a real permission error.
- * @param {{ code?: string }} error
- * @param {string} [platform]
- * @returns {boolean}
+ * @param error Whatever `mkdirSync` threw.
  */
-export function isLockHeld(error, platform = process.platform) {
-  return error.code === 'EEXIST' || (platform === 'win32' && error.code === 'EPERM');
+export function isLockHeld(error: unknown, platform: string = process.platform): boolean {
+  const code = errorCode(error);
+  return code === 'EEXIST' || (platform === 'win32' && code === 'EPERM');
 }
 
 // Removing the lock can fail for a moment on Windows (antivirus, a pending
 // delete); a lock left behind would block the queue until it goes stale.
-function removeLock(lock) {
+function removeLock(lock: string): void {
   rmSync(lock, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
 }
 
-function withLock(dir, action) {
+function withLock<T>(dir: string, action: () => T): T {
   const lock = join(dir, LOCK_DIR);
   const deadline = Date.now() + LOCK_TIMEOUT_MS;
   for (;;) {
@@ -75,7 +76,7 @@ function withLock(dir, action) {
   }
 }
 
-function isStale(lock) {
+function isStale(lock: string): boolean {
   try {
     return Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS;
   } catch {
@@ -83,10 +84,9 @@ function isStale(lock) {
   }
 }
 
-function isMessage(value) {
+function isMessage(value: unknown): value is HeldMessage {
   return (
-    value !== null &&
-    typeof value === 'object' &&
+    isRecord(value) &&
     typeof value.id === 'string' &&
     typeof value.text === 'string' &&
     typeof value.at === 'string' &&
@@ -94,9 +94,9 @@ function isMessage(value) {
   );
 }
 
-function parseLine(line) {
+function parseLine(line: string): HeldMessage | null {
   try {
-    const value = JSON.parse(line);
+    const value: unknown = JSON.parse(line);
     return isMessage(value) ? value : null;
   } catch {
     return null;
@@ -104,7 +104,7 @@ function parseLine(line) {
 }
 
 /** Reads the queue. Caller holds the lock. */
-function read(dir) {
+function read(dir: string): QueueResult {
   const file = join(dir, QUEUE_FILE);
   if (!existsSync(file)) return { messages: [] };
 
@@ -125,17 +125,18 @@ function read(dir) {
 }
 
 /** Replaces the queue atomically. Caller holds the lock. */
-function write(dir, messages) {
+function write(dir: string, messages: readonly HeldMessage[]): void {
   writeFileAtomic(join(dir, QUEUE_FILE), messages.map((message) => `${JSON.stringify(message)}\n`).join(''));
 }
 
 /**
  * Holds one message at the end of the queue.
- * @param {string} dir Session folder.
- * @param {{ text: string, source?: string }} input
- * @returns {QueueResult & { message: HeldMessage }}
+ * @param dir Session folder.
  */
-export function addMessage(dir, { text, source = 'user' }) {
+export function addMessage(
+  dir: string,
+  { text, source = 'user' }: { text: string; source?: string },
+): QueueResult & { message: HeldMessage } {
   if (typeof text !== 'string' || text.trim() === '') {
     throw new CmcError('EMPTY_MESSAGE', 'There is no text to hold.');
   }
@@ -144,7 +145,7 @@ export function addMessage(dir, { text, source = 'user' }) {
   }
   return withLock(dir, () => {
     const current = read(dir);
-    const message = { id: randomUUID().slice(0, 8), text: text.trim(), at: new Date().toISOString(), source };
+    const message: HeldMessage = { id: randomUUID().slice(0, 8), text: text.trim(), at: new Date().toISOString(), source };
     const messages = [...current.messages, message];
     write(dir, messages);
     return { ...current, messages, message };
@@ -153,21 +154,18 @@ export function addMessage(dir, { text, source = 'user' }) {
 
 /**
  * Lists the held messages in delivery order.
- * @param {string} dir Session folder.
- * @returns {QueueResult}
+ * @param dir Session folder.
  */
-export function listMessages(dir) {
+export function listMessages(dir: string): QueueResult {
   return withLock(dir, () => read(dir));
 }
 
 /**
  * Takes messages out of the queue: all of them, or only the given ids.
  * A message is returned by exactly one call, whoever asks first.
- * @param {string} dir Session folder.
- * @param {string[]} [ids]
- * @returns {QueueResult & { remaining: number }}
+ * @param dir Session folder.
  */
-export function drainMessages(dir, ids) {
+export function drainMessages(dir: string, ids?: readonly string[]): QueueResult & { remaining: number } {
   return withLock(dir, () => {
     const current = read(dir);
     const wanted = ids === undefined ? null : new Set(ids);
@@ -178,7 +176,8 @@ export function drainMessages(dir, ids) {
   });
 }
 
-function at(messages, position) {
+/** The index of a position the user typed (1 = delivered first), or a refusal. */
+function at(messages: readonly HeldMessage[], position: number): number {
   if (!Number.isInteger(position) || position < 1 || position > messages.length) {
     const size = messages.length === 0 ? 'nothing is held' : `the queue has ${messages.length}`;
     throw new CmcError('NO_SUCH_MESSAGE', `There is no held message ${position} (${size}).`);
@@ -188,11 +187,10 @@ function at(messages, position) {
 
 /**
  * Applies a change to the queue under the lock and saves the result.
- * @param {string} dir Session folder.
- * @param {(messages: HeldMessage[]) => HeldMessage[]} change Returns the new queue.
- * @returns {QueueResult}
+ * @param dir Session folder.
+ * @param change Returns the new queue.
  */
-function mutate(dir, change) {
+function mutate(dir: string, change: (messages: HeldMessage[]) => HeldMessage[]): QueueResult {
   return withLock(dir, () => {
     const current = read(dir);
     const messages = change([...current.messages]);
@@ -203,12 +201,9 @@ function mutate(dir, change) {
 
 /**
  * Replaces the text of the message at a position (1 = delivered first).
- * @param {string} dir Session folder.
- * @param {number} position
- * @param {string} text
- * @returns {QueueResult}
+ * @param dir Session folder.
  */
-export function editMessage(dir, position, text) {
+export function editMessage(dir: string, position: number, text: string): QueueResult {
   if (typeof text !== 'string' || text.trim() === '') {
     throw new CmcError('EMPTY_MESSAGE', 'There is no new text for the message.');
   }
@@ -216,21 +211,18 @@ export function editMessage(dir, position, text) {
     throw new CmcError('MESSAGE_TOO_LONG', `A held message can be at most ${MAX_TEXT_LENGTH} characters long.`);
   }
   return mutate(dir, (messages) => {
-    const index = at(messages, position);
-    messages[index] = { ...messages[index], text: text.trim() };
-    return messages;
+    const target = at(messages, position);
+    return messages.map((message, index) => (index === target ? { ...message, text: text.trim() } : message));
   });
 }
 
 /**
  * Deletes the messages at the given positions. Nothing is deleted unless every
  * position exists.
- * @param {string} dir Session folder.
- * @param {number[]} positions
- * @returns {QueueResult & { removed: HeldMessage[] }}
+ * @param dir Session folder.
  */
-export function removeMessages(dir, positions) {
-  let removed = [];
+export function removeMessages(dir: string, positions: readonly number[]): QueueResult & { removed: HeldMessage[] } {
+  let removed: HeldMessage[] = [];
   const result = mutate(dir, (messages) => {
     const indexes = new Set(positions.map((position) => at(messages, position)));
     removed = messages.filter((_, index) => indexes.has(index));
@@ -241,11 +233,10 @@ export function removeMessages(dir, positions) {
 
 /**
  * Deletes every held message.
- * @param {string} dir Session folder.
- * @returns {QueueResult & { removed: HeldMessage[] }}
+ * @param dir Session folder.
  */
-export function clearMessages(dir) {
-  let removed = [];
+export function clearMessages(dir: string): QueueResult & { removed: HeldMessage[] } {
+  let removed: HeldMessage[] = [];
   const result = mutate(dir, (messages) => {
     removed = messages;
     return [];
@@ -255,17 +246,13 @@ export function clearMessages(dir) {
 
 /**
  * Moves the message at one position to another; the rest keep their order.
- * @param {string} dir Session folder.
- * @param {number} from
- * @param {number} to
- * @returns {QueueResult}
+ * @param dir Session folder.
  */
-export function moveMessage(dir, from, to) {
+export function moveMessage(dir: string, from: number, to: number): QueueResult {
   return mutate(dir, (messages) => {
     const source = at(messages, from);
     const target = at(messages, to);
-    const [message] = messages.splice(source, 1);
-    messages.splice(target, 0, message);
+    messages.splice(target, 0, ...messages.splice(source, 1));
     return messages;
   });
 }

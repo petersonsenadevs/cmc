@@ -1,38 +1,40 @@
 // cmc — held-messages indicator (hooks module), driven with a stand-in engine. Author: Peterson Sena (r3v3rs3).
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { countHeld, register, statusFor } from '../plugins/cmc/hooks/indicator.ts';
+import { countHeld, register, statusFor, type Engine, type SessionStartHandler } from '../plugins/cmc/hooks/indicator.ts';
+import { first, present } from '../test-support/expect.ts';
 
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
-const line = (text) => `${JSON.stringify({ id: 'x', text, at: '2026-11-21T00:00:00.000Z', source: 'user' })}\n`;
+const line = (text: string) => `${JSON.stringify({ id: 'x', text, at: '2026-11-21T00:00:00.000Z', source: 'user' })}\n`;
 
 /** A minimal `$`: one queue file, a manual clock and a record of every status set. */
 function engine() {
-  const files = new Map();
-  const statuses = [];
-  let tick;
-  const $ = {
+  const files = new Map<string, string>();
+  const statuses: (string | undefined)[] = [];
+  let tick: (() => Promise<void>) | undefined;
+  const $: Engine = {
     session: { id: async () => SESSION },
     process: { hookEnv: async () => ({ CLAUDE_PLUGIN_DATA: '/data' }) },
     fs: {
       read: async (path) => {
-        if (!files.has(path)) throw new Error('missing');
-        return files.get(path);
+        const text = files.get(path);
+        if (text === undefined) throw new Error('missing');
+        return text;
       },
     },
     clock: { every: (ms, fn) => { tick = fn; } },
     ui: { status: (text) => statuses.push(text) },
   };
-  return { $, statuses, setQueue: (text) => files.set(`/data/sessions/${SESSION}/queue.jsonl`, text), tick: () => tick() };
+  return { $, statuses, setQueue: (text: string) => files.set(`/data/sessions/${SESSION}/queue.jsonl`, text), tick: () => present(tick)() };
 }
 
-async function start(world) {
-  let hook;
+async function start(world: ReturnType<typeof engine>) {
+  const hooks: SessionStartHandler[] = [];
   register((event, fn) => {
     assert.equal(event, 'session.start');
-    hook = fn;
+    hooks.push(fn);
   });
-  return hook(world.$, { source: 'startup' }, async (e) => ({ passed: e }));
+  return first(hooks)(world.$, { source: 'startup' }, async (e) => ({ passed: e }));
 }
 
 describe('indicator', () => {

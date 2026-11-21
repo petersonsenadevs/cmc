@@ -6,18 +6,28 @@ import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc');
-const readJson = (path) => JSON.parse(readFileSync(join(root, path), 'utf8'));
+interface Manifest {
+  name: string;
+  version: string;
+  author: { name: string };
+}
+
+interface HooksFile {
+  hooks: Record<string, { hooks: { command: string }[] }[]>;
+}
+
+const readJson = <T>(path: string): T => JSON.parse(readFileSync(join(root, path), 'utf8')) as T;
 
 describe('plugin skeleton', () => {
   it('declares name, version and author in the manifest', () => {
-    const manifest = readJson('.claude-plugin/plugin.json');
+    const manifest = readJson<Manifest>('.claude-plugin/plugin.json');
     assert.equal(manifest.name, 'cmc');
     assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
     assert.match(manifest.author.name, /Peterson Sena/);
   });
 
   it('only registers hook scripts that exist', () => {
-    const { hooks } = readJson('hooks/hooks.json');
+    const { hooks } = readJson<HooksFile>('hooks/hooks.json');
     const commands = Object.values(hooks).flatMap((groups) =>
       groups.flatMap((group) => group.hooks.map((hook) => hook.command)),
     );

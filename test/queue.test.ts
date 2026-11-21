@@ -9,22 +9,23 @@ import { fileURLToPath } from 'node:url';
 import { CmcError } from '../plugins/cmc/lib/errors.ts';
 import { resolveDataDir, sessionDir } from '../plugins/cmc/lib/paths.ts';
 import { addMessage, drainMessages, isLockHeld, listMessages, MAX_TEXT_LENGTH } from '../plugins/cmc/lib/queue.ts';
+import { first } from '../test-support/expect.ts';
 
 const worker = join(dirname(fileURLToPath(import.meta.url)), '..', 'test-support', 'queue-worker.ts');
 
-function run(args) {
-  return new Promise((resolve, reject) => {
+function run(args: string[]): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
     const child = spawn(process.execPath, [worker, ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
-    child.stdout.on('data', (chunk) => (stdout += chunk));
-    child.stderr.on('data', (chunk) => (stderr += chunk));
+    child.stdout.on('data', (chunk: Buffer) => (stdout += chunk));
+    child.stderr.on('data', (chunk: Buffer) => (stderr += chunk));
     child.on('error', reject);
     child.on('exit', (code) => (code === 0 ? resolve(stdout) : reject(new Error(`worker exited ${code}: ${stderr}`))));
   });
 }
 
-let dir;
+let dir: string;
 beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), 'cmc-queue-'));
 });
@@ -63,7 +64,9 @@ describe('queue', () => {
 
   it('drains only the requested ids and keeps the rest in order', () => {
     const ids = ['one', 'two', 'three'].map((text) => addMessage(dir, { text }).message.id);
-    const result = drainMessages(dir, [ids[1], 'unknown']);
+    const [, second] = ids;
+    assert.ok(second);
+    const result = drainMessages(dir, [second, 'unknown']);
     assert.deepEqual(result.messages.map((message) => message.text), ['two']);
     assert.equal(result.remaining, 2);
     assert.deepEqual(listMessages(dir).messages.map((message) => message.text), ['one', 'three']);
@@ -72,7 +75,7 @@ describe('queue', () => {
   it('keeps multi-line text and special characters intact', () => {
     const text = 'line one\nline "two" `backticks` $(not a command) ñ ✉';
     addMessage(dir, { text });
-    assert.equal(drainMessages(dir).messages[0].text, text);
+    assert.equal(first(drainMessages(dir).messages).text, text);
   });
 
   it('repairs a damaged file, sets it aside and warns', () => {
@@ -82,6 +85,7 @@ describe('queue', () => {
 
     const result = listMessages(dir);
     assert.deepEqual(result.messages, [kept]);
+    assert.ok(result.warning);
     assert.match(result.warning, /1 message\(s\) kept, 2 unreadable line\(s\) set aside in queue\.corrupt-\d+\.jsonl/);
     assert.equal(readdirSync(dir).filter((name) => name.startsWith('queue.corrupt-')).length, 1);
     assert.equal(listMessages(dir).warning, undefined, 'the repaired file reads cleanly');
@@ -99,11 +103,11 @@ describe('queue', () => {
   });
 
   it('reads EPERM as "lock held" only on Windows; elsewhere it is a real error', () => {
-    for (const platform of ['win32', 'linux', 'darwin']) assert.equal(isLockHeld({ code: 'EEXIST' }, platform), true);
+    for (const platform of ['win32', 'linux', 'darwin'] as const) assert.equal(isLockHeld({ code: 'EEXIST' }, platform), true);
     assert.equal(isLockHeld({ code: 'EPERM' }, 'win32'), true);
     assert.equal(isLockHeld({ code: 'EPERM' }, 'linux'), false);
     assert.equal(isLockHeld({ code: 'EPERM' }, 'darwin'), false);
-    for (const platform of ['win32', 'linux', 'darwin']) assert.equal(isLockHeld({ code: 'EACCES' }, platform), false);
+    for (const platform of ['win32', 'linux', 'darwin'] as const) assert.equal(isLockHeld({ code: 'EACCES' }, platform), false);
   });
 
   it('fails at once, not as a busy queue, when the lock cannot be created at all', () => {
@@ -119,7 +123,7 @@ describe('queue', () => {
     await Promise.all(['a', 'b'].map((label) => run(['add', dir, String(perWriter), label])));
     writeFileSync(stopFile, '');
 
-    const delivered = (await Promise.all(drainers)).flatMap((output) => JSON.parse(output));
+    const delivered = (await Promise.all(drainers)).flatMap((output) => JSON.parse(output) as string[]);
     const expected = ['a', 'b'].flatMap((label) => Array.from({ length: perWriter }, (_, i) => `${label}-${i}`));
     assert.equal(delivered.length, expected.length, 'every message delivered exactly once');
     assert.deepEqual([...delivered].sort(), [...expected].sort());

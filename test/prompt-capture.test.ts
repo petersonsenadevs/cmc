@@ -9,11 +9,12 @@ import { fileURLToPath } from 'node:url';
 import { handlePrompt } from '../plugins/cmc/lib/capture.ts';
 import { sessionDir } from '../plugins/cmc/lib/paths.ts';
 import { listMessages, MAX_TEXT_LENGTH } from '../plugins/cmc/lib/queue.ts';
+import { blocked } from '../test-support/expect.ts';
 
 const hook = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc', 'hooks', 'prompt-capture.ts');
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
 
-let dataDir;
+let dataDir: string;
 beforeEach(() => {
   dataDir = mkdtempSync(join(tmpdir(), 'cmc-capture-'));
 });
@@ -22,9 +23,9 @@ afterEach(() => {
 });
 
 const held = () => listMessages(sessionDir(dataDir, SESSION)).messages.map((message) => message.text);
-const submit = (prompt) => handlePrompt({ hook_event_name: 'UserPromptSubmit', session_id: SESSION, prompt }, { dataDir });
+const submit = (prompt: string) => handlePrompt({ hook_event_name: 'UserPromptSubmit', session_id: SESSION, prompt }, { dataDir });
 
-function runHookScript(stdin, env = { CLAUDE_PLUGIN_DATA: dataDir }) {
+function runHookScript(stdin: string, env: NodeJS.ProcessEnv = { CLAUDE_PLUGIN_DATA: dataDir }) {
   return spawnSync(process.execPath, [hook], { input: stdin, encoding: 'utf8', env: { ...process.env, ...env } });
 }
 
@@ -41,7 +42,7 @@ describe('handlePrompt', () => {
       decision: 'block',
       reason: 'Held (1 queued). Release with /cmc:release.',
     });
-    assert.equal(submit(';;second, no space').reason, 'Held (2 queued). Release with /cmc:release.');
+    assert.equal(blocked(submit(';;second, no space')).reason, 'Held (2 queued). Release with /cmc:release.');
     assert.deepEqual(held(), ['also update the README', 'second, no space']);
   });
 
@@ -51,18 +52,18 @@ describe('handlePrompt', () => {
   });
 
   it('blocks a bare prefix with a hint and holds nothing', () => {
-    assert.match(submit(';;   ').reason, /^Nothing to hold\./);
+    assert.match(blocked(submit(';;   ')).reason, /^Nothing to hold\./);
     assert.deepEqual(held(), []);
   });
 
   it('refuses a message that is too long and says why', () => {
-    assert.match(submit(`;;${'x'.repeat(MAX_TEXT_LENGTH + 1)}`).reason, /^Not done: A held message can be at most/);
+    assert.match(blocked(submit(`;;${'x'.repeat(MAX_TEXT_LENGTH + 1)}`)).reason, /^Not done: A held message can be at most/);
     assert.deepEqual(held(), []);
   });
 
   it('uses a custom prefix when given one', () => {
     const output = handlePrompt({ session_id: SESSION, prompt: 'hold: later' }, { dataDir, prefix: 'hold:' });
-    assert.equal(output.decision, 'block');
+    assert.equal(blocked(output).decision, 'block');
     assert.equal(handlePrompt({ session_id: SESSION, prompt: ';; not held now' }, { dataDir, prefix: 'hold:' }), null);
     assert.deepEqual(held(), ['later']);
   });

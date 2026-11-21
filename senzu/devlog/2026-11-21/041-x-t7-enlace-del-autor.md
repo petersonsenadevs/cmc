@@ -24,3 +24,8 @@ $ npx tsc --noEmit → 0 · npm run lint → 0 fallos · claude plugin validate 
 
 ## Desviaciones
 - El guard de Senzu bloqueó un comando que juntaba `git add … test/…` con otros pasos como si borrara un test (falso positivo); se repitió por partes.
+
+## Corrección tras la captura de Peterson
+- El panel mostraba la URL en vez de «by r3v3rs3»: el `Link` de la terminal dibuja `label` (o sus hijos) y, sin ellos, la URL; se le pasaba `text`, que no existe. Ahora `label: 'by r3v3rs3'`.
+- Los selectores salían con «::»: el `Select` añade los dos puntos tras su etiqueta; se quitó el nuestro.
+- Commit `fix(panel): draw the author link as text and one colon per selector`; npm test 338, lint y validate en verde.

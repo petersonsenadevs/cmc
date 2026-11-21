@@ -1,0 +1,10 @@
+node_modules/
+*.log
+.env*
+!.env.example
+
+# Local agent memory (may hold personal facts) and session state
+.corvusmem/
+senzu/.estado/
+senzu/ui-verify/
+.claude/settings.local.json

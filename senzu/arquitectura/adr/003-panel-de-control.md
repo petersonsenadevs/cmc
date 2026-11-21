@@ -1,0 +1,96 @@
+# ADR 003 — The control panel
+
+- **Status:** proposed (awaiting Peterson's approval of the mockup)
+- **Date:** 2026-11-21
+- **Task:** F5-T2 · **Follows:** F5-T1 (devlog 032–034)
+
+## Context
+
+F5-T1 proved the panel works in Peterson's terminal: Claude Code's own pane opens beside the chat, buttons take mouse clicks, and it
+redraws by itself. His verdict on the first version: "it did it in the end, but in a way that is not intuitive; the UI must be the nerve
+centre to control everything in a simple way". What went wrong in his test:
+
+- Feedback came as loose toasts over the chat: the panel itself never said what happened.
+- Subagents were invisible: one started, worked and came back, and the panel showed nothing of it.
+- Send while the agent worked fell back to the end of the turn ("no live session on this machine has id …"). Live sessions are
+  addressed by name (`cmc-prueba-33`), not by session id, and the engine gives a plugin no call that returns its own name.
+
+## Decision
+
+### 1. One place for everything
+
+The panel shows, at all times, the agent's state, every held message, every subagent with its result, and what just happened. A
+person never needs a command, a toast or the transcript to know where things stand. The commands (`;;`, `/held`, `/send`, `>>`, the
+`cmc` CLI) stay, for those who do not use the panel.
+
+### 2. Mockup (terminal, 110+ columns)
+
+```
+ cmc                                                         ● Agent working · 1m 12s
+ ─ MESSAGES · 2 ─────────────────────────────────────────────── [ Send all ] [ Clear ]
+ ▸ 1  also say kiwi                                 goes when the turn ends
+      [ Send now ] [ To subagent ] [ Edit ] [ ↑ ] [ ↓ ] [ Delete ]
+   2  review the README for typos                   goes when the turn ends
+ ┌──────────────────────────────────────────────────────────────┐
+ │ Hold a message…                                              │ [ Hold ] [ To subagent ]
+ └──────────────────────────────────────────────────────────────┘
+ ─ SUBAGENTS · 2 ──────────────────────────────────────────────────────── [ New task ]
+ ⟳ e3a6971f  summarise what we talked about        working · 0:42 · whole conversation
+      [ Log ] [ Message… ] [ Stop ]
+ ✓ 6e3ccfc8  reply with the word tangerine          done · 27s · branch worktree-cmc-6e3ccfc8
+      │ tangerine
+      [ Send to main ] [ To subagent… ] [ Message… ] [ Copy path ] [ Dismiss ]
+ ─ ACTIVITY ───────────────────────────────────────────────────────────────────────────
+  19:43  subagent e3a6971f started with the whole conversation
+  19:42  "also say kiwi" goes when the turn ends (the agent is mid-step)
+```
+
+- **Rows are selectable.** A click on a row selects it (`▸`) and shows its buttons; the others stay one clean line. Keyboard: arrows
+  move the selection, Enter is the primary action, hotkeys `s` send, `a` to subagent, `e` edit, `d` delete.
+- **Each row says what will happen to it:** "goes when the turn ends", "held until you send it" (`sendAtEnd: false`), "sending…".
+- **Edit happens in the row** (`Input`), and keeps the message in its place.
+- **The input box holds a message without typing `;;`.** "To subagent" next to it starts a subagent on what was typed.
+- **Subagents show their result inline** (first lines), and act on it: hand it to the main agent, pass it to another subagent, write
+  to the subagent again (F5-T6/T7), copy the worktree path, dismiss.
+- **Activity** replaces toasts: the last five things that happened, in the panel. Errors are shown there in the error colour.
+- **Narrow terminals:** under 110 columns the panel is not seated by the engine; `/cmc` says so and `/held` still works.
+- **Empty state:** one line on how to hold (`;; message`, or the input box) and how to start a subagent.
+
+### 3. Send now
+
+Send means "now", whatever the agent is doing:
+
+- **Agent idle:** submitted as a new prompt at once (as today).
+- **Agent working:** delivered into the running turn through Claude Code's own channel for messages that reach a live session
+  (`$.session.send`). To address it, the panel learns the session's own name once, by calling the `ListAgents` tool (`$.tool.run`),
+  which states "This session is <name>".
+- **If the engine refuses that** (a message to oneself, or no live session): the text goes into the prompt box and the row says
+  "Press Enter to deliver it now". Enter hands it to Claude Code's own queue, which delivers it after the current step as a real
+  message from the person: the native behaviour, one key away. Never a silent fall back to the end of the turn.
+
+### 4. Colours
+
+The panel uses a small palette of its own, applied only to accents (state dots, the selected row, primary buttons), so it sits well on
+any theme. Proposed for cmc (Peterson's product, r3v3rs3):
+
+| Role | Colour |
+|---|---|
+| Accent (selection, primary buttons) | `#7C5CFF` violet |
+| Working | `#F5A524` amber |
+| Done | `#2BB673` green |
+| Error | `#E5484D` red |
+| Secondary text | the theme's dim colour |
+
+Pending Peterson's choice: this palette, another one of his, or the Sinapsis brand.
+
+### 5. Data and actions
+
+Unchanged from F5-T1: the panel reads the session files (queue, state, agents) every second and redraws on change; every action goes
+through the `cmc` CLI, so the core, its lock and its rules are the same as everywhere. No action loses a message (D-034).
+
+## Consequences
+
+- The panel becomes the main way to use cmc in the terminal; the README leads with it.
+- F5-T3 (messages), F5-T4 (subagents), F5-T5 (new task), F5-T6/T7 (talking to subagents) and F5-T8 (opening) build this mockup.
+- Delivering into the running turn depends on the engine accepting a message to the session itself; the prompt-box fall back keeps
+  Send immediate when it does not.

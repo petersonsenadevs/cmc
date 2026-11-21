@@ -311,15 +311,19 @@
 
 Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, que se actualiza solo y se maneja con el ratón (y con el teclado). Todo lo que hace pasa por la CLI `cmc`, así que el núcleo, el cerrojo y las reglas son los mismos que con `;;` y `>>`. Sin panel (`claude -p`, una terminal estrecha, una versión sin el motor) todo sigue funcionando como hoy.
 
-### F5-T1 · Prueba del panel: se abre, responde al ratón y se actualiza solo  [S] [doing]
+### F5-T1 · Prueba del panel: se abre, responde al ratón y se actualiza solo  [S] [done]
 - Para qué: antes de construirlo hay que ver en el terminal de Peterson que un panel del motor se abre junto al chat, que un clic en un botón actúa y que se repinta cuando cambia la cola.
 - Skill: `plugin-authoring` (`examples/pane.tsx`, `reference.md §ui.render`; en los tipos: `PaneOpenArgs`, `ButtonProps`, `atom`/`update`)
 - Archivos: plugins/cmc/hooks/panel.tsx, plugins/cmc/hooks/module.ts, plugins/cmc/types/index.d.ts, plugins/cmc/.claude-plugin/plugin.json
 - Hecho cuando: `/cmc` abre un panel con el número de mensajes retenidos y un botón «Send all»; un clic lo envía; retener otro mensaje lo repinta en menos de un segundo; con la terminal estrecha (menos de 110 columnas) se sabe qué pasa y está documentado. Con el panel cerrado, la sesión se comporta y se ve igual que antes (no regresión: mismos avisos, mismo tiempo de los hooks).
 - Verificar: `claude plugin validate ./plugins/cmc`; `tsc`; test del panel con `claude plugin test`; guion corto que pasa Peterson (clic y repintado) con captura.
 - Depende de: —
+- Verificado: prueba de Peterson en su terminal (capturas): el panel se abre junto al chat, se repinta solo, los clics actúan (Delete, Send, To subagent: el subagente e3a6971f arrancó con la conversación entera y su resultado volvió)
+- Cumple: el panel del motor sirve para la interfaz de control, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/032-f5-t1-primer-panel.md, 033, 034
+- Notas: Send con el agente trabajando no llegó a entrar en el turno: las sesiones vivas se direccionan por nombre, no por id (ADR 003 §3). Peterson: «la UI debe ser el centro neurálgico»: lo recoge F5-T2.
 
-### F5-T2 · Diseñar el panel  [S] [todo]
+### F5-T2 · Diseñar el panel  [S] [doing]
 - Para qué: decidir disposición, estados y uso con ratón y teclado antes de construir, para que sea intuitivo (petición de Peterson).
 - Skill: `plugin-authoring` (`reference.md §ui.render`: elementos de la terminal `Box`, `Text`, `Button`, `Input`, `Select`, `Progress`). Sin `ui-ux-pro-max`: no es una interfaz web, es una terminal con los elementos del motor.
 - Archivos: senzu/arquitectura/adr/003-panel-de-control.md

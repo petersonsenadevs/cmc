@@ -31,3 +31,6 @@ $ MSYS_NO_PATHCONV=1 node scripts/e2e.ts --mid ";; also say the word pineapple" 
 
 ## Añadido después
 - Insignias en el README (versión, licencia, Claude Code, Node, TypeScript, plataformas, hub): estáticas, sin depender de que exista el repositorio. La de Claude Code en gris, no en el naranja de Anthropic (cmc no es oficial).
+
+## Subida
+- Remoto `origin` = https://github.com/petersonsenadevs/cmc (repositorio creado vacío por Peterson). `git push -u origin feat/typescript` → `* [new branch] feat/typescript -> feat/typescript` (893ef6d). 115 commits, todos con autor Peterson Sena y sin líneas de co-autor ni firmas de agente (comprobado). No se ha tocado `main`.

@@ -26,6 +26,8 @@ const ACTIVITY_SHOWN = 2;
 export const MARK = Object.freeze(['▄▀▀ █▀▄▀█ ▄▀▀', '▀▄▄ █ ▀ █ ▀▄▄']);
 export const PRODUCT_NAME = 'Claude Message Control';
 export const AUTHOR = 'by r3v3rs3';
+/** Where "by r3v3rs3" leads: the author's GitHub. */
+export const AUTHOR_URL = 'https://github.com/petersonsenadevs';
 
 /** The palette (ADR 003 §4): accents only, so the panel sits well on any theme. */
 export const COLORS = Object.freeze({ accent: '#7C5CFF', working: '#F5A524', done: '#2BB673', error: '#E5484D' });
@@ -62,6 +64,7 @@ export interface PanelElements {
     hotkey?: string;
   }>;
   Select: Make<{ key: string; label?: string; value?: string; options: readonly { value: string; label?: string }[]; onSelect: (value: string) => void | Promise<unknown> }>;
+  Link: Make<{ key?: string; href: string; text: string; dimColor?: boolean }>;
   Input: Make<{
     key: string;
     placeholder?: string;
@@ -505,7 +508,7 @@ function startEditing(id: string): Promise<string | null> {
 
 /** The title row: name, the agent's state, and the tabs. */
 function drawHeader(el: PanelElements, $: PanelEngine, working: boolean, atEnd: boolean, held: number, agents: AgentEntry[]): Element {
-  const { Box, Text, Button } = el;
+  const { Box, Text, Button, Link } = el;
   const live = agents.filter((agent) => agent.state === 'running' || agent.state === 'starting').length;
   const tab = (view: View, label: string, hotkey: string) =>
     Button({ key: `tab-${view}`, label, hotkey, ...(ui.view === view ? { variant: 'primary' as const } : { dimColor: true }), onPress: () => act($, () => show(view)) });
@@ -519,7 +522,7 @@ function drawHeader(el: PanelElements, $: PanelEngine, working: boolean, atEnd: 
         columnGap: 3,
         children: [
           Box({ flexDirection: 'column', children: MARK.map((line) => Text({ bold: true, color: COLORS.accent, children: line })) }),
-          Box({ flexDirection: 'column', children: [Text({ bold: true, children: PRODUCT_NAME }), Text({ dimColor: true, children: AUTHOR })] }),
+          Box({ flexDirection: 'column', children: [Text({ bold: true, children: PRODUCT_NAME }), Link({ key: 'author', href: AUTHOR_URL, text: AUTHOR, dimColor: true })] }),
         ],
       }),
       Text({ color: working ? COLORS.working : COLORS.done, children: statusLine(working, atEnd) }),

@@ -9,8 +9,9 @@
 -->
 ```
 ▄▀▀ █▀▄▀█ ▄▀▀   Claude Message Control
-▀▄▄ █ ▀ █ ▀▄▄   by r3v3rs3
+▀▄▄ █ ▀ █ ▀▄▄
 ```
+by [r3v3rs3](https://github.com/petersonsenadevs)
 
 A Claude Code plugin that lets you decide **when** your messages reach the agent: hold what you type while it
 works, and release it when you want, without interrupting the turn. It can also hand a task to a second agent that

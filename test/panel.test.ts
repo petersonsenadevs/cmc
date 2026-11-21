@@ -8,6 +8,7 @@ import { after, beforeEach, describe, it } from 'node:test';
 import { clearPendingInBox, pendingIn, register as registerInterface, startInterface } from '../plugins/cmc/hooks/interface.ts';
 import {
   AUTHOR,
+  AUTHOR_URL,
   COLORS,
   dispatchToast,
   drawPanel,
@@ -134,7 +135,7 @@ function world() {
       invalidate: () => {
         invalidations += 1;
       },
-      resolve: () => ({ Box: make('Box'), Text: make('Text'), Button: make('Button'), Input: make('Input'), Select: make('Select') }) as never,
+      resolve: () => ({ Box: make('Box'), Text: make('Text'), Button: make('Button'), Input: make('Input'), Select: make('Select'), Link: make('Link') }) as never,
     },
   };
   const dir = sessionDir(data, SESSION);
@@ -261,7 +262,12 @@ describe('panel: header, tabs and modes', () => {
     const tree = await w.draw();
     assert.ok(texts(tree).includes('○ Agent idle · Send hands a message over now'));
     const brand = find(tree, 'brand');
-    assert.deepEqual(texts(brand.props.children), [...MARK, PRODUCT_NAME, AUTHOR]);
+    assert.deepEqual(texts(brand.props.children), [...MARK, PRODUCT_NAME]);
+    const author = find(brand.props.children, 'author');
+    assert.equal(author.type, 'Link');
+    assert.equal(author.props.text, 'by r3v3rs3');
+    assert.equal(author.props.href, AUTHOR_URL);
+    assert.equal(AUTHOR_URL, 'https://github.com/petersonsenadevs');
     assert.ok(ofType(brand.props.children, 'Text').slice(0, 2).every((node) => node.props.color === COLORS.accent));
     assert.equal(AUTHOR, 'by r3v3rs3');
     assert.deepEqual(

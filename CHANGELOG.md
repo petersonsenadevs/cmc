@@ -2,6 +2,41 @@
 
 All notable changes to cmc (Claude Message Control). Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.1.0 — 2026-11-21
+
+### The cmc hub
+- `/cmc` opens a panel beside the chat, drawn by Claude Code's own plugin engine and used with the mouse or the keyboard:
+  Messages, Subagents, Activity and Settings, each with a line on what it is. It opens by itself when you hold a message
+  or a subagent starts (`panelAutoOpen`), and `/cmc` closes it.
+- Messages: a click on a message shows its actions (Send now, To subagent, Edit in the row, ↑, ↓, Delete); a box holds a
+  message without `;;`; Send all and Clear.
+- Send now: at once with the agent idle; while it works, into the prompt box for Ctrl+Enter, Claude Code's own send-now.
+- Subagents: a New subagent task box; each subagent with its state, time, context, model and effort; its conversation as
+  a chat, with a box to write to it, Send result to main and Stop.
+- Settings: every mode explained and switched with one click; model and effort selectors.
+- Header with the mark, "Claude Message Control" and "by r3v3rs3" (a link); version and repository at the bottom right.
+
+### Holding
+- What you hold while the agent works reaches it **when its turn ends**, with no command (`sendAtEnd`, on by default;
+  `false` keeps the old behaviour).
+- A held message leaves the prompt box at once, with a one-line notice instead of three.
+- `/held` (a menu in Claude Code's own dialog) and `/send [N…]`.
+- A line at the end of each turn says what is still held.
+- Esc no longer leaves cmc thinking the agent is working.
+- `holdTarget: "subagent"`: what you type after `;;` starts a subagent instead.
+
+### Subagents
+- Their session stays open after they answer (`dispatch.keepOpenMinutes`, 10 by default): write to them with
+  `;;tell <id> <text>`, `cmc tell` or the hub; each answer comes back. A closed session is resumed.
+- Model and effort: `dispatch.model` and `dispatch.effort` (`inherit` by default), or per task with `--model` and
+  `--effort`.
+- `dispatch.ignoreChanges`: paths other tools write into a subagent's worktree, not counted as its work.
+
+### Fixes
+- A message never leaves the queue unless its delivery was accepted.
+- Stopping a subagent while it saved an answer could leave it marked as waiting.
+- Stop delivers even while another plugin's Stop hook continues the turn.
+
 ## 1.0.0 — 2026-11-21
 
 First release.

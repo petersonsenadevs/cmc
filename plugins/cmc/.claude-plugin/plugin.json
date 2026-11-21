@@ -1,7 +1,7 @@
 {
   "name": "cmc",
-  "version": "1.0.0",
-  "description": "Claude Message Control: hold the messages you type while the agent works and release them when you decide, without interrupting it.",
+  "version": "1.1.0",
+  "description": "Claude Message Control: a hub to hold what you type while the agent works and deliver it when its turn ends, without interrupting it, and to run subagents you can talk to.",
   "author": {
     "name": "Peterson Sena (r3v3rs3)",
     "url": "https://github.com/petersonsenadevs"

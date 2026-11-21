@@ -180,3 +180,10 @@
 - **Elección:** D-036 entregar también con `stop_hook_active`.
 - **Motivo:** no hay bucle posible: lo entregado sale de la cola y la siguiente parada no encuentra nada.
 - **Consecuencias:** sustituye la parte «una sola continuación» de D-006.
+
+## dev-031 — Send explícito entra en el turno en marcha
+- **Contexto:** Peterson quiere que Send entregue en el momento, sin importar si el agente trabaja. D-030 quitó la entrega a mitad de turno porque `additionalContext` se ignoraba 7 de 12 veces.
+- **Opciones:** seguir esperando al final del turno; volver a `additionalContext`; usar el canal nativo del motor para mensajes que llegan a una sesión en marcha (`$.session.send`).
+- **Elección:** D-037 el canal nativo, con caída al final del turno si el motor no lo entrega.
+- **Motivo:** es el mecanismo que Claude Code usa para entregar mensajes en un turno en marcha, no un contexto añadido a un hook; solo se usa cuando el usuario lo pide con Send.
+- **Consecuencias:** sin confirmar en sesión interactiva (en `-p` el motor no lo entrega); el mensaje llega enmarcado como mensaje de sesión, con la cabecera de cmc que dice que es del usuario.

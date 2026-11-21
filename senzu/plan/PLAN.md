@@ -9,7 +9,7 @@
 
 ## Alcance
 - **IN:** captura por prefijo y por CLI externa; cola por sesión persistente (listar, editar, borrar, reordenar); liberación manual, «al terminar» y «ya»; indicador visible; derivación a otro agente con contexto (fork de sesión o paquete de contexto) en worktree; estado, log y cancelación; retorno del resultado a la cola; configuración, README y marketplace local.
-- **OUT (explícito):** retener lo que se envía sin prefijo por la cola nativa; canales MCP (`--channels`, en vista previa); conversación continua entre agentes; fusión automática del worktree; otros CLI (pasan a la fase F5, tras terminar Claude Code) y apps de escritorio/web; publicación en marketplace público.
+- **OUT (explícito):** retener lo que se envía sin prefijo por la cola nativa; canales MCP (`--channels`, en vista previa); conversación en tiempo real entre agentes que están trabajando (un mensaje a un agente le llega cuando acaba su turno, F5-T7); fusión automática del worktree; otros CLI (pasan a la fase F5, tras terminar Claude Code) y apps de escritorio/web; publicación en marketplace público.
 - **Supuestos:** S1 nombre `cmc`, prefijos `;;` y `>>` · S2 `UserPromptSubmit` intercepta los mensajes de mitad de turno sin interrumpir (no documentado) · S3 `/cmc:release` se expande a mitad de turno (no documentado) · S4 el fork funciona con la sesión a mitad de turno (no documentado) · S5 sin git no hay worktree.
 - **Riesgos:** ver sección final
 
@@ -28,7 +28,8 @@
 | F2 | Control completo: ver, editar, borrar y soltar de forma selectiva, modo «ya», indicador visible y CLI `cmc` desde otra terminal | done |
 | F3 | Derivar: `>> tarea` arranca un segundo agente con contexto en su worktree, en paralelo; se ve, se cancela y su resultado vuelve a la cola (retenido o automático) | done |
 | F4 | Entrega: configuración, revisión de seguridad, README e instalación desde marketplace local | done |
-| F5 | Adaptadores para otros agentes: núcleo sin nada de Claude Code, adaptador de Codex y los que falten (se planifica al cerrar F4) | todo |
+| F5 | Panel de control: un panel junto al chat, manejable con el ratón, con la cola y los agentes en vivo; enviar, editar, borrar, reordenar y derivar mensajes; ver, parar y escribir a los agentes, y pasar el resultado de uno a otro | todo |
+| F6 | Adaptadores para otros agentes: núcleo sin nada de Claude Code, adaptador de Codex y los que falten (se planifica al cerrar F5) | todo |
 
 ---
 
@@ -306,6 +307,82 @@
 
 ---
 
+## F5 — Panel de control
+
+Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, que se actualiza solo y se maneja con el ratón (y con el teclado). Todo lo que hace pasa por la CLI `cmc`, así que el núcleo, el cerrojo y las reglas son los mismos que con `;;` y `>>`. Sin panel (`claude -p`, una terminal estrecha, una versión sin el motor) todo sigue funcionando como hoy.
+
+### F5-T1 · Prueba del panel: se abre, responde al ratón y se actualiza solo  [S] [todo]
+- Para qué: antes de construirlo hay que ver en el terminal de Peterson que un panel del motor se abre junto al chat, que un clic en un botón actúa y que se repinta cuando cambia la cola.
+- Skill: `plugin-authoring` (`examples/pane.tsx`, `reference.md §ui.render`; en los tipos: `PaneOpenArgs`, `ButtonProps`, `atom`/`update`)
+- Archivos: plugins/cmc/hooks/panel.tsx, plugins/cmc/hooks/module.ts, plugins/cmc/types/index.d.ts, plugins/cmc/.claude-plugin/plugin.json
+- Hecho cuando: `/cmc` abre un panel con el número de mensajes retenidos y un botón «Send all»; un clic lo envía; retener otro mensaje lo repinta en menos de un segundo; con la terminal estrecha (menos de 110 columnas) se sabe qué pasa y está documentado.
+- Verificar: `claude plugin validate ./plugins/cmc`; `tsc`; test del panel con `claude plugin test`; guion corto que pasa Peterson (clic y repintado) con captura.
+- Depende de: —
+
+### F5-T2 · Diseñar el panel  [S] [todo]
+- Para qué: decidir disposición, estados y uso con ratón y teclado antes de construir, para que sea intuitivo (petición de Peterson).
+- Skill: `plugin-authoring` (`reference.md §ui.render`: elementos de la terminal `Box`, `Text`, `Button`, `Input`, `Select`, `Progress`). Sin `ui-ux-pro-max`: no es una interfaz web, es una terminal con los elementos del motor.
+- Archivos: senzu/arquitectura/adr/003-panel-de-control.md
+- Hecho cuando: ADR con la maqueta en texto del panel (sección de mensajes, sección de agentes, barra de acciones), estados vacío, cargando y error, qué hace cada botón, atajos de teclado (`hotkey`), anchos estrecho y ancho, cuándo se abre solo y cuándo no, y de dónde lee los datos (ficheros del núcleo o la CLI); revisado con Peterson.
+- Verificar: Peterson aprueba la maqueta.
+- Depende de: F5-T1
+
+### F5-T3 · Sección de mensajes  [M] [todo]
+- Para qué: gestionar lo retenido con el ratón: lo que hoy son `/held`, `;;edit`, `;;rm`, `;;top`… en un solo sitio.
+- Skill: `plugin-authoring` (`ui.render` de `Pane`, `Button`, `Input`) + `code-quality §references/typescript`
+- Archivos: plugins/cmc/hooks/panel.tsx, plugins/cmc/hooks/panel-messages.tsx, plugins/cmc/bin/cmc.ts, test/panel.test.tsx
+- Hecho cuando: cada mensaje en una fila con su texto, su origen (tú o un agente) y cuándo saldrá (al acabar el turno o retenido); botones Send · Edit · Delete · ↑ · ↓ · To agent; «Send all» y «Clear» arriba; Edit cambia el texto en el propio panel (`Input`) sin perder su sitio; todo se repinta solo; ningún mensaje se pierde si una acción falla (D-034).
+- Verificar: `npm test` (tests del panel con el motor simulado); `claude plugin test ./plugins/cmc`; guion de Peterson con captura.
+- Depende de: F5-T2
+
+### F5-T4 · Sección de agentes  [M] [todo]
+- Para qué: ver de un vistazo qué hace cada agente derivado y actuar sobre él sin comandos.
+- Skill: `plugin-authoring` (`ui.render`, `Button`, `Progress`, `$.ui.copy`) + `code-quality §references/typescript`
+- Archivos: plugins/cmc/hooks/panel-agents.tsx, plugins/cmc/lib/agents-view.ts, plugins/cmc/bin/cmc.ts, test/panel.test.tsx
+- Hecho cuando: cada agente con su tarea, estado (trabajando, terminado, fallido, cancelado, perdido), tiempo, rama y ficheros cambiados; botones Log (se despliega en el panel), Stop, Send result (su resultado al agente principal), Copy path (carpeta del worktree); se repinta al cambiar de estado.
+- Verificar: `npm test`; guion de Peterson con un agente real.
+- Depende de: F5-T3
+
+### F5-T5 · Nueva tarea para un agente desde el panel  [S] [todo]
+- Para qué: lanzar un agente sin recordar `>>` ni sus opciones.
+- Skill: `plugin-authoring` (`Input`, `Select`) + `code-quality §references/typescript`
+- Archivos: plugins/cmc/hooks/panel-agents.tsx, test/panel.test.tsx
+- Hecho cuando: un campo de texto y un botón «Start agent»; contexto (conversación completa o resumen) y retorno (retenido o automático) elegibles con su valor por defecto de la configuración; el agente aparece en la lista al momento.
+- Verificar: `npm test`; guion de Peterson.
+- Depende de: F5-T4
+
+### F5-T6 · Escribir a un agente  [M] [todo]
+- Para qué: seguir la conversación con un agente derivado: corregirle, pedirle más o preguntarle por su resultado.
+- Skill: `code-quality §references/typescript` + `plugin-authoring` (`Input`)
+- Archivos: plugins/cmc/lib/dispatch.ts, plugins/cmc/lib/agent-runner.ts, plugins/cmc/lib/agent-control.ts, plugins/cmc/bin/cmc.ts, plugins/cmc/hooks/panel-agents.tsx, test/agent-tell.test.ts
+- Hecho cuando: `cmc tell <id> <texto>`, `;;tell <id> <texto>` y un campo en la fila del agente; si el agente ha terminado, se reanuda su sesión (`--resume <agentSessionId>`) en su mismo worktree con el texto; si sigue trabajando, el texto espera y sale cuando acaba (nada a mitad de turno, D-030); su nueva respuesta vuelve como resultado, con el mismo retorno; los mismos permisos y herramientas que al derivar.
+- Verificar: `npm test` (con el claude simulado); sesión real: derivar, escribirle, ver la segunda respuesta en la cola y en el panel.
+- Depende de: F5-T4
+
+### F5-T7 · Pasar el resultado de un agente a otro  [S] [todo]
+- Para qué: encadenar agentes (uno investiga, otro implementa) sin copiar y pegar.
+- Skill: `code-quality §references/typescript` + `plugin-authoring`
+- Archivos: plugins/cmc/lib/agent-control.ts, plugins/cmc/bin/cmc.ts, plugins/cmc/hooks/panel-agents.tsx, test/agent-tell.test.ts
+- Hecho cuando: en la fila de un resultado, «To agent…» lo manda a un agente existente (como F5-T6) o a uno nuevo, citado como informe de otro agente, no como orden del usuario (igual que hoy al soltarlo al principal).
+- Verificar: `npm test`; sesión real con dos agentes.
+- Depende de: F5-T6
+
+### F5-T8 · Abrir, cerrar y convivir con el resto  [S] [todo]
+- Para qué: que el panel esté cuando hace falta y no estorbe cuando no.
+- Skill: `plugin-authoring` (`PaneOpenArgs`: `focus`, `closeOnEscape`; `$.ui.close`) + `code-quality §references/typescript`
+- Archivos: plugins/cmc/hooks/panel.tsx, plugins/cmc/hooks/interface.ts, plugins/cmc/lib/config.ts, test/panel.test.tsx
+- Hecho cuando: `/cmc` lo abre y lo cierra; ajuste `panel.autoOpen` (abrirse al retener el primer mensaje o al derivar), por defecto el que decida el ADR; Escape lo cierra; `/held` y los avisos siguen para quien no use el panel; sin panel disponible, `/cmc` dice por qué y sugiere `/held`.
+- Verificar: `npm test`; guion de Peterson.
+- Depende de: F5-T3
+
+### F5-T9 · Cierre de la fase: documentación y prueba completa  [M] [todo]
+- Para qué: que se pueda usar sin preguntarme y quede probado de punta a punta.
+- Skill: `code-quality §references/api-design` (documentación de uso) + skill `devlog`
+- Archivos: README.md, docs/manual-test.md (parte C: panel), CHANGELOG.md, manifiestos (versión 1.1.0)
+- Hecho cuando: README con el panel (captura), `/held`, `/send`, `sendAtEnd` y escribir a agentes; parte C del guion manual; versión 1.1.0; suite, tipos, lint y validación en verde; Peterson pasa la parte C.
+- Verificar: `npm test`, `npx tsc --noEmit`, `npm run lint`, `claude plugin validate .`; guion de Peterson.
+- Depende de: F5-T5, F5-T7, F5-T8
+
 ## Tareas ad hoc (fuera del plan original)
 
 ### X-T6 · Lo retenido llega solo al acabar el turno  [S] [done]
@@ -396,6 +473,8 @@
 | 2026-11-21 | Tarjeta ad hoc X-T3: migración a TypeScript; D-022 sustituida por D-024; F3-T3 espera | Peterson: «quería TypeScript» |
 | 2026-11-21 | Tarjeta ad hoc X-T4: el modo «ya» a mitad de turno no es fiable (5 de 12) | Batería de comparación JavaScript/TypeScript |
 | 2026-11-21 | Q1 resuelta: el plugin se llama `cmc` (Claude Message Control); prefijos `;;` y `>>` por defecto, configurables en F4-T1 | Decisión de Peterson |
+| 2026-11-21 | X-T5 y X-T6: interfaz en el motor (retener al pulsar Enter, `/held`, `/send`) y lo retenido llega solo al acabar el turno (D-035) | Prueba interactiva de Peterson |
+| 2026-11-21 | Nueva fase F5: panel de control con ratón, agentes y mensajes a agentes; los adaptadores pasan a F6. Escribir a un agente entra en el alcance (le llega al acabar su turno); la conversación en tiempo real entre agentes que trabajan sigue fuera | Petición de Peterson: «haz el panel, eso es lo que nos aportaría, además de poder comunicar los agentes» |
 
 ## Riesgos y bloqueos
 | Riesgo / bloqueo | Impacto | Mitigación / qué se necesita | Estado |
@@ -408,3 +487,6 @@
 | Tope de 8 continuaciones seguidas del hook `Stop` | Bajo | Entregar toda la cola en una sola continuación | Abierto |
 | Un plugin quizá no pueda aportar línea de estado ni atajos de teclado | Bajo | F2-T4 usa el sistema de mods o documenta el ajuste manual en `settings.json` | Abierto |
 | El modo «ya» a mitad de turno depende de cómo pondere el modelo un texto que llega por un hook | Alto | Resuelto en X-T4: ya no se entrega nada a mitad de turno (D-030) | Cerrado |
+| El motor de plugins está en acceso anticipado: su API puede cambiar entre versiones | Alto para F5 | Todo lo que hace el panel pasa por la CLI y el núcleo; sin panel, `;;`, `/cmc:release` y la CLI siguen funcionando; validar con cada versión de Claude Code | Abierto |
+| Un panel abierto sin pedirlo solo se coloca con 110-144 columnas o más | Medio | F5-T1 lo mide; el ADR decide abrirlo solo al pedirlo o al retener, y qué se ve en terminales estrechas | Abierto |
+| Que el ratón funcione depende del terminal (seguimiento del ratón) | Medio | Los botones también responden al teclado (`hotkey`, foco con Enter); F5-T1 lo prueba en el terminal de Peterson | Abierto |

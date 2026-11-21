@@ -38,6 +38,7 @@ export interface PaneRenderEvent {
 export interface PanelEngine extends InterfaceEngine {
   clock: InterfaceEngine['clock'] & { every(ms: number, task: () => Promise<void>): unknown };
   ui: InterfaceEngine['ui'] & {
+    toast(text: string, options?: { timeoutMs?: number }): void;
     open(pane: { id: string; title?: string; closeOnEscape?: true }): Promise<{ isPlaced?: boolean }>;
     invalidate(event: 'ui.render'): void;
     resolve(e: PaneRenderEvent): PanelElements;
@@ -82,12 +83,66 @@ export function rowText(position: number, entry: HeldEntry): string {
   return `${position}. ${short}${from}`;
 }
 
-async function queueText($: InterfaceEngine): Promise<string> {
+async function sessionFile($: InterfaceEngine, name: string): Promise<string> {
   try {
-    return await $.fs.read(`${currentDataDir()}/sessions/${await $.session.id()}/queue.jsonl`);
+    return await $.fs.read(`${currentDataDir()}/sessions/${await $.session.id()}/${name}`);
   } catch {
     return '';
   }
+}
+
+/** The settings file of the plugin (at the root of its data folder), or nothing. */
+async function settingsText($: InterfaceEngine): Promise<string> {
+  try {
+    return await $.fs.read(`${currentDataDir()}/config.json`);
+  } catch {
+    return '';
+  }
+}
+
+async function queueText($: InterfaceEngine): Promise<string> {
+  return sessionFile($, 'queue.jsonl');
+}
+
+/** Whether the agent is working, from the session state file. */
+export function isWorking(stateText: string): boolean {
+  try {
+    const value: unknown = JSON.parse(stateText);
+    return typeof value === 'object' && value !== null && 'turnActive' in value && value.turnActive === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Whether held messages go by themselves at the end of a turn (the sendAtEnd setting, true unless set to false). */
+export function sendsAtEnd(configText: string): boolean {
+  try {
+    const value: unknown = JSON.parse(configText);
+    return !(typeof value === 'object' && value !== null && 'sendAtEnd' in value && value.sendAtEnd === false);
+  } catch {
+    return true;
+  }
+}
+
+/** The line under the header: what the agent is doing, and so what Send does. */
+export function statusLine(working: boolean, atEnd: boolean): string {
+  if (!working) return '○ Agent idle · Send hands a message over now';
+  return atEnd ? '● Agent working · held messages go to it when its turn ends' : '● Agent working · Send hands a message over when its turn ends';
+}
+
+/** What the toast says after "To agent": which agent took the message, or why it could not. */
+export function dispatchToast(receipt: string): string {
+  const agent = receipt.match(/Dispatched to agent ([0-9a-f]+)/)?.[1];
+  return agent === undefined
+    ? firstSentence(receipt.trim())
+    : `Agent ${agent} took the message and works on it apart; its result comes back here when it ends.`;
+}
+
+/** The first sentence of a command's answer, short enough for a toast. */
+export function firstSentence(text: string): string {
+  const line = text.replace(/^\[cmc\]\s*/, '').split('\n')[0] ?? '';
+  const end = line.search(/\.(\s|$)/);
+  return end < 0 ? line : line.slice(0, end + 1);
 }
 
 /** Opens the pane (or brings it forward); says so when the terminal has no room for it. */
@@ -101,9 +156,11 @@ export async function openPanel($: PanelEngine): Promise<string> {
 /** Starts the live refresh: the pane redraws when the queue file changes. */
 export async function startPanel($: PanelEngine): Promise<void> {
   await $.command.register(PANEL_COMMAND);
-  let last = await queueText($);
+  // The queue and the state: a message held, or the agent starting or ending a turn, redraws.
+  const snapshot = async () => `${await queueText($)}\n${await sessionFile($, 'state.json')}`;
+  let last = await snapshot();
   $.clock.every(REFRESH_MS, async () => {
-    const now = await queueText($);
+    const now = await snapshot();
     if (now !== last) {
       last = now;
       $.ui.invalidate('ui.render');
@@ -111,12 +168,13 @@ export async function startPanel($: PanelEngine): Promise<void> {
   });
 }
 
-/** Runs one action, then redraws at once instead of waiting for the next refresh. */
-async function act($: PanelEngine, action: () => Promise<unknown>): Promise<void> {
+/** Runs one action, says what it did in a toast, then redraws at once instead of waiting for the next refresh. */
+async function act($: PanelEngine, action: () => Promise<string | null>): Promise<void> {
   try {
-    await action();
+    const said = await action();
+    if (said) $.ui.toast(`cmc: ${said}`, { timeoutMs: 5000 });
   } catch (error) {
-    $.ui.log(`cmc: ${error instanceof Error ? error.message : String(error)}`);
+    $.ui.toast(`cmc: ${error instanceof Error ? error.message : String(error)}`, { timeoutMs: 8000 });
   }
   $.ui.invalidate('ui.render');
 }
@@ -127,27 +185,40 @@ async function positionOf($: PanelEngine, id: string): Promise<string | null> {
   return index < 0 ? null : String(index + 1);
 }
 
-async function sendOne($: PanelEngine, id: string): Promise<void> {
+async function sendOne($: PanelEngine, id: string): Promise<string | null> {
   const at = await positionOf($, id);
-  if (at !== null) await sendHeld($, [at]);
+  if (at === null) return 'That message is no longer held.';
+  return (await sendHeld($, [at])).text;
 }
 
-async function deleteOne($: PanelEngine, id: string): Promise<void> {
+async function deleteOne($: PanelEngine, id: string): Promise<string | null> {
   await cli($, ['take', id]);
+  return 'Deleted.';
 }
 
-async function sendAll($: PanelEngine): Promise<void> {
-  await sendHeld($, []);
+/** Hands one held message to a new agent, which works on it in its own context (and worktree). */
+async function toAgent($: PanelEngine, id: string): Promise<string | null> {
+  const at = await positionOf($, id);
+  if (at === null) return 'That message is no longer held.';
+  const started = await cli($, ['dispatch', '--message', at]);
+  return dispatchToast(started.stdout);
 }
 
-async function clearAll($: PanelEngine): Promise<void> {
+async function sendAll($: PanelEngine): Promise<string | null> {
+  return (await sendHeld($, [])).text;
+}
+
+async function clearAll($: PanelEngine): Promise<string | null> {
   await cli($, ['clear']);
+  return 'Every held message was deleted.';
 }
 
 /** Draws the pane from the queue as it is now. */
 export async function drawPanel($: PanelEngine, e: PaneRenderEvent): Promise<Element> {
   const { Box, Text, Button } = $.ui.resolve(e);
   const entries = parseQueue(await queueText($));
+  const working = isWorking(await sessionFile($, 'state.json'));
+  const atEnd = sendsAtEnd(await settingsText($));
   const rows = entries.map((entry, index) =>
     Box({
       key: `row-${entry.id}`,
@@ -156,6 +227,7 @@ export async function drawPanel($: PanelEngine, e: PaneRenderEvent): Promise<Ele
       children: [
         Text({ wrap: 'truncate-end', children: rowText(index + 1, entry) }),
         Button({ key: `send-${entry.id}`, label: 'Send', onPress: () => act($, () => sendOne($, entry.id)) }),
+        Button({ key: `agent-${entry.id}`, label: 'To agent', onPress: () => act($, () => toAgent($, entry.id)) }),
         Button({ key: `delete-${entry.id}`, label: 'Delete', dimColor: true, onPress: () => act($, () => deleteOne($, entry.id)) }),
       ],
     }),
@@ -177,7 +249,8 @@ export async function drawPanel($: PanelEngine, e: PaneRenderEvent): Promise<Ele
             Button({ key: 'clear', label: 'Clear', dimColor: true, onPress: () => act($, () => clearAll($)) }),
           ],
         });
-  return Box({ flexDirection: 'column', gap: 1, children: [header, body, actions] });
+  const status = Text({ dimColor: true, children: statusLine(working, atEnd) });
+  return Box({ flexDirection: 'column', gap: 1, children: [Box({ flexDirection: 'column', children: [header, status] }), body, actions] });
 }
 
 export const register = (on: PanelOn): void => {

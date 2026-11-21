@@ -311,7 +311,7 @@
 
 Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, que se actualiza solo y se maneja con el ratón (y con el teclado). Todo lo que hace pasa por la CLI `cmc`, así que el núcleo, el cerrojo y las reglas son los mismos que con `;;` y `>>`. Sin panel (`claude -p`, una terminal estrecha, una versión sin el motor) todo sigue funcionando como hoy.
 
-### F5-T1 · Prueba del panel: se abre, responde al ratón y se actualiza solo  [S] [todo]
+### F5-T1 · Prueba del panel: se abre, responde al ratón y se actualiza solo  [S] [doing]
 - Para qué: antes de construirlo hay que ver en el terminal de Peterson que un panel del motor se abre junto al chat, que un clic en un botón actúa y que se repinta cuando cambia la cola.
 - Skill: `plugin-authoring` (`examples/pane.tsx`, `reference.md §ui.render`; en los tipos: `PaneOpenArgs`, `ButtonProps`, `atom`/`update`)
 - Archivos: plugins/cmc/hooks/panel.tsx, plugins/cmc/hooks/module.ts, plugins/cmc/types/index.d.ts, plugins/cmc/.claude-plugin/plugin.json

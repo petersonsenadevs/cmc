@@ -35,3 +35,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 029 | 2026-11-21 | X-T5: prueba de la interfaz en el motor     | feature  | 006, 011 | X-T5 |
 | 030 | 2026-11-21 | X-T5: menú /held y aviso de fin de turno   | feature  | 029      | X-T5 |
 | 031 | 2026-11-21 | X-T6: lo retenido llega al acabar el turno | feature  | 006, 029, 030 | X-T6 |
+| 032 | 2026-11-21 | F5-T1: primer panel de control             | feature  | 030, 031 | F5-T1 |

@@ -27,7 +27,7 @@
 | F1 | Esqueleto: escribes `;; texto` con el agente trabajando, no se interrumpe, y `/cmc:release` o el fin del turno se lo entrega | doing |
 | F2 | Control completo: ver, editar, borrar y soltar de forma selectiva, modo «ya», indicador visible y CLI `cmc` desde otra terminal | done |
 | F3 | Derivar: `>> tarea` arranca un segundo agente con contexto en su worktree, en paralelo; se ve, se cancela y su resultado vuelve a la cola (retenido o automático) | done |
-| F4 | Entrega: configuración, revisión de seguridad, README e instalación desde marketplace local | todo |
+| F4 | Entrega: configuración, revisión de seguridad, README e instalación desde marketplace local | doing |
 | F5 | Adaptadores para otros agentes: núcleo sin nada de Claude Code, adaptador de Codex y los que falten (se planifica al cerrar F4) | todo |
 
 ---
@@ -268,18 +268,19 @@
 
 ## F4 — Entrega
 
-### F4-T1 · Añadir la configuración del plugin  [S] [todo]
+### F4-T1 · Añadir la configuración del plugin  [S] [done]
 - Para qué: adaptar prefijos, modo de entrega y permisos sin tocar código.
 - Skill: `code-quality §references/typescript "Validación en los bordes con zod"` (el principio, con validación a mano: sin dependencias)
 - Archivos: lib/config.mjs, config.default.json, test/config.test.mjs
 - Hecho cuando: prefijos, modo de entrega por defecto, modo de contexto, permisos y herramientas del derivado y días de retención se leen de un fichero de usuario validado; un valor inválido cae al valor por defecto con aviso.
 - Verificar: `npm test`.
 - Depende de: F3-T6
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 228 pass, 0 fail (tres veces; 17 tests de configuración); `npx tsc --noEmit` → 0; sesión real con `{"holdPrefix": "%%"}`: `%% …` se retiene, `%%end` arma la entrega y el agente recibe «… with "%%end": 1. reply with the word quince» y responde `quince`
+- Cumple: prefijos, valores por defecto de la derivación, permisos y herramientas del derivado y días de retención se cambian sin tocar código, y un valor erróneo nunca rompe el plugin, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/026-f4-t1-configuracion.md
+- Notas: `config.json` en el directorio de datos (D-031), con `cmc config` e `init`. Corregido de paso: una lista JSON pasaba por objeto válido.
 
-### F4-T2 · Revisar la seguridad del plugin  [M] [todo]
+### F4-T2 · Revisar la seguridad del plugin  [M] [doing]
 - Para qué: que un mensaje o un transcript no puedan ejecutar nada por su cuenta.
 - Skill: `security` (pasada OWASP con evidencia, `/seguridad`)
 - Archivos: senzu/seguridad/ (informe), correcciones donde toque

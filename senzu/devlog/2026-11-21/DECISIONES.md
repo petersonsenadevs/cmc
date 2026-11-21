@@ -139,3 +139,10 @@
 - **Elección:** D-030 opción (b). `;;now` entrega al momento solo con el agente parado y espera al final del turno si trabaja; `cmc release` siempre al final del turno; fuera el hook `PostToolUse`.
 - **Motivo:** el final del turno y el turno nuevo se obedecieron siempre (7 de 7 tras el cambio); (a) no tiene base medida y (c) necesitaría saber qué hizo el modelo con el texto.
 - **Consecuencias:** sustituye a D-007 en su parte de mitad de turno y a D-012. El estado guarda si hay un turno en marcha; un turno interrumpido con Esc deja ese dato desfasado hasta el siguiente.
+
+## dev-025 — Dónde viven los ajustes
+- **Contexto:** prefijos, valores por defecto de la derivación, permisos del derivado y retención debían poder cambiarse sin tocar código.
+- **Opciones:** `userConfig` del manifiesto (lo gestiona Claude Code); o un `config.json` propio en el directorio de datos.
+- **Elección:** D-031 `config.json` en `${CLAUDE_PLUGIN_DATA}`, validado por cmc, con `cmc config` y `cmc config init`.
+- **Motivo:** lo leen igual los hooks y la CLI desde otra terminal (que no recibe `userConfig`), admite listas (`dispatch.tools`) y sobrevive a las actualizaciones del plugin como el resto del estado.
+- **Consecuencias:** el usuario edita JSON a mano; los errores no paran nada y se avisan al arrancar la sesión.

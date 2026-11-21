@@ -1,6 +1,6 @@
 // cmc — end-to-end check against a real Claude Code session. Author: Peterson Sena (r3v3rs3).
 //
-// Starts `claude -p` with this checkout loaded as a plugin, gives it a slow
+// Starts `claude -p` with the plugin of this checkout (plugins/cmc) loaded, gives it a slow
 // three-step task and types messages into the session while it works. Prints a
 // timeline of what the session saw. It spends tokens, so it is not part of
 // `npm test`.
@@ -44,7 +44,7 @@ for (let i = 0; i < args.length; i += 1) {
   }
 }
 
-const pluginDir = join(dirname(fileURLToPath(import.meta.url)), '..');
+const pluginDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc');
 const workDir = mkdtempSync(join(tmpdir(), 'cmc-e2e-'));
 const started = Date.now();
 const stamp = () => `${((Date.now() - started) / 1000).toFixed(1).padStart(5)}s`;

@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { CmcError } from '../lib/errors.mjs';
-import { resolveDataDir, sessionDir } from '../lib/paths.mjs';
-import { addMessage, drainMessages, isLockHeld, listMessages, MAX_TEXT_LENGTH } from '../lib/queue.mjs';
+import { CmcError } from '../plugins/cmc/lib/errors.mjs';
+import { resolveDataDir, sessionDir } from '../plugins/cmc/lib/paths.mjs';
+import { addMessage, drainMessages, isLockHeld, listMessages, MAX_TEXT_LENGTH } from '../plugins/cmc/lib/queue.mjs';
 
 const worker = join(dirname(fileURLToPath(import.meta.url)), '..', 'test-support', 'queue-worker.mjs');
 

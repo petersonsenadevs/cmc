@@ -1,0 +1,16 @@
+{
+  "name": "r3v3rs3",
+  "owner": {
+    "name": "Peterson Sena (r3v3rs3)"
+  },
+  "metadata": {
+    "description": "Claude Code plugins by Peterson Sena (r3v3rs3)."
+  },
+  "plugins": [
+    {
+      "name": "cmc",
+      "source": "./plugins/cmc",
+      "description": "Claude Message Control: hold the messages you type while the agent works and release them when you decide, without interrupting it."
+    }
+  ]
+}

@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ROOTS = ['lib', 'hooks', 'bin', 'test', 'test-support', 'scripts'];
+const ROOTS = ['plugins', 'test', 'test-support', 'scripts'];
 
 function modulesIn(dir) {
   let entries;

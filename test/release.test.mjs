@@ -6,14 +6,14 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { handlePrompt } from '../lib/capture.mjs';
-import { parseControl } from '../lib/control.mjs';
-import { sessionDir } from '../lib/paths.mjs';
-import { addMessage, listMessages } from '../lib/queue.mjs';
-import { handlePostToolUse, handleStop } from '../lib/release.mjs';
-import { mergeSelection, readState } from '../lib/session-state.mjs';
+import { handlePrompt } from '../plugins/cmc/lib/capture.mjs';
+import { parseControl } from '../plugins/cmc/lib/control.mjs';
+import { sessionDir } from '../plugins/cmc/lib/paths.mjs';
+import { addMessage, listMessages } from '../plugins/cmc/lib/queue.mjs';
+import { handlePostToolUse, handleStop } from '../plugins/cmc/lib/release.mjs';
+import { mergeSelection, readState } from '../plugins/cmc/lib/session-state.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc');
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
 
 let dataDir;

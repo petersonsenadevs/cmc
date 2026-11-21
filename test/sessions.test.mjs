@@ -6,12 +6,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, parse } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { sessionDir } from '../lib/paths.mjs';
-import { listMessages } from '../lib/queue.mjs';
-import { handleStop } from '../lib/release.mjs';
-import { candidateDataDirs, handleSessionEnd, handleSessionStart, listSessions, openSessionsIn, resolveSession } from '../lib/sessions.mjs';
+import { sessionDir } from '../plugins/cmc/lib/paths.mjs';
+import { listMessages } from '../plugins/cmc/lib/queue.mjs';
+import { handleStop } from '../plugins/cmc/lib/release.mjs';
+import { candidateDataDirs, handleSessionEnd, handleSessionStart, listSessions, openSessionsIn, resolveSession } from '../plugins/cmc/lib/sessions.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc');
 const FIRST = 'd0546eba-c080-415b-b5e2-863787cb5937';
 const SECOND = 'b06d5f9a-57e8-44f3-8b37-b14b890259fc';
 

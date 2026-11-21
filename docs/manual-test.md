@@ -16,7 +16,8 @@ types the `--mid` messages two seconds into the first one.
 
 ## Part B — interactive terminal
 
-Start `claude --plugin-dir .` in a scratch folder and give it a slow task, for example:
+Start `claude --plugin-dir /path/to/this/repository/plugins/cmc` in a scratch folder (or install the plugin
+from the marketplace, see the README) and give it a slow task, for example:
 
 > Run `sleep 20; echo one` with Bash, then `sleep 20; echo two`, then tell me both outputs.
 

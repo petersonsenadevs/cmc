@@ -2,7 +2,7 @@
 //   node queue-worker.mjs add <dir> <count> <label>
 //   node queue-worker.mjs drain <dir> <stopFile>
 import { existsSync } from 'node:fs';
-import { addMessage, drainMessages } from '../lib/queue.mjs';
+import { addMessage, drainMessages } from '../plugins/cmc/lib/queue.mjs';
 
 const [mode, dir, third, label] = process.argv.slice(2);
 

@@ -11,11 +11,21 @@ works, and release it when you want, without interrupting the turn.
 - Claude Code 2.1.330 or newer
 - Node.js 20 or newer (no npm dependencies, no build step)
 
-## Try it from a checkout
+## Install
+
+This repository is a Claude Code marketplace (`r3v3rs3`) that holds the plugin in `plugins/cmc`. Add the
+marketplace, then install the plugin from it:
 
 ```
-claude --plugin-dir /path/to/this/repository
+/plugin marketplace add /path/to/this/repository
+/plugin install cmc@r3v3rs3
 ```
+
+The same from a terminal: `claude plugin marketplace add /path/to/this/repository` and
+`claude plugin install cmc@r3v3rs3`. Only `plugins/cmc` is installed; the rest of the repository (tests,
+development notes) stays out.
+
+To try it from a checkout without installing: `claude --plugin-dir /path/to/this/repository/plugins/cmc`.
 
 ## Use
 
@@ -53,8 +63,8 @@ Open a second terminal **in the folder where the Claude Code session was started
 and use the `cmc` command line. Nothing you do there shows up in the session until you release it.
 
 ```
-node /path/to/this/repository/bin/cmc.mjs hold also update the README
-node /path/to/this/repository/bin/cmc.mjs list
+node /path/to/this/repository/plugins/cmc/bin/cmc.mjs hold also update the README
+node /path/to/this/repository/plugins/cmc/bin/cmc.mjs list
 ```
 
 `npm link` in this repository puts `cmc` on your PATH, so that becomes `cmc hold …`, `cmc list`, and so on.
@@ -107,7 +117,8 @@ Things worth knowing:
 ```
 npm test        # node --test
 npm run lint    # syntax check of every module
-claude plugin validate .
+claude plugin validate .              # the marketplace
+claude plugin validate ./plugins/cmc  # the plugin
 ```
 
 `node scripts/e2e.mjs` drives a real headless Claude Code session with this checkout loaded and types

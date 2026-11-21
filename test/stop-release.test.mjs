@@ -6,13 +6,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { handlePrompt } from '../lib/capture.mjs';
-import { sessionDir } from '../lib/paths.mjs';
-import { listMessages } from '../lib/queue.mjs';
-import { formatRelease, handleStop, releaseAll } from '../lib/release.mjs';
-import { readState } from '../lib/session-state.mjs';
+import { handlePrompt } from '../plugins/cmc/lib/capture.mjs';
+import { sessionDir } from '../plugins/cmc/lib/paths.mjs';
+import { listMessages } from '../plugins/cmc/lib/queue.mjs';
+import { formatRelease, handleStop, releaseAll } from '../plugins/cmc/lib/release.mjs';
+import { readState } from '../plugins/cmc/lib/session-state.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc');
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
 const OTHER_SESSION = 'b06d5f9a-57e8-44f3-8b37-b14b890259fc';
 

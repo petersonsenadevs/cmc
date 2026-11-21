@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins', 'cmc');
 const readJson = (path) => JSON.parse(readFileSync(join(root, path), 'utf8'));
 
 describe('plugin skeleton', () => {

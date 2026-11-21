@@ -20,7 +20,7 @@
 | (e) ¿Coste frente al paquete de contexto? | Fork: 45 767 tokens de entrada (43 726 de caché), 0,00089 $. Paquete: 25 109 tokens, 0,00174 $ |
 
 ## Commits
-- (este) docs(adr): record session fork behaviour and dispatch design
+- `59af571` docs(adr): record session fork behaviour and dispatch design
 
 ## Decisiones (resumen; detalle en DECISIONES.md)
 - D-016 modo de contexto por defecto: fork; D-017 aislamiento con el `--worktree` de Claude Code (ver DECISIONES.md#dev-013).

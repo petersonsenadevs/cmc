@@ -335,7 +335,7 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Devlog: senzu/devlog/2026-11-21/035-f5-t2-diseno-del-panel.md
 - Notas: colores pendientes de que Peterson elija paleta.
 
-### F5-T3 · Sección de mensajes  [M] [todo]
+### F5-T3 · Sección de mensajes  [M] [doing]
 - Para qué: gestionar lo retenido con el ratón: lo que hoy son `/held`, `;;edit`, `;;rm`, `;;top`… en un solo sitio.
 - Skill: `plugin-authoring` (`ui.render` de `Pane`, `Button`, `Input`) + `code-quality §references/typescript`
 - Archivos: plugins/cmc/hooks/panel.tsx, plugins/cmc/hooks/panel-messages.tsx, plugins/cmc/bin/cmc.ts, test/panel.test.tsx

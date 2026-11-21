@@ -1,16 +1,10 @@
 # cmc — Claude Message Control
 
-<!-- Logo: when plugins/cmc/assets/logo-dark.png and logo-light.png exist (brief in senzu/design-system/cmc/logos/brief.md),
-     replace the block below with:
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="plugins/cmc/assets/logo-dark.png">
-  <img alt="cmc — Claude Message Control" src="plugins/cmc/assets/logo-light.png" width="600">
+  <img alt="cmc — Claude Message Control, by r3v3rs3" src="plugins/cmc/assets/logo-light.png" width="600">
 </picture>
--->
-```
-▄▀▀ █▀▄▀█ ▄▀▀   Claude Message Control
-▀▄▄ █ ▀ █ ▀▄▄
-```
+
 by [r3v3rs3](https://github.com/petersonsenadevs)
 
 [![Version](https://img.shields.io/badge/version-1.1.0-7C5CFF)](CHANGELOG.md)

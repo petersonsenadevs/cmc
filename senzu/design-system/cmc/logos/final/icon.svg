@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CMC identity — Peterson Sena (r3v3rs3), 2026 -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Icono de cmc</title>
+  <desc id="desc">Ventana de terminal redondeada con una m de control, dos barras de pausa y dos nodos de estado.</desc>
+  <g fill="none" stroke="#7C5CFF" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="48" y="48" width="416" height="416" rx="72" stroke-width="24"/>
+    <path d="M48 142h416" stroke-width="20"/>
+    <circle cx="96" cy="96" r="9" fill="#7C5CFF" stroke="none"/>
+    <circle cx="128" cy="96" r="9" fill="#7C5CFF" stroke="none" opacity=".68"/>
+    <circle cx="160" cy="96" r="9" fill="#7C5CFF" stroke="none" opacity=".42"/>
+    <path d="M118 379V274c0-49 30-78 70-78s68 29 68 78v105M256 274c0-49 29-78 69-78s69 29 69 78v105" stroke-width="30"/>
+    <path d="M188 196l-28-42M325 196l28-42" stroke-width="20"/>
+    <path d="M226 275v58M286 275v58" stroke-width="20"/>
+  </g>
+  <circle cx="160" cy="154" r="17" fill="#F5A524"/>
+  <circle cx="353" cy="154" r="17" fill="#2BB673"/>
+</svg>

@@ -130,18 +130,19 @@
 - Devlog: senzu/devlog/2026-11-21/008-f2-t1-gestionar-la-cola.md
 - Notas: la gestión va por palabras de control (`;;list`, `;;edit`, `;;rm`, `;;move`…), no por argumentos de `/cmc:queue` (D-011); `/cmc:queue` solo lista. Archivos extra: lib/control.mjs, lib/queue-view.mjs.
 
-### F2-T2 · Soltar de forma selectiva y en modo «ya»  [M] [doing]
+### F2-T2 · Soltar de forma selectiva y en modo «ya»  [M] [done]
 - Para qué: enviar solo un mensaje, o hacerlo llegar en el siguiente paso sin esperar al final.
 - Skill: `code-quality §references/errors-logging "No tragar errores"`
 - Archivos: hooks/tool-release.mjs, hooks/hooks.json, lib/release.mjs, commands/release.md, test/release.test.mjs
 - Hecho cuando: `/cmc:release 2` entrega solo ese mensaje; `;;now` (o `cmc release --now` desde otra terminal) marca la cola para entregarse en el siguiente paso del agente por el mecanismo fijado en el ADR 001; `;;end` la deja para el final del turno; cada mensaje se entrega una sola vez.
 - Verificar: `npm test` y sesión real con una tarea de varios pasos: el mensaje llega entre dos herramientas.
 - Depende de: F2-T1
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 85 pass, 0 fail; `npm run lint` → 23 modules checked, 0 failed; sesiones reales: `;;now 2` a mitad de turno → `step1, step2, step3 — mango` y el otro mensaje sigue retenido; `;;now` en reposo → `papaya`; `cmc release --now` desde fuera a mitad de turno → `step1, step2, step3 — guava`; cola vacía al final
+- Cumple: se puede enviar solo un mensaje y hacerlo llegar en el siguiente paso del agente sin esperar al final, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/009-f2-t2-soltar-selectivo-y-ya.md
+- Notas: la selección va por palabras de control (`;;now N`, `;;end N`), no por `/cmc:release 2` (D-011). `cmc release --now` usa `PostToolUse` y, si no hay más pasos, el fin de turno. Archivo extra: hooks/tool-release.mjs; la lógica vive en lib/release.mjs.
 
-### F2-T3 · Escribir desde otra terminal con la CLI `cmc`  [M] [todo]
+### F2-T3 · Escribir desde otra terminal con la CLI `cmc`  [M] [doing]
 - Para qué: retener mensajes sin tocar el prompt de Claude Code (y plan B si S2 falla).
 - Skill: `code-quality §references/security-owasp "Validación en servidor"`
 - Archivos: bin/cmc.mjs, lib/sessions.mjs, hooks/session-register.mjs, test/sessions.test.mjs

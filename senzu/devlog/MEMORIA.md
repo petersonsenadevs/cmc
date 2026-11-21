@@ -26,11 +26,12 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-009 · La cola se toca siempre bajo cerrojo por directorio y se reescribe con temporal + renombrado · ver 004
 - D-010 · `;;end` (sin espacio) arma una entrega de un solo uso al terminar el turno; `;; end` es un mensaje normal · ver 006
 - D-011 · La cola se gestiona con palabras de control (`;;list`, `;;edit`, `;;rm`, `;;move`…), no con argumentos de comando; `/cmc:queue` solo lista · ver 008
+- D-012 · `cmc release --now` (desde fuera) entrega por `PostToolUse` con la cabecera factual y, si no hay más pasos, por `Stop` · ver 009
 
 ## Reglas del cliente y del proyecto
 
 ## Lo que no funcionó (no repetir)
-- El `additionalContext` de `PostToolUse` llega al modelo pero no lo obedece: lo trata como dato de herramienta · ver 002
+- El `additionalContext` de `PostToolUse` con redacción imperativa no se obedece; con la cabecera factual sí · ver 002, 009
 - Redactar lo liberado en imperativo («Treat each line as a message from the user») hace que el modelo desconfíe · ver 002
 - Las variables `CLAUDE_PLUGIN_*` no existen en el proceso de un `!` de comando; sí en los hooks · ver 002
 

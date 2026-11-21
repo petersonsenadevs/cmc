@@ -1,9 +1,9 @@
 // cmc — Claude Message Control. Author: Peterson Sena (r3v3rs3).
-// Hooks module: pins "✉ N held" under the prompt while messages are held and
-// removes it when the queue is empty.
+// Hooks module: pins "✉ N held · ⚙ M agents" under the prompt while messages
+// are held or dispatched agents are working, and removes it when neither is.
 //
 // This file runs inside Claude Code's plugin engine, not in Node: it has no
-// `node:` imports and reaches the disk through `$`. It only reads the queue.
+// `node:` imports and reaches the disk through `$`. It only reads files.
 
 const REFRESH_MS = 1000;
 
@@ -30,19 +30,41 @@ export function countHeld(text: string): number {
   return text.split('\n').filter((line) => line.trim() !== '').length;
 }
 
-/** The status line for a number of held messages; `undefined` clears it. */
-export function statusFor(count: number): string | undefined {
-  return count > 0 ? `✉ ${count} held` : undefined;
-}
-
-async function heldIn($: Engine, dataDir: string | undefined): Promise<number> {
-  const sessionId = await $.session.id();
+/** Reads the number of working agents from the text of `agents/active.json`. */
+export function countActive(text: string): number {
   try {
-    return countHeld(await $.fs.read(`${dataDir}/sessions/${sessionId}/queue.jsonl`));
+    const value: unknown = JSON.parse(text);
+    const active = typeof value === 'object' && value !== null && 'active' in value ? value.active : 0;
+    return typeof active === 'number' && active > 0 ? Math.floor(active) : 0;
   } catch {
-    // No queue file yet: nothing has been held in this session.
+    // Caught mid-write or damaged: the next refresh reads it again.
     return 0;
   }
+}
+
+/**
+ * The status line for a number of held messages and of dispatched agents
+ * still working; `undefined` clears it.
+ */
+export function statusFor(held: number, agents = 0): string | undefined {
+  const parts: string[] = [];
+  if (held > 0) parts.push(`✉ ${held} held`);
+  if (agents > 0) parts.push(`⚙ ${agents} ${agents === 1 ? 'agent' : 'agents'}`);
+  return parts.length > 0 ? parts.join(' · ') : undefined;
+}
+
+async function readOr($: Engine, path: string): Promise<string> {
+  try {
+    return await $.fs.read(path);
+  } catch {
+    // The file does not exist yet: nothing held, or no agent dispatched.
+    return '';
+  }
+}
+
+async function countsIn($: Engine, dataDir: string | undefined): Promise<[number, number]> {
+  const session = `${dataDir}/sessions/${await $.session.id()}`;
+  return [countHeld(await readOr($, `${session}/queue.jsonl`)), countActive(await readOr($, `${session}/agents/active.json`))];
 }
 
 export const register = (on: On): void => {
@@ -51,7 +73,7 @@ export const register = (on: On): void => {
     const { CLAUDE_PLUGIN_DATA: dataDir } = await $.process.hookEnv();
     let shown: string | undefined;
     const refresh = async (): Promise<void> => {
-      const status = statusFor(await heldIn($, dataDir));
+      const status = statusFor(...(await countsIn($, dataDir)));
       // Only touch the screen when the number changes.
       if (status !== shown) {
         shown = status;

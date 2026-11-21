@@ -6,6 +6,7 @@
 //   slow          waits for a minute (to be cancelled)
 //   edit          changes notes.txt in its working folder, then answers like ok
 //   commit        like edit, and commits the change
+//   stop-hook     answers, then a Stop hook of the user makes it go on with something else
 // Given `--worktree <name>` it creates that git worktree, as Claude Code does
 // (.claude/worktrees/<name> on the branch worktree-<name>), and works inside it.
 import { spawnSync } from 'node:child_process';
@@ -41,6 +42,12 @@ if (behaviour === 'fail') {
   process.exit(3);
 } else if (behaviour === 'slow') {
   setTimeout(() => {}, 60000);
+} else if (behaviour === 'stop-hook') {
+  // The answer, then a Stop hook of the user's own setup makes the agent go on.
+  line({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'The answer to the task.' }] } });
+  line({ type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'Stop hook feedback:\nSave your notes before you go.' }] } });
+  line({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'Nothing to save.' }] } });
+  line({ type: 'result', is_error: false, result: 'Nothing to save.', session_id: 'fake-session', total_cost_usd: 0.002 });
 } else {
   line({
     type: 'result',

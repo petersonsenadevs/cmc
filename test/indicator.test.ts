@@ -1,7 +1,7 @@
 // cmc — held-messages indicator (hooks module), driven with a stand-in engine. Author: Peterson Sena (r3v3rs3).
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { countHeld, register, statusFor, type Engine, type SessionStartHandler } from '../plugins/cmc/hooks/indicator.ts';
+import { countActive, countHeld, register, statusFor, type Engine, type SessionStartHandler } from '../plugins/cmc/hooks/indicator.ts';
 import { first, present } from '../test-support/expect.ts';
 
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
@@ -25,7 +25,9 @@ function engine() {
     clock: { every: (ms, fn) => { tick = fn; } },
     ui: { status: (text) => statuses.push(text) },
   };
-  return { $, statuses, setQueue: (text: string) => files.set(`/data/sessions/${SESSION}/queue.jsonl`, text), tick: () => present(tick)() };
+  return { $, statuses, setQueue: (text: string) => files.set(`/data/sessions/${SESSION}/queue.jsonl`, text),
+    setActive: (text: string) => files.set(`/data/sessions/${SESSION}/agents/active.json`, text),
+    tick: () => present(tick)() };
 }
 
 async function start(world: ReturnType<typeof engine>) {
@@ -76,5 +78,31 @@ describe('indicator', () => {
     world.setQueue(line('a') + line('b'));
     await start(world);
     assert.deepEqual(world.statuses, ['✉ 2 held']);
+  });
+
+  it('reads the number of working agents, and treats anything odd as none', () => {
+    assert.equal(countActive('{"active":2}'), 2);
+    assert.equal(countActive('{"active":0}'), 0);
+    for (const odd of ['', '{"act', '[]', 'null', '{"active":-1}', '{"active":"3"}']) assert.equal(countActive(odd), 0, odd);
+  });
+
+  it('shows working agents next to held messages', () => {
+    assert.equal(statusFor(0, 1), '⚙ 1 agent');
+    assert.equal(statusFor(2, 3), '✉ 2 held · ⚙ 3 agents');
+    assert.equal(statusFor(0, 0), undefined);
+  });
+
+  it('follows the agents as they start and end', async () => {
+    const world = engine();
+    await start(world);
+    world.setActive('{"active":1}');
+    await world.tick();
+    world.setQueue(line('a'));
+    await world.tick();
+    world.setActive('{"active":0}');
+    await world.tick();
+    world.setQueue('');
+    await world.tick();
+    assert.deepEqual(world.statuses, ['⚙ 1 agent', '✉ 1 held · ⚙ 1 agent', '✉ 1 held', undefined]);
   });
 });

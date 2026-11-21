@@ -29,6 +29,8 @@ export interface SessionRecord {
   lastActiveAt: string;
   /** ISO timestamp, once the session was closed. */
   endedAt: string | null;
+  /** Transcript file of the session, when Claude Code said where it is. */
+  transcriptPath?: string;
   /** Session folder (not stored; filled in when read). */
   dir: string;
 }
@@ -47,6 +49,7 @@ function readRecord(dir: string): SessionRecord | null {
       startedAt: String(stored.startedAt ?? ''),
       lastActiveAt: String(stored.lastActiveAt ?? stored.startedAt ?? ''),
       endedAt: typeof stored.endedAt === 'string' ? stored.endedAt : null,
+      ...(typeof stored.transcriptPath === 'string' ? { transcriptPath: stored.transcriptPath } : {}),
       dir,
     };
   } catch (error) {
@@ -84,6 +87,8 @@ export function handleSessionStart(
     startedAt: previous?.startedAt || now,
     lastActiveAt: now,
     endedAt: null,
+    // Kept for the command line, which dispatches without a hook to tell it.
+    ...(typeof input.transcript_path === 'string' && input.transcript_path !== '' ? { transcriptPath: input.transcript_path } : {}),
     dir,
   });
   pruneSessions(dataDir, { maxAgeDays: retentionDays, keep: sessionId });

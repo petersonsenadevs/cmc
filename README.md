@@ -3,8 +3,8 @@
 A Claude Code plugin that lets you decide **when** your messages reach the agent: hold what you type while it
 works, and release it when you want, without interrupting the turn.
 
-> Status: work in progress. Phase 1 (hold and release) works; queue management, the external CLI and
-> dispatching to a second agent are next.
+> Status: work in progress. Holding, releasing, managing the queue, the command line and dispatching to a
+> second agent work; returning the agent's result to the queue, configuration and packaging are next.
 
 ## Requirements
 
@@ -91,9 +91,36 @@ How sure each delivery is:
   model ignores is gone from the queue. Use `;;now` when the agent is idle (it starts a turn with the
   messages, which is dependable) and `;;end` while it is working.
 
+### Dispatching to a second agent
+
+Type `>>` followed by a task to hand it to a second agent that works in parallel. The agent of the session does not
+see it and is not interrupted.
+
+| You type | What happens |
+|---|---|
+| `>> review the tests of module X` | A second agent starts on that task. It forks this conversation, so it knows everything said so far. |
+| `>> --pack review the tests` | Same, but it gets a short summary of the conversation instead of all of it (cheaper on long sessions). |
+| `;;dispatch 2` · `;;dispatch 2 --pack` | Hands held message 2 to a second agent instead of the session. It leaves the queue once the agent has started. |
+| `;;agents` | Lists the dispatched agents: id, state, how long they ran, where they work, task. |
+| `;;log 1a2b` | What agent `1a2b…` was asked and its latest steps, or its final answer once it has ended. |
+| `;;cancel 1a2b` | Stops it. |
+
+The command line has the same: `cmc dispatch [--pack] <task>`, `cmc agents`, `cmc log <id>`, `cmc cancel <id>`.
+`/cmc:agents` shows the list through the agent of the session; `;;agents` keeps it to yourself.
+
+Where it works:
+
+- **In a git repository** the agent gets its own worktree (`.claude/worktrees/cmc-<id>`, branch `worktree-cmc-<id>`),
+  so it never edits the files the session is working on. When it ends, a worktree with changes is kept for you to
+  review and merge; one without changes is removed with its branch. Add `.claude/worktrees/` to your `.gitignore`.
+- **Outside git** there is no worktree: the agent works in the same folder, and the receipt says so.
+
+Its permissions are limited: `acceptEdits` and the tools `Read`, `Glob`, `Grep`, `Edit`, `Write` (no shell, no network).
+It runs with your own Claude Code setup, so your other plugins and hooks run in it too.
+
 ### Indicator
 
-While something is held, `✉ 2 held` is pinned under the prompt. It follows the queue within about a second,
+While something is held or a dispatched agent is working, `✉ 2 held · ⚙ 1 agent` is pinned under the prompt. It follows the queue within about a second,
 whoever changes it (the session or the `cmc` command line), and disappears when the queue is empty.
 
 Things worth knowing:

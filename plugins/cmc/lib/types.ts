@@ -11,6 +11,8 @@ export interface HookInput {
   hook_event_name?: unknown;
   prompt?: unknown;
   cwd?: unknown;
+  /** Path of the session's transcript file. */
+  transcript_path?: unknown;
   /** `SessionStart` only: `startup`, `resume`, `clear` or `compact`. */
   source?: unknown;
   /** `PreToolUse` and `PostToolUse` only: the tool the agent called. */

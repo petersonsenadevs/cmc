@@ -37,8 +37,13 @@ export const CONTROL_HELP = [
   '  ;;top N  ;;bottom N   make message N the first or the last to be delivered',
   '  ;;now [N…]        release now: everything, or only those messages',
   '  ;;end [N…]        release when this turn ends: everything, or only those messages',
+  '  ;;dispatch N [--pack]   hand held message N to a second agent instead',
+  '  ;;agents          show the dispatched agents',
+  '  ;;log ID          what an agent was asked and its latest steps or final answer',
+  '  ;;cancel ID       stop an agent',
   '  ;;help            this list',
   'To hold a message, put a space after the prefix: ";; your message".',
+  'To dispatch a task to a second agent: ">> your task" (">> --pack your task" for a short summary instead of the whole conversation).',
 ].join('\n');
 
 const positions = (words: readonly string[]): number[] | null =>

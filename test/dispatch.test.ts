@@ -128,6 +128,12 @@ describe('dispatch', () => {
     assert.equal(existsSync(join(base, 'INJECTED')), false);
   });
 
+  it('keeps the answer to the task when a Stop hook of the user makes the agent go on', async () => {
+    const done = await settled(start('answer, then get asked to save notes', 'stop-hook').id);
+    assert.equal(done.state, 'finished');
+    assert.equal(done.summary, 'The answer to the task.');
+  });
+
   it('marks the agent failed with what it said when it exits with an error', async () => {
     const failed = await settled(start('will fail', 'fail').id);
     assert.equal(failed.state, 'failed');

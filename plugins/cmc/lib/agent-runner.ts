@@ -17,6 +17,39 @@ import { isRecord } from './types.ts';
 const SUMMARY_LENGTH = 4000;
 
 /** The last `result` message of a stream-json log, if there is one. */
+/**
+ * The answer the agent gave to its task: the text of its turn before any
+ * `Stop` hook made it go on. The user's own hooks (and other plugins) may
+ * continue the turn with requests of their own, and the final `result` is
+ * then the reply to those, not to the task. `null` when there was no such
+ * continuation, or no text before it.
+ */
+export function answerBeforeStopHooks(file: string): string | null {
+  let text: string;
+  try {
+    text = readFileSync(file, 'utf8');
+  } catch (error) {
+    if (errorCode(error) === 'ENOENT') return null;
+    throw error;
+  }
+  const parts: string[] = [];
+  for (const line of text.split('\n')) {
+    let message: unknown;
+    try {
+      message = JSON.parse(line);
+    } catch {
+      continue; // Not JSON: a partial write or a stray warning.
+    }
+    if (!isRecord(message) || !isRecord(message.message) || !Array.isArray(message.message.content)) continue;
+    for (const block of message.message.content) {
+      if (!isRecord(block) || block.type !== 'text' || typeof block.text !== 'string') continue;
+      if (message.type === 'user' && block.text.startsWith('Stop hook feedback:')) return parts.length > 0 ? parts.join('\n\n') : null;
+      if (message.type === 'assistant' && block.text.trim() !== '') parts.push(block.text.trim());
+    }
+  }
+  return null;
+}
+
 function lastResult(file: string): Record<string, unknown> | null {
   let text: string;
   try {
@@ -55,7 +88,7 @@ function finish(dir: string, exitCode: number | null, failure: string | null): v
   const result = lastResult(join(dir, OUTPUT_FILE));
   const succeeded = !failure && exitCode === 0 && result !== null && result.is_error !== true;
   const summary = succeeded
-    ? String(result?.result ?? '').slice(0, SUMMARY_LENGTH)
+    ? (answerBeforeStopHooks(join(dir, OUTPUT_FILE)) ?? String(result?.result ?? '')).slice(0, SUMMARY_LENGTH)
     : failure || String(result?.result ?? '').slice(0, SUMMARY_LENGTH) || tail(join(dir, STDERR_FILE)) || `The agent exited with code ${exitCode} and left no result.`;
   updateAgentAt(dir, {
     state: succeeded ? 'finished' : 'failed',

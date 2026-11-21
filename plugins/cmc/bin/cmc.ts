@@ -2,6 +2,8 @@
 // cmc — Claude Message Control. Author: Peterson Sena (r3v3rs3).
 // Command line over the same core the hooks use. Run it from another terminal,
 // in the folder where the Claude Code session was started.
+import { basename } from 'node:path';
+import { parseAgentControl, parseDispatch, runAgentControl, startAgent, type DispatchOrigin } from '../lib/agent-control.ts';
 import { parseControl, runControl } from '../lib/control.ts';
 import { CmcError, errorCode } from '../lib/errors.ts';
 import { describeError, logEvent } from '../lib/log.ts';
@@ -28,13 +30,19 @@ The session is the one started in the current folder; name it with --session
   release [<N>…] [--now|--end]
                        hand messages to the agent from outside the session: at its next
                        step (--now, the default) or when its turn ends (--end)
+  dispatch [--pack] <task>
+                       start a second agent on a task, as ">> task" does in the session
+                       (--pack: it gets a short summary instead of the whole conversation)
+  agents               show the agents dispatched from the session
+  log <id>             show what an agent was asked and its latest steps or final answer
+  cancel <id>          stop an agent
   sessions [--all]     show the open sessions started in this folder (--all: every session)
   drain [--format prompt|json]
                        take every held message out of the queue and print it
 `;
 
 type ValueFlag = 'session' | 'data-dir' | 'format';
-type BooleanFlag = 'now' | 'end' | 'all';
+type BooleanFlag = 'now' | 'end' | 'all' | 'pack';
 type Flags = Partial<Record<ValueFlag, string> & Record<BooleanFlag, boolean>>;
 
 interface ParsedArgs {
@@ -52,6 +60,7 @@ const BOOLEAN_FLAGS: ReadonlyMap<string, BooleanFlag> = new Map([
   ['--now', 'now'],
   ['--end', 'end'],
   ['--all', 'all'],
+  ['--pack', 'pack'],
 ]);
 const QUEUE_COMMANDS: ReadonlySet<string> = new Set(['list', 'edit', 'rm', 'clear', 'move', 'up', 'down', 'top', 'bottom']);
 const POSITION = /^[1-9]\d{0,5}$/;
@@ -133,6 +142,35 @@ function releaseCommand({ flags, positional }: ParsedArgs): string {
     : `${count} held message(s) will be released at the agent's next step, or when its turn ends if it takes none.`;
 }
 
+/**
+ * The session a dispatch starts from, found as `targetDir` finds it. The
+ * transcript comes from the session registry, since no hook is there to say.
+ */
+function originFor(flags: Flags): DispatchOrigin {
+  const dir = targetDir(flags);
+  const record = listSessions(candidateDataDirs(flags['data-dir'])).find((session) => session.dir === dir);
+  const sessionId = basename(dir);
+  return {
+    dir,
+    sessionId,
+    cwd: record?.cwd ?? process.cwd(),
+    ...(record?.transcriptPath === undefined ? {} : { transcriptPath: record.transcriptPath }),
+  };
+}
+
+function dispatchCommand({ flags, positional }: ParsedArgs): string {
+  const { task, mode } = parseDispatch(positional.join(' '));
+  if (task === '') throw new CmcError('BAD_USAGE', 'dispatch needs a task: cmc dispatch [--pack] <task>.');
+  return startAgent(originFor(flags), task, flags.pack ? 'pack' : mode);
+}
+
+/** `agents`, `log <id>` and `cancel <id>` share their grammar with the control words. */
+function agentCommand(name: string, { flags, positional }: ParsedArgs): string {
+  const control = parseAgentControl([name, ...positional].join(' '));
+  if (!control) throw new CmcError('BAD_USAGE', `Wrong arguments for "${name}".\n\n${USAGE}`);
+  return runAgentControl(originFor(flags), control);
+}
+
 function sessions({ flags }: ParsedArgs): string {
   const records = listSessions(candidateDataDirs(flags['data-dir']));
   if (flags.all) return records.length > 0 ? `Sessions known to cmc:\n${formatSessions(records)}` : 'cmc knows no sessions yet.';
@@ -160,6 +198,8 @@ function main(argv: readonly string[]): string {
   if (name === 'drain') return drain(parsed);
   if (name === 'release') return releaseCommand(parsed);
   if (name === 'sessions') return sessions(parsed);
+  if (name === 'dispatch') return dispatchCommand(parsed);
+  if (name === 'agents' || name === 'log' || name === 'cancel') return agentCommand(name, parsed);
   if (QUEUE_COMMANDS.has(name)) return queueCommand(name, parsed);
   throw new CmcError('BAD_USAGE', `Unknown command "${name}".\n\n${USAGE}`);
 }

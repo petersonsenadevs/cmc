@@ -3,13 +3,14 @@
 // under the session folder, with its record, its prompt and its log.
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { writeFileAtomic } from './atomic-write.ts';
 import { CmcError, errorCode } from './errors.ts';
 import { isRecord } from './types.ts';
 
 const AGENTS_DIR = 'agents';
 const RECORD_FILE = 'agent.json';
+const ACTIVE_FILE = 'active.json';
 const AGENT_ID = /^[a-f0-9]{8}$/;
 
 export const PROMPT_FILE = 'prompt.txt';
@@ -104,7 +105,18 @@ export function createAgent(sessionDir: string, fields: NewAgentFields, id: stri
     summary: null,
   };
   writeFileAtomic(join(dir, RECORD_FILE), `${JSON.stringify(record)}\n`);
+  noteActiveAgents(sessionDir);
   return { ...record, dir };
+}
+
+/**
+ * Keeps `agents/active.json` in step with the records: the number of agents
+ * still working. The indicator reads this one small file instead of every
+ * record (it runs inside Claude Code's engine and cannot list a folder).
+ */
+export function noteActiveAgents(sessionDir: string): void {
+  const active = listAgents(sessionDir).filter((agent) => agent.state === 'starting' || agent.state === 'running').length;
+  writeFileAtomic(join(sessionDir, AGENTS_DIR, ACTIVE_FILE), `${JSON.stringify({ active })}\n`);
 }
 
 /** @returns A new agent id: eight hex characters. */
@@ -139,6 +151,8 @@ export function updateAgentAt(dir: string, patch: Partial<AgentRecord>): AgentRe
   if (!current) throw new CmcError('NO_SUCH_AGENT', 'The record of that dispatched agent is gone.');
   const { dir: _dir, ...stored } = { ...current, ...patch };
   writeFileAtomic(join(dir, RECORD_FILE), `${JSON.stringify(stored)}\n`);
+  // The agent folder is <session>/agents/<id>.
+  if (patch.state !== undefined) noteActiveAgents(dirname(dirname(dir)));
   return { ...stored, dir };
 }
 

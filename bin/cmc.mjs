@@ -1,16 +1,23 @@
 #!/usr/bin/env node
 // cmc — Claude Message Control. Author: Peterson Sena (r3v3rs3).
-// Command line over the same core the hooks use.
+// Command line over the same core the hooks use. Run it from another terminal,
+// in the folder where the Claude Code session was started.
 import { parseControl, runControl } from '../lib/control.mjs';
 import { CmcError } from '../lib/errors.mjs';
 import { describeError, logEvent } from '../lib/log.mjs';
 import { resolveDataDir, sessionDir } from '../lib/paths.mjs';
-import { arm, releaseAll, select } from '../lib/release.mjs';
+import { addMessage } from '../lib/queue.mjs';
+import { arm, release, select } from '../lib/release.mjs';
+import { candidateDataDirs, formatSessions, listSessions, openSessionsIn, resolveSession } from '../lib/sessions.mjs';
 
 const USAGE = `cmc — Claude Message Control (Peterson Sena · r3v3rs3)
 
-Usage: cmc <command> --session <id> [--data-dir <dir>]
+Usage: cmc <command> [--session <id>] [--data-dir <dir>]
 
+The session is the one started in the current folder; name it with --session
+(an id or the start of one) when there are several.
+
+  hold <text>          hold a message for the agent, as ";; text" does in the session
   list                 show the held messages, in delivery order
   edit <N> <text>      replace the text of message N
   rm <N> [<N>…]        delete messages
@@ -21,15 +28,17 @@ Usage: cmc <command> --session <id> [--data-dir <dir>]
   release [<N>…] [--now|--end]
                        hand messages to the agent from outside the session: at its next
                        step (--now, the default) or when its turn ends (--end)
+  sessions [--all]     show the open sessions started in this folder (--all: every session)
   drain [--format prompt|json]
                        take every held message out of the queue and print it
 `;
 
 const VALUE_FLAGS = new Set(['--session', '--data-dir', '--format']);
-const BOOLEAN_FLAGS = new Set(['--now', '--end']);
+const BOOLEAN_FLAGS = new Set(['--now', '--end', '--all']);
 const QUEUE_COMMANDS = new Set(['list', 'edit', 'rm', 'clear', 'move', 'up', 'down', 'top', 'bottom']);
+const POSITION = /^[1-9]\d{0,5}$/;
 
-/** Splits argv into flags with a value and positional arguments. */
+/** Splits argv into flags and positional arguments. */
 function parseArgs(argv) {
   const flags = {};
   const positional = [];
@@ -49,16 +58,35 @@ function parseArgs(argv) {
   return { flags, positional };
 }
 
-function requireSession(flags) {
-  if (!flags.session) throw new CmcError('BAD_USAGE', 'This command needs --session <id>.');
-  return flags.session;
+/**
+ * Finds the folder of the session a command is meant for.
+ *
+ * The plugin's own commands pass both the data directory and the full session
+ * id, and that pair is used as given. From a terminal, the session is looked
+ * up in the registry by folder or by the id the user typed.
+ */
+function targetDir(flags) {
+  const dataDirs = candidateDataDirs(flags['data-dir']);
+  try {
+    return resolveSession({ dataDirs, cwd: process.cwd(), wanted: flags.session }).dir;
+  } catch (error) {
+    const direct = error.code === 'NO_SESSION' && flags.session && flags['data-dir'];
+    if (direct) return sessionDir(resolveDataDir(flags['data-dir']), flags.session);
+    throw error;
+  }
 }
 
-function drain({ flags }, dataDir) {
+function hold({ flags, positional }) {
+  const { messages, warning } = addMessage(targetDir(flags), { text: positional.join(' ') });
+  const receipt = `Held (${messages.length} queued).`;
+  return warning ? `${receipt}\n${warning}` : receipt;
+}
+
+function drain({ flags }) {
   const format = flags.format ?? 'prompt';
   if (format !== 'prompt' && format !== 'json') throw new CmcError('BAD_USAGE', '--format must be "prompt" or "json".');
 
-  const result = releaseAll(dataDir, requireSession(flags), '/cmc:release');
+  const result = release(targetDir(flags), 'all', '/cmc:release');
   if (format === 'json') return JSON.stringify(result);
   const text = result.text ?? '[cmc] The user ran "/cmc:release", but no messages are held. There is nothing to do.';
   return result.warning ? `${text}\n\n[cmc] ${result.warning}` : text;
@@ -68,12 +96,12 @@ function drain({ flags }, dataDir) {
  * Arms a release from outside the session. The CLI cannot talk to the agent,
  * so it leaves a note that the plugin's hooks act on.
  */
-function releaseCommand({ flags, positional }, dataDir) {
+function releaseCommand({ flags, positional }) {
   if (flags.now && flags.end) throw new CmcError('BAD_USAGE', 'Use --now or --end, not both.');
-  if (!positional.every((word) => /^[1-9]\d{0,5}$/.test(word))) {
+  if (!positional.every((word) => POSITION.test(word))) {
     throw new CmcError('BAD_USAGE', `Wrong arguments for "release".\n\n${USAGE}`);
   }
-  const dir = sessionDir(dataDir, requireSession(flags));
+  const dir = targetDir(flags);
   const { selection, count, held } = select(dir, positional.map(Number));
   if (held === 0) return 'Nothing is held, so there is nothing to release.';
   arm(dir, flags.end ? 'atEnd' : 'atNextStep', selection);
@@ -82,20 +110,31 @@ function releaseCommand({ flags, positional }, dataDir) {
     : `${count} held message(s) will be released at the agent's next step, or when its turn ends if it takes none.`;
 }
 
+function sessions({ flags }) {
+  const records = listSessions(candidateDataDirs(flags['data-dir']));
+  if (flags.all) return records.length > 0 ? `Sessions known to cmc:\n${formatSessions(records)}` : 'cmc knows no sessions yet.';
+  const here = openSessionsIn(records, process.cwd());
+  return here.length > 0
+    ? `Open sessions started in this folder:\n${formatSessions(here)}`
+    : 'No open session was started in this folder. See "cmc sessions --all".';
+}
+
 /** The queue commands share their grammar with the control words of the prompt. */
-function queueCommand(name, { flags, positional }, dataDir) {
+function queueCommand(name, { flags, positional }) {
   const control = parseControl([name, ...positional].join(' '));
   if (!control) throw new CmcError('BAD_USAGE', `Wrong arguments for "${name}".\n\n${USAGE}`);
-  return runControl(sessionDir(dataDir, requireSession(flags)), control).reply;
+  return runControl(targetDir(flags), control).reply;
 }
 
 function main(argv) {
   const [name, ...rest] = argv;
   if (!name || name === 'help' || name === '--help') return USAGE;
   const parsed = parseArgs(rest);
-  if (name === 'drain') return drain(parsed, resolveDataDir(parsed.flags['data-dir']));
-  if (name === 'release') return releaseCommand(parsed, resolveDataDir(parsed.flags['data-dir']));
-  if (QUEUE_COMMANDS.has(name)) return queueCommand(name, parsed, resolveDataDir(parsed.flags['data-dir']));
+  if (name === 'hold') return hold(parsed);
+  if (name === 'drain') return drain(parsed);
+  if (name === 'release') return releaseCommand(parsed);
+  if (name === 'sessions') return sessions(parsed);
+  if (QUEUE_COMMANDS.has(name)) return queueCommand(name, parsed);
   throw new CmcError('BAD_USAGE', `Unknown command "${name}".\n\n${USAGE}`);
 }
 

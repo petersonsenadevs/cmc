@@ -8,8 +8,8 @@
 //   node scripts/e2e.mjs [--mid <text>]... [--cli <args>] [--after <text>]... [--model <name>] [--keep]
 //
 //   --mid    typed two seconds into the first tool call (repeatable)
-//   --cli    cmc CLI arguments, run from outside the session when the second tool call starts
-//            (for example: --cli "release --now")
+//   --cli    cmc CLI arguments, run in the session's folder as from a second terminal when the
+//            second tool call starts (for example: --cli "hold also say hello")
 //   --after  typed once the turn has ended, one per following turn (repeatable)
 //   --keep   keep the scratch working directory
 import { spawn, spawnSync } from 'node:child_process';
@@ -74,8 +74,11 @@ let toolCalls = 0;
 const dataDir = join(homedir(), '.claude', 'plugins', 'data', 'cmc-inline');
 
 function runCli() {
-  const cliArgs = [...options.cli.split(' '), '--data-dir', dataDir, '--session', String(sessionId)];
-  const result = spawnSync(process.execPath, [join(pluginDir, 'bin', 'cmc.mjs'), ...cliArgs], { encoding: 'utf8' });
+  // Like a second terminal opened in the same folder: no session id, no data directory.
+  const result = spawnSync(process.execPath, [join(pluginDir, 'bin', 'cmc.mjs'), ...options.cli.split(' ')], {
+    cwd: workDir,
+    encoding: 'utf8',
+  });
   print('CLI', `cmc ${options.cli} → ${oneLine(result.stdout)}`);
 }
 let buffer = '';

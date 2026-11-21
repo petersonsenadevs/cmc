@@ -47,9 +47,28 @@ never sees them, they cost no tokens, and they work while the agent is busy.
 The order you see in `;;list` is exactly the order of delivery. `/cmc:queue` shows the same list, but as a
 slash command it goes through the agent, which then sees your held messages (still held); prefer `;;list`.
 
-The same commands exist on the command line: `node bin/cmc.mjs list --session <id>` (see `cmc help`). From
-there, `cmc release [N…]` hands messages to the agent at its next tool call, and `cmc release --end [N…]`
-when its turn ends.
+### From another terminal
+
+Open a second terminal **in the folder where the Claude Code session was started** (a subfolder works too)
+and use the `cmc` command line. Nothing you do there shows up in the session until you release it.
+
+```
+node /path/to/this/repository/bin/cmc.mjs hold also update the README
+node /path/to/this/repository/bin/cmc.mjs list
+```
+
+`npm link` in this repository puts `cmc` on your PATH, so that becomes `cmc hold …`, `cmc list`, and so on.
+
+| Command | What it does |
+|---|---|
+| `cmc hold <text>` | Holds a message, like `;; text` in the session. |
+| `cmc list` · `edit` · `rm` · `clear` · `move` · `up` · `down` · `top` · `bottom` | The same as the control words. |
+| `cmc release [N…]` | Hands messages to the agent at its next tool call (or when its turn ends, if it makes none). |
+| `cmc release --end [N…]` | Hands them over when its turn ends. |
+| `cmc sessions [--all]` | Shows the open sessions started in this folder, or every session cmc knows. |
+
+If no session is open in the folder, `cmc` says so and stores nothing. If several are, it lists them and you
+pick one with `--session <id>` (the first characters of the id are enough).
 
 How sure each delivery is:
 

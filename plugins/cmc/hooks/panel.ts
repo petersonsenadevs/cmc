@@ -7,7 +7,7 @@
 //
 // Engine code only: no `node:` imports. Elements are built by calling them
 // (`Box({ ... })`), which is what JSX compiles to.
-import { cli, currentDataDir, markPendingInBox, sendHeld, type HeldEntry, type InterfaceEngine } from './interface.ts';
+import { cli, currentDataDir, markPendingInBox, onSendSettled, sendHeld, type HeldEntry, type InterfaceEngine } from './interface.ts';
 
 export const PANE_ID = 'cmc';
 const PANE_TITLE = 'cmc';
@@ -290,6 +290,11 @@ export async function openPanel($: PanelEngine): Promise<string> {
 /** Starts the live refresh: the pane redraws when the queue, the state, the settings or the agents change. */
 export async function startPanel($: PanelEngine): Promise<void> {
   await $.command.register(PANEL_COMMAND);
+  // A send finishes after its click: its outcome joins the activity when it does.
+  onSendSettled((outcome, isError) => {
+    noteActivity(outcome, isError);
+    $.ui.invalidate('ui.render');
+  });
   const snapshot = async () =>
     [await queueText($), await sessionFile($, 'state.json'), await sessionFile($, 'agents/active.json'), await settingsText($)].join('\n');
   let last = await snapshot();

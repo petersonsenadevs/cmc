@@ -129,6 +129,11 @@ export function changedFiles(path: string, baseCommit: string | null): string[] 
   return [...files].sort();
 }
 
+/** Whether a changed file is under one of the paths the user said are not an agent's work. */
+export function isIgnoredChange(file: string, ignore: readonly string[]): boolean {
+  return ignore.some((path) => (path.endsWith('/') ? file.startsWith(path) || `${file}/` === path : file === path || file.startsWith(`${path}/`)));
+}
+
 /**
  * Settles the worktree of an agent that has ended: removed with its branch
  * when nothing changed, kept (and described) when there is work in it. The
@@ -136,7 +141,7 @@ export function changedFiles(path: string, baseCommit: string | null): string[] 
  * merge or remove a kept worktree with plain git.
  * @param cwd Folder the agent was started in.
  */
-export function settleWorktree(cwd: string, name: string, baseCommit: string | null): WorktreeOutcome {
+export function settleWorktree(cwd: string, name: string, baseCommit: string | null, ignore: readonly string[] = []): WorktreeOutcome {
   const branch = worktreeBranch(name);
   const entry = findWorktreeEntry(cwd, name);
   if (entry === null) return { path: null, branch, files: [], kept: false };
@@ -144,13 +149,15 @@ export function settleWorktree(cwd: string, name: string, baseCommit: string | n
   const { path } = entry;
   if (isStaleSessionLock(entry.lockReason, name)) git(cwd, ['worktree', 'unlock', path]);
 
-  const files = changedFiles(path, baseCommit);
+  const all = changedFiles(path, baseCommit);
+  const files = all.filter((file) => !isIgnoredChange(file, ignore));
   if (files.length > 0) return { path, branch, files, kept: true };
 
   // Nothing to lose: without --force git refuses to remove a worktree that has
   // changes or is still locked, and `branch -d` refuses a branch with commits
-  // that are not merged.
-  const removed = git(cwd, ['worktree', 'remove', path]);
+  // that are not merged. --force only when every change is one the user said
+  // is not the agent's work.
+  const removed = git(cwd, ['worktree', 'remove', ...(all.length > 0 ? ['--force'] : []), path]);
   if (removed.ok) git(cwd, ['branch', '-d', branch]);
   return { path: removed.ok ? null : path, branch, files, kept: !removed.ok };
 }

@@ -34,6 +34,12 @@ export interface DispatchSettings {
    * and costs much more.
    */
   restrictTools: boolean;
+  /**
+   * Paths (folders end in "/") that other tools write into a subagent's
+   * worktree, such as the user's own hooks: they are not the subagent's work,
+   * so a worktree with only these changes is removed like one with none.
+   */
+  ignoreChanges: readonly string[];
 }
 
 export interface CmcConfig {
@@ -68,6 +74,7 @@ export const DEFAULT_CONFIG: CmcConfig = Object.freeze({
     permissionMode: 'acceptEdits',
     tools: Object.freeze(['Read', 'Glob', 'Grep', 'Edit', 'Write']),
     restrictTools: true,
+    ignoreChanges: Object.freeze([]),
   }),
   retentionDays: 30,
 }) as CmcConfig;
@@ -82,6 +89,13 @@ export interface LoadedConfig {
 }
 
 const PREFIX = /^[^\sA-Za-z0-9/]{1,4}$/;
+
+/** A path inside the worktree: relative, not empty, never climbing out of it. */
+function isPlainPath(value: unknown): value is string {
+  if (typeof value !== 'string' || value.trim() === '') return false;
+  const path = value.replace(/\\/g, '/');
+  return !path.startsWith('/') && !/^[A-Za-z]:/.test(path) && !path.split('/').includes('..');
+}
 
 function prefixProblem(value: unknown): string | null {
   if (typeof value !== 'string') return 'it must be text';
@@ -135,7 +149,7 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
     const dispatch = raw.dispatch;
     if (!isRecord(dispatch) || Array.isArray(dispatch)) ignored('dispatch', 'it must be an object');
     else {
-      const knownDispatch = new Set(['context', 'return', 'permissionMode', 'tools', 'restrictTools']);
+      const knownDispatch = new Set(['context', 'return', 'permissionMode', 'tools', 'restrictTools', 'ignoreChanges']);
       for (const key of Object.keys(dispatch)) if (!knownDispatch.has(key)) warnings.push(`unknown setting "dispatch.${key}" ignored`);
       if (dispatch.context !== undefined) {
         if (dispatch.context === 'fork' || dispatch.context === 'pack') config.dispatch.context = dispatch.context;
@@ -155,6 +169,11 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
         const valid = Array.isArray(tools) && tools.length <= 50 && tools.every((tool): tool is string => typeof tool === 'string' && TOOL_NAME.test(tool));
         if (valid) config.dispatch.tools = Object.freeze([...tools]);
         else ignored('dispatch.tools', 'it must be a list of tool names such as "Read" or "Bash(npm test:*)"');
+      }
+      if (dispatch.ignoreChanges !== undefined) {
+        const paths = dispatch.ignoreChanges;
+        if (Array.isArray(paths) && paths.every(isPlainPath)) config.dispatch.ignoreChanges = paths.map((path: string) => path.replace(/\\/g, '/'));
+        else ignored('dispatch.ignoreChanges', 'it must be a list of relative paths, without ".."');
       }
       if (dispatch.restrictTools !== undefined) {
         if (typeof dispatch.restrictTools === 'boolean') config.dispatch.restrictTools = dispatch.restrictTools;

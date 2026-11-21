@@ -291,6 +291,14 @@ async function sendIntoTurn($: InterfaceEngine, positions: readonly string[], te
  * only once it was accepted. A refusal is shown with the engine's reason and
  * leaves them held.
  */
+/** Who hears how a deferred send ended (the panel, for its activity list). */
+let sendSettled: ((outcome: string, isError: boolean) => void) | null = null;
+
+/** Sets who hears how a deferred send ended. */
+export function onSendSettled(listener: ((outcome: string, isError: boolean) => void) | null): void {
+  sendSettled = listener;
+}
+
 async function submitThenTake($: InterfaceEngine, text: string, ids: readonly string[]): Promise<void> {
   await $.clock.sleep(SUBMIT_DELAY_MS);
   let refusal: string | null = null;
@@ -302,9 +310,11 @@ async function submitThenTake($: InterfaceEngine, text: string, ids: readonly st
   }
   if (refusal !== null) {
     $.ui.log(`cmc: could not send them (${refusal}); they are still held. /cmc:release sends them as a prompt.`);
+    sendSettled?.(`Could not send ${ids.length === 1 ? 'it' : 'them'} (${refusal}); still held.`, true);
     return;
   }
   await cli($, ['take', ...ids]);
+  sendSettled?.(`Sent ${ids.length} message${ids.length === 1 ? '' : 's'} to the agent.`, false);
 }
 
 /** The text shown when the menu cannot open (headless) or is closed. */

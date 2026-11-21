@@ -21,7 +21,7 @@ import {
   type AgentMode,
   type AgentRecord,
 } from './agents-registry.ts';
-import { DEFAULT_CONFIG, PERMISSION_MODES, TOOL_NAME } from './config.ts';
+import { DEFAULT_CONFIG, PERMISSION_MODES, TOOL_NAME, loadConfig } from './config.ts';
 import { buildContextPack, packPrompt } from './context-pack.ts';
 import { CmcError, errorCode } from './errors.ts';
 import { MAX_TEXT_LENGTH } from './queue.ts';
@@ -171,7 +171,9 @@ export function dispatch({
  * @param cwd Folder the agent was started in.
  */
 export function recordWorktree(dir: string, cwd: string, worktree: string, baseCommit: string | null): AgentRecord {
-  const outcome = settleWorktree(cwd, worktree, baseCommit);
+  // The agent's folder is <data>/sessions/<session>/agents/<id>.
+  const { config } = loadConfig(join(dir, '..', '..', '..', '..'));
+  const outcome = settleWorktree(cwd, worktree, baseCommit, config.dispatch.ignoreChanges);
   return updateAgentAt(dir, { branch: outcome.kept ? outcome.branch : null, worktreePath: outcome.path, changedFiles: outcome.files });
 }
 

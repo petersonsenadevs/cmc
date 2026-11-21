@@ -55,7 +55,7 @@ describe('validateConfig', () => {
       sendAtEnd: false,
       holdTarget: 'subagent',
       retentionDays: 0,
-      dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'], restrictTools: false },
+      dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'], restrictTools: false, ignoreChanges: [] },
     });
   });
 
@@ -233,5 +233,16 @@ describe('holdTarget "subagent"', () => {
     assert.match(reply(type(';; summarise the plan')), /Dispatched to agent [0-9a-f]{8}: it gets a short summary/);
     assert.deepEqual(listMessages(dir).messages, []);
     assert.equal(listAgents(dir).length, 1);
+  });
+});
+
+describe('dispatch.ignoreChanges', () => {
+  it('takes relative paths, with either slash, and refuses paths that climb out or are absolute', () => {
+    assert.deepEqual(validateConfig({ dispatch: { ignoreChanges: ['.corvusmem/', 'senzu\\devlog/'] } }).config.dispatch.ignoreChanges, ['.corvusmem/', 'senzu/devlog/']);
+    for (const bad of [['../x'], ['/etc/'], ['C:/x'], [''], 'x', [1]]) {
+      const { config, warnings } = validateConfig({ dispatch: { ignoreChanges: bad } });
+      assert.deepEqual(config.dispatch.ignoreChanges, [], JSON.stringify(bad));
+      assert.match(warnings.join(), /ignoreChanges/);
+    }
   });
 });

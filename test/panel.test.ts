@@ -317,6 +317,12 @@ describe('panel: messages', () => {
     await press(await w.draw(), `send-${second}`);
     await until(() => w.held().length === 1);
     assert.deepEqual(w.submitted, ['[cmc] The user released their held message with "/send":\n1. two']);
+    let tree = await w.draw();
+    for (let i = 0; i < 100 && !texts(tree).includes('Sent 1 message to the agent.'); i += 1) {
+      await new Promise((done) => setTimeout(done, 10));
+      tree = await w.draw();
+    }
+    assert.ok(texts(tree).includes('Sent 1 message to the agent.'), 'the activity says it was sent, not only "Sending…"');
   });
 
   it('Send now while the agent works puts the text in the prompt box, and Ctrl+Enter takes it out of the queue', async () => {

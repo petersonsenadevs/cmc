@@ -9,7 +9,18 @@ import { fileURLToPath } from 'node:url';
 import { findAgent, isAlive, listAgents, type AgentRecord } from '../plugins/cmc/lib/agents-registry.ts';
 import { cancelAgent, dispatch } from '../plugins/cmc/lib/dispatch.ts';
 import { sessionDir } from '../plugins/cmc/lib/paths.ts';
-import { changedFiles, findWorktree, findWorktreeEntry, headCommit, isGitRepo, isStaleSessionLock, settleWorktree, worktreeBranch, worktreeName } from '../plugins/cmc/lib/worktree.ts';
+import {
+  changedFiles,
+  findWorktree,
+  findWorktreeEntry,
+  headCommit,
+  isGitRepo,
+  isIgnoredChange,
+  isStaleSessionLock,
+  settleWorktree,
+  worktreeBranch,
+  worktreeName,
+} from '../plugins/cmc/lib/worktree.ts';
 
 const fake = join(dirname(fileURLToPath(import.meta.url)), '..', 'test-support', 'fake-claude.ts');
 const SESSION = 'd0546eba-c080-415b-b5e2-863787cb5937';
@@ -139,6 +150,39 @@ describe('worktree helpers', () => {
       kept: true,
     });
     assert.equal(readFileSync(join(path, 'notes.txt'), 'utf8'), 'edited\n');
+  });
+
+  it('removes a worktree whose only changes are under paths the user said are not the work of the agent', () => {
+    const path = addWorktree('cmc-aaaaaaaa');
+    mkdirSync(join(path, '.corvusmem'));
+    writeFileSync(join(path, '.corvusmem', 'facts.json'), '{}');
+    assert.deepEqual(settleWorktree(repo, 'cmc-aaaaaaaa', headCommit(repo), ['.corvusmem/']), {
+      path: null,
+      branch: 'worktree-cmc-aaaaaaaa',
+      files: [],
+      kept: false,
+    });
+    assert.equal(existsSync(path), false);
+  });
+
+  it('keeps a worktree with real work beside those paths, and lists only the work', () => {
+    const path = addWorktree('cmc-aaaaaaaa');
+    mkdirSync(join(path, '.corvusmem'));
+    writeFileSync(join(path, '.corvusmem', 'facts.json'), '{}');
+    writeFileSync(join(path, 'notes.txt'), 'edited\n');
+    const outcome = settleWorktree(repo, 'cmc-aaaaaaaa', headCommit(repo), ['.corvusmem/']);
+    assert.deepEqual(outcome.files, ['notes.txt']);
+    assert.equal(outcome.kept, true);
+  });
+
+  it('matches a folder and what is inside it, and a file exactly', () => {
+    assert.equal(isIgnoredChange('.corvusmem/', ['.corvusmem/']), true);
+    assert.equal(isIgnoredChange('.corvusmem/a/b.json', ['.corvusmem/']), true);
+    assert.equal(isIgnoredChange('.corvusmemx/a', ['.corvusmem/']), false);
+    assert.equal(isIgnoredChange('senzu', ['senzu/']), true);
+    assert.equal(isIgnoredChange('notes.txt', ['notes.txt']), true);
+    assert.equal(isIgnoredChange('notes.txt.bak', ['notes.txt']), false);
+    assert.equal(isIgnoredChange('src/a.ts', []), false);
   });
 
   it('lifts the lock a finished Claude Code session left behind, then removes a clean worktree', () => {

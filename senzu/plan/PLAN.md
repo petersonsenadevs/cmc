@@ -429,6 +429,17 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 
 ## Tareas ad hoc (fuera del plan original)
 
+### X-T8 · El hub se explica solo; versión y repositorio abajo a la derecha  [S] [done]
+- Para qué: Peterson: «necesito que se entienda»; y abajo a la derecha el enlace al repositorio y la versión cuando existan.
+- Skill: `plugin-authoring` (`ui.render`, `Link`) + `code-quality §references/typescript`
+- Archivos: plugins/cmc/hooks/panel.ts, test/panel.test.ts
+- Hecho cuando: los modos en una pestaña Settings con una explicación cada uno; una línea de ayuda por vista y un resumen de los modos; versión y repositorio (del manifiesto) abajo a la derecha.
+- Verificar: `npm test`; captura de Peterson.
+- Depende de: F5-T10
+- Verificado: npm test 340; validate ✔
+- Cumple: cada parte del hub dice qué es y qué hace, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/042-x-t8-hub-que-se-explica.md
+
 ### X-T7 · «by r3v3rs3» enlaza al GitHub del autor  [S] [done]
 - Para qué: Peterson: que la autoría sea un enlace a su GitHub (petersonsenadevs) con el texto «by r3v3rs3».
 - Skill: `plugin-authoring` (`Link` de la terminal)

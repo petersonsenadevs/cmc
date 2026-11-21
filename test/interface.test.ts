@@ -63,7 +63,7 @@ function engine(data: string, box = '') {
   const answers: (string | null)[] = [];
   const state = { box };
   const $: InterfaceEngine = {
-    session: { id: async () => SESSION },
+    session: { id: async () => SESSION, send: async () => ({ isDelivered: false, reason: 'no live session' }) },
     plugin: { root: ROOT },
     process: {
       hookEnv: async () => ({ CLAUDE_PLUGIN_DATA: data }),
@@ -269,8 +269,43 @@ describe('interface: in a session', () => {
     await submit(world.$, { text: ';; one' }, passed);
     updateState(sessionDir(data, SESSION), { turnActive: true });
     const answer = await command(world.$, { command: 'send', args: '' }, passed);
-    assert.deepEqual(answer, { text: 'The agent is working; 1 held message(s) will be sent when its turn ends.', isTextDisplayOnly: true });
+    assert.deepEqual(answer, { text: 'Could not send it into the running turn (no live session); it goes when the turn ends.', isTextDisplayOnly: true });
     assert.deepEqual(world.submitted, []);
+    assert.equal(readState(sessionDir(data, SESSION)).atEnd, 'all');
+  });
+
+  it('/send while the agent works hands the message into the running turn when the engine delivers it', async () => {
+    const data = dataDir();
+    const world = engine(data);
+    const { submit, command } = await started(world);
+    await submit(world.$, { text: ';; one' }, passed);
+    await submit(world.$, { text: ';; two' }, passed);
+    updateState(sessionDir(data, SESSION), { turnActive: true });
+    const delivered: { to: unknown; text: string }[] = [];
+    world.$.session.send = async (args) => {
+      delivered.push(args);
+      return { isDelivered: true };
+    };
+    const answer = await command(world.$, { command: 'send', args: '2' }, passed);
+    assert.deepEqual(answer, { text: 'Sent now: the agent reads it after the step it is on.', isTextDisplayOnly: true });
+    assert.deepEqual(delivered, [{ to: { sessionId: SESSION }, text: '[cmc] The user sends you their held message now, while you work (with "/send"):\n1. two' }]);
+    assert.deepEqual(listMessages(sessionDir(data, SESSION)).messages.map((message) => message.text), ['one']);
+    assert.equal(readState(sessionDir(data, SESSION)).atEnd, null, 'nothing armed');
+    assert.deepEqual(world.submitted, []);
+  });
+
+  it('/send while the agent works keeps the message for the end of the turn when the engine throws', async () => {
+    const data = dataDir();
+    const world = engine(data);
+    const { submit, command } = await started(world);
+    await submit(world.$, { text: ';; one' }, passed);
+    updateState(sessionDir(data, SESSION), { turnActive: true });
+    world.$.session.send = async () => {
+      throw new Error('channel closed');
+    };
+    const answer = (await command(world.$, { command: 'send', args: '' }, passed)) as { text: string };
+    assert.equal(answer.text, 'Could not send it into the running turn (channel closed); it goes when the turn ends.');
+    assert.deepEqual(listMessages(sessionDir(data, SESSION)).messages.map((message) => message.text), ['one']);
     assert.equal(readState(sessionDir(data, SESSION)).atEnd, 'all');
   });
 

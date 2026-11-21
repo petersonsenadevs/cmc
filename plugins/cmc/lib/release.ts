@@ -188,6 +188,7 @@ function stopAnswer(dir: string, pending: Pending, holdPrefix: string): StopBloc
 /** What `sendMessages` decided: hand the messages over now, at the end of the turn, or nothing to send. */
 export type SendOutcome =
   | { mode: 'now'; count: number; text: string; ids: string[] }
+  | { mode: 'busy'; count: number; text: string; ids: string[] }
   | { mode: 'end'; count: number }
   | { mode: 'none' };
 
@@ -201,17 +202,29 @@ export type SendOutcome =
  * prompt leaves the messages held instead of losing them.
  * @param positions Messages to send, as the user sees them; none means all.
  */
-export function sendMessages(dir: string, positions: number[], trigger = '/send'): SendOutcome {
+export function sendMessages(dir: string, positions: number[], trigger = '/send', { tryNow = false }: { tryNow?: boolean } = {}): SendOutcome {
   const { selection, count, held } = select(dir, positions);
   if (held === 0 || count === 0 || selection === null) return { mode: 'none' };
-  if (readState(dir).turnActive) {
+  const working = readState(dir).turnActive;
+  if (working && !tryNow) {
     armAtEnd(dir, selection);
     return { mode: 'end', count };
   }
   const { messages } = listMessages(dir);
   const chosen = selection === 'all' ? messages : messages.filter((message) => selection.includes(message.id));
   if (chosen.length === 0) return { mode: 'none' };
-  return { mode: 'now', count: chosen.length, text: formatRelease(chosen, trigger), ids: chosen.map((message) => message.id) };
+  const ids = chosen.map((message) => message.id);
+  // tryNow while the agent works: the caller hands the text into the running
+  // turn through the engine's own channel, and takes the messages only if it
+  // was delivered; nothing is armed, nothing leaves the queue here.
+  if (working) return { mode: 'busy', count: chosen.length, text: formatSentNow(chosen, trigger), ids };
+  return { mode: 'now', count: chosen.length, text: formatRelease(chosen, trigger), ids };
+}
+
+/** Messages the user sends into the turn while the agent works ("Send" in the panel, /send). */
+export function formatSentNow(messages: readonly HeldMessage[], trigger: string): string {
+  const noun = messages.length === 1 ? 'message' : 'messages';
+  return `[cmc] The user sends you their held ${noun} now, while you work (with "${trigger}"):\n${formatItems(messages)}`;
 }
 
 /**

@@ -135,7 +135,7 @@ export function dispatchToast(receipt: string): string {
   const agent = receipt.match(/Dispatched to agent ([0-9a-f]+)/)?.[1];
   return agent === undefined
     ? firstSentence(receipt.trim())
-    : `Agent ${agent} took the message and works on it apart; its result comes back here when it ends.`;
+    : `Subagent ${agent} took the message, with ${/inherits this conversation/.test(receipt) ? 'the whole conversation' : 'a summary of the conversation'} as context; it works apart and its result comes back here.`;
 }
 
 /** The first sentence of a command's answer, short enough for a toast. */
@@ -227,7 +227,7 @@ export async function drawPanel($: PanelEngine, e: PaneRenderEvent): Promise<Ele
       children: [
         Text({ wrap: 'truncate-end', children: rowText(index + 1, entry) }),
         Button({ key: `send-${entry.id}`, label: 'Send', onPress: () => act($, () => sendOne($, entry.id)) }),
-        Button({ key: `agent-${entry.id}`, label: 'To agent', onPress: () => act($, () => toAgent($, entry.id)) }),
+        Button({ key: `agent-${entry.id}`, label: 'To subagent', onPress: () => act($, () => toAgent($, entry.id)) }),
         Button({ key: `delete-${entry.id}`, label: 'Delete', dimColor: true, onPress: () => act($, () => deleteOne($, entry.id)) }),
       ],
     }),

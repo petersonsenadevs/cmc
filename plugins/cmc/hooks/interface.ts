@@ -30,7 +30,10 @@ export interface RunResult {
 
 /** The parts of the engine's `$` this module uses (the engine's own types are not available outside it). */
 export interface InterfaceEngine {
-  session: { id(): string | Promise<string> };
+  session: {
+    id(): string | Promise<string>;
+    send(args: { to: { sessionId: string }; text: string }): Promise<{ isDelivered: boolean; reason?: string }>;
+  };
   plugin: { root: string };
   process: {
     hookEnv(): Record<string, string | undefined> | Promise<Record<string, string | undefined>>;
@@ -240,7 +243,7 @@ async function heldCount($: InterfaceEngine): Promise<number> {
  * @param positions As the person sees them; none means all.
  */
 export async function sendHeld($: InterfaceEngine, positions: readonly string[]): Promise<CommandAnswer> {
-  const sent = await cli($, ['send', ...positions]);
+  const sent = await cli($, ['send', ...positions, '--now']);
   let outcome: { mode?: string; count?: number; text?: string; ids?: string[] } = {};
   try {
     outcome = JSON.parse(sent.stdout) as typeof outcome;
@@ -253,8 +256,32 @@ export async function sendHeld($: InterfaceEngine, positions: readonly string[])
     void submitThenTake($, outcome.text, outcome.ids);
     return display(`Sending ${outcome.count ?? 0} held message(s)…`);
   }
+  if (outcome.mode === 'busy' && typeof outcome.text === 'string' && Array.isArray(outcome.ids)) return sendIntoTurn($, positions, outcome.text, outcome.ids);
   if (outcome.mode === 'end') return display(`The agent is working; ${outcome.count ?? 0} held message(s) will be sent when its turn ends.`);
   return display('Nothing is held.');
+}
+
+/**
+ * Hands messages into the agent's running turn through the engine's own
+ * channel for messages that reach a session mid-turn (the one a teammate's
+ * message takes): the agent reads them after the step it is on. They leave the
+ * queue only if the engine delivered them; if not, they go when the turn ends.
+ */
+async function sendIntoTurn($: InterfaceEngine, positions: readonly string[], text: string, ids: readonly string[]): Promise<CommandAnswer> {
+  let reason = 'the engine did not deliver it';
+  try {
+    const result = await $.session.send({ to: { sessionId: await $.session.id() }, text });
+    if (result.isDelivered) {
+      await cli($, ['take', ...ids]);
+      return display(`Sent now: the agent reads ${ids.length === 1 ? 'it' : 'them'} after the step it is on.`);
+    }
+    reason = result.reason ?? reason;
+  } catch (error) {
+    reason = error instanceof Error ? error.message : String(error);
+  }
+  // Not delivered: the end of the turn, as before. Nothing is lost.
+  await cli($, ['send', ...positions]);
+  return display(`Could not send it into the running turn (${reason}); it goes when the turn ends.`);
 }
 
 /**

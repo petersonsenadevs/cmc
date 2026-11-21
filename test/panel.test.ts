@@ -65,7 +65,7 @@ function world() {
   let invalidations = 0;
   let tick: (() => Promise<void>) | undefined;
   const $: PanelEngine = {
-    session: { id: async () => SESSION },
+    session: { id: async () => SESSION, send: async () => ({ isDelivered: false, reason: 'no live session' }) },
     plugin: { root: ROOT },
     process: {
       hookEnv: async () => ({ CLAUDE_PLUGIN_DATA: data }),
@@ -161,7 +161,13 @@ describe('panel: what it says', () => {
     assert.equal(sendsAtEnd(''), true);
     assert.equal(sendsAtEnd('{"sendAtEnd":false}'), false);
     assert.equal(statusLine(true, false), '● Agent working · Send hands a message over when its turn ends');
-    assert.equal(firstSentence('[cmc] Dispatched to agent ab12cd34. It works in its own worktree.\nmore'), 'Dispatched to agent ab12cd34.');
+    assert.equal(firstSentence('[cmc] No such message. More.\nmore'), 'No such message.');
+    assert.equal(
+      dispatchToast('Held message 1 left the queue. Dispatched to agent 6e3ccfc8: it gets a short summary of this conversation.'),
+      'Subagent 6e3ccfc8 took the message, with a summary of the conversation as context; it works apart and its result comes back here.',
+    );
+    assert.match(dispatchToast('Dispatched to agent 6e3ccfc8: it inherits this conversation.'), /with the whole conversation as context/);
+    assert.equal(dispatchToast('[cmc] There is no held message 3 (the queue has 1).'), 'There is no held message 3 (the queue has 1).');
   });
 });
 
@@ -234,7 +240,7 @@ describe('panel: in a session', () => {
     const tree = await w.draw();
     assert.ok(texts(tree).includes('● Agent working · held messages go to it when its turn ends'));
     await press(tree, `send-${present(listMessages(w.dir).messages[0]).id}`);
-    assert.deepEqual(w.toasts, ['cmc: The agent is working; 1 held message(s) will be sent when its turn ends.']);
+    assert.deepEqual(w.toasts, ['cmc: Could not send it into the running turn (no live session); it goes when the turn ends.']);
     assert.deepEqual(w.submitted, []);
   });
 

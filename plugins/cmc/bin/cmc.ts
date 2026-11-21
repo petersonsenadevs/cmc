@@ -31,9 +31,10 @@ The session is the one started in the current folder; name it with --session
   up <N> | down <N>    move message N one place
   top <N> | bottom <N> make message N the first or the last to be delivered
   release [<N>…]       hand messages (all, or those) to the agent when its turn ends
-  send [<N>…]          for the plugin's /send: when the agent is idle, prints (JSON) the text
+  send [<N>…] [--now]  for the plugin's /send: when the agent is idle, prints (JSON) the text
                        to submit and the ids, and takes nothing out; while it works, arms
-                       the end of the turn like release
+                       the end of the turn like release (--now: prints the text to hand into
+                       the running turn instead, and arms nothing)
   take <id>…           take messages out of the queue by id (after /send's prompt was accepted)
   idle                 note that the agent is not working (the plugin calls it when a turn
                        is interrupted with Esc, which runs no Stop hook)
@@ -55,7 +56,7 @@ The session is the one started in the current folder; name it with --session
 `;
 
 type ValueFlag = 'session' | 'data-dir' | 'format' | 'message';
-type BooleanFlag = 'all' | 'pack' | 'fork' | 'auto' | 'held' | 'stdin';
+type BooleanFlag = 'all' | 'pack' | 'fork' | 'auto' | 'held' | 'stdin' | 'now';
 type Flags = Partial<Record<ValueFlag, string> & Record<BooleanFlag, boolean>>;
 
 interface ParsedArgs {
@@ -77,6 +78,7 @@ const BOOLEAN_FLAGS: ReadonlyMap<string, BooleanFlag> = new Map([
   ['--auto', 'auto'],
   ['--held', 'held'],
   ['--stdin', 'stdin'],
+  ['--now', 'now'],
 ]);
 const QUEUE_COMMANDS: ReadonlySet<string> = new Set(['list', 'edit', 'rm', 'clear', 'move', 'up', 'down', 'top', 'bottom']);
 const POSITION = /^[1-9]\d{0,5}$/;
@@ -141,7 +143,7 @@ function hold({ flags, positional }: ParsedArgs): string {
 
 function sendCommand({ flags, positional }: ParsedArgs): string {
   if (!positional.every((word) => POSITION.test(word))) throw new CmcError('BAD_USAGE', `Wrong arguments for "send".\n\n${USAGE}`);
-  return JSON.stringify(sendMessages(targetDir(flags), positional.map(Number)));
+  return JSON.stringify(sendMessages(targetDir(flags), positional.map(Number), '/send', { tryNow: flags.now === true }));
 }
 
 function idle({ flags, positional }: ParsedArgs): string {
@@ -174,6 +176,8 @@ function drain({ flags }: ParsedArgs): string {
  * so it leaves a note that the plugin's hooks act on.
  */
 function releaseCommand({ flags, positional }: ParsedArgs): string {
+  // --now belongs to "send": release always waits for the end of the turn.
+  if (flags.now) throw new CmcError('BAD_USAGE', '"release" always waits for the end of the turn; to hand a message over now, use the panel\'s Send or /send.');
   if (!positional.every((word) => POSITION.test(word))) {
     throw new CmcError('BAD_USAGE', `Wrong arguments for "release".\n\n${USAGE}`);
   }

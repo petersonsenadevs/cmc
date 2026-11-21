@@ -127,19 +127,86 @@ export interface AgentEntry {
 
 /** The modes (ADR 003 §7): the setting, how the panel names it, and its two values. */
 export const MODES = Object.freeze([
-  { key: 'sendAtEnd', label: 'Deliver', values: [['true', 'End of turn'], ['false', 'Hold']] },
-  { key: 'holdTarget', label: 'Typed ;; goes to', values: [['main', 'Main'], ['subagent', 'Subagent']] },
-  { key: 'dispatch.context', label: 'Subagent context', values: [['fork', 'Full'], ['pack', 'Summary']] },
-  { key: 'dispatch.return', label: 'Results', values: [['held', 'Hold'], ['auto', 'Auto']] },
+  {
+    key: 'sendAtEnd',
+    label: 'Deliver',
+    values: [['true', 'End of turn'], ['false', 'Hold']],
+    help: 'What you hold while the agent works: it gets it when its turn ends, or it waits until you send it.',
+  },
+  {
+    key: 'holdTarget',
+    label: 'Typed ;; goes to',
+    values: [['main', 'Main'], ['subagent', 'Subagent']],
+    help: 'A message you type after ";;": held for the main agent, or handed to a new subagent so the main conversation stays clean.',
+  },
+  {
+    key: 'dispatch.context',
+    label: 'Subagent context',
+    values: [['fork', 'Full'], ['pack', 'Summary']],
+    help: 'What a new subagent knows: a copy of the whole conversation, or a short summary (cheaper, less to go on).',
+  },
+  {
+    key: 'dispatch.return',
+    label: 'Results',
+    values: [['held', 'Hold'], ['auto', 'Auto']],
+    help: "A subagent's answer: it waits here for you, or it goes to the main agent by itself when a turn ends.",
+  },
 ] as const);
 
 /** The model and effort selectors (ADR 003 §8): what each offers; "inherit" leaves it to the user's own setup. */
 export const PICKERS = Object.freeze([
-  { key: 'dispatch.model', label: 'Subagent model', values: ['inherit', 'fable', 'opus', 'sonnet', 'haiku'] },
-  { key: 'dispatch.effort', label: 'Effort', values: ['inherit', 'low', 'medium', 'high', 'xhigh', 'max'] },
+  {
+    key: 'dispatch.model',
+    label: 'Subagent model',
+    values: ['inherit', 'fable', 'opus', 'sonnet', 'haiku'],
+    help: 'The model new subagents run with. "Same as mine" follows your own Claude Code setup.',
+  },
+  {
+    key: 'dispatch.effort',
+    label: 'Effort',
+    values: ['inherit', 'low', 'medium', 'high', 'xhigh', 'max'],
+    help: 'How hard they think: lower is faster and cheaper, higher is more thorough.',
+  },
 ] as const);
 
-type View = 'messages' | 'agents' | 'activity';
+type View = 'messages' | 'agents' | 'activity' | 'settings';
+
+/** One line on top of each view: what it is and what can be done in it. */
+export const VIEW_HELP: Readonly<Record<View, string>> = Object.freeze({
+  messages: 'What you hold for the agent. Click a message for its actions; type below to hold one without ";;".',
+  agents: 'Subagents work apart, in their own worktree. Click one to see the conversation and write to it.',
+  activity: 'What happened, newest first.',
+  settings: 'How cmc behaves. Each change applies at once and is kept for next time.',
+});
+
+/** One line that says how the modes are set, under the header of every view but Settings. */
+export function modesSummary(modes: Record<string, string>): string {
+  const delivery = modes.sendAtEnd === 'false' ? 'held until you send' : 'delivered when the turn ends';
+  const typed = modes.holdTarget === 'subagent' ? ';; starts a subagent' : ';; holds for the agent';
+  const context = modes['dispatch.context'] === 'pack' ? 'summary' : 'whole conversation';
+  const model = modes['dispatch.model'] && modes['dispatch.model'] !== 'inherit' ? `, ${modes['dispatch.model']}` : '';
+  const effort = modes['dispatch.effort'] && modes['dispatch.effort'] !== 'inherit' ? `, effort ${modes['dispatch.effort']}` : '';
+  return `Messages ${delivery} · ${typed} · subagents get the ${context}${model}${effort}`;
+}
+
+/** The plugin's version and repository, from its manifest; shown at the bottom right. */
+export interface ManifestInfo {
+  version: string | null;
+  repository: string | null;
+}
+
+/** Reads the version and the repository (`repository`, or `homepage`) of the plugin's manifest. */
+export function readManifest(text: string): ManifestInfo {
+  try {
+    const value: unknown = JSON.parse(text);
+    if (typeof value !== 'object' || value === null) return { version: null, repository: null };
+    const raw = value as Record<string, unknown>;
+    const repository = typeof raw.repository === 'string' ? raw.repository : typeof raw.homepage === 'string' ? raw.homepage : null;
+    return { version: typeof raw.version === 'string' ? raw.version : null, repository: repository !== null && /^https:\/\//.test(repository) ? repository : null };
+  } catch {
+    return { version: null, repository: null };
+  }
+}
 
 /** What the person is looking at: kept while the session lasts (a reload of the module starts over). */
 const ui = {
@@ -152,6 +219,9 @@ const ui = {
   draft: '',
   activity: [] as { at: string; text: string; isError: boolean }[],
 };
+
+/** The plugin's version and repository, read when the session starts. */
+let manifest: ManifestInfo = { version: null, repository: null };
 
 /** Adds a line to the activity list. */
 export function noteActivity(text: string, isError = false, now: Date = new Date()): void {
@@ -356,6 +426,11 @@ export async function openPanel($: PanelEngine): Promise<string> {
 /** Starts the live refresh: the pane redraws when the queue, the state, the settings or the agents change. */
 export async function startPanel($: PanelEngine): Promise<void> {
   await $.command.register(PANEL_COMMAND);
+  try {
+    manifest = readManifest(await $.fs.read(`${$.plugin.root}/.claude-plugin/plugin.json`));
+  } catch {
+    manifest = { version: null, repository: null };
+  }
   // A send finishes after its click: its outcome joins the activity when it does.
   onSendSettled((outcome, isError) => {
     noteActivity(outcome, isError);
@@ -530,7 +605,7 @@ function drawHeader(el: PanelElements, $: PanelEngine, working: boolean, atEnd: 
       Box({
         flexDirection: 'row',
         columnGap: 1,
-        children: [tab('messages', `Messages ${held}`, '1'), tab('agents', `Subagents ${agents.length}${live > 0 ? ` (${live} working)` : ''}`, '2'), tab('activity', 'Activity', '3')],
+        children: [tab('messages', `Messages ${held}`, '1'), tab('agents', `Subagents ${agents.length}${live > 0 ? ` (${live} working)` : ''}`, '2'), tab('activity', 'Activity', '3'), tab('settings', 'Settings', '4')],
       }),
     ],
   });
@@ -550,38 +625,47 @@ export function modelAndEffort(model = 'inherit', effort = 'inherit'): string {
 /** The strip of modes: each a pair of buttons, the one in force drawn as primary; then the model and effort selectors. */
 function drawModes(el: PanelElements, $: PanelEngine, modes: Record<string, string>): Element {
   const { Box, Text, Button, Select } = el;
+  const switches = MODES.map((mode) =>
+    Box({
+      key: `mode-${mode.key}`,
+      flexDirection: 'column',
+      children: [
+        Box({
+          flexDirection: 'row',
+          columnGap: 1,
+          children: [
+            Text({ bold: true, children: `${mode.label}:` }),
+            ...mode.values.map(([value, label]) =>
+              modes[mode.key] === value
+                ? Button({ key: `mode-${mode.key}-${value}`, label, variant: 'primary', onPress: () => undefined })
+                : Button({ key: `mode-${mode.key}-${value}`, label, dimColor: true, onPress: () => act($, () => setModeTo($, mode.key, value, label)) }),
+            ),
+          ],
+        }),
+        Text({ dimColor: true, wrap: 'wrap', children: mode.help }),
+      ],
+    }),
+  );
   const pickers = PICKERS.map((picker) => {
     const current = modes[picker.key] ?? 'inherit';
     // A full model name from the settings file is offered too, so it shows as chosen.
     const values: readonly string[] = (picker.values as readonly string[]).includes(current) ? picker.values : [...picker.values, current];
-    return Select({
-      key: `pick-${picker.key}`,
-      label: picker.label,
-      value: current,
-      options: values.map((value) => ({ value, label: pickerLabel(value) })),
-      onSelect: (value) => act($, () => setModeTo($, picker.key, value, `${picker.label} ${pickerLabel(value)}`)),
+    return Box({
+      key: `picker-${picker.key}`,
+      flexDirection: 'column',
+      children: [
+        Select({
+          key: `pick-${picker.key}`,
+          label: picker.label,
+          value: current,
+          options: values.map((value) => ({ value, label: pickerLabel(value) })),
+          onSelect: (value) => act($, () => setModeTo($, picker.key, value, `${picker.label} ${pickerLabel(value)}`)),
+        }),
+        Text({ dimColor: true, wrap: 'wrap', children: picker.help }),
+      ],
     });
   });
-  return Box({
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    columnGap: 2,
-    children: [...MODES.map((mode) =>
-      Box({
-        key: `mode-${mode.key}`,
-        flexDirection: 'row',
-        columnGap: 1,
-        children: [
-          Text({ dimColor: true, children: `${mode.label}:` }),
-          ...mode.values.map(([value, label]) =>
-            modes[mode.key] === value
-              ? Button({ key: `mode-${mode.key}-${value}`, label, variant: 'primary', onPress: () => undefined })
-              : Button({ key: `mode-${mode.key}-${value}`, label, dimColor: true, onPress: () => act($, () => setModeTo($, mode.key, value, label)) }),
-          ),
-        ],
-      }),
-    ), ...pickers],
-  });
+  return Box({ flexDirection: 'column', gap: 1, children: [...switches, ...pickers] });
 }
 
 function drawMessages(el: PanelElements, $: PanelEngine, entries: HeldEntry[], working: boolean, atEnd: boolean, typedTo: string): Element {
@@ -759,6 +843,22 @@ function drawActivity(el: PanelElements, limit: number): Element {
   });
 }
 
+/** Bottom right: the version, and the repository once the manifest names one. */
+function drawFooter(el: PanelElements): Element {
+  const { Box, Text, Link } = el;
+  if (manifest.version === null && manifest.repository === null) return null;
+  return Box({
+    key: 'footer',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    columnGap: 2,
+    children: [
+      manifest.version === null ? null : Text({ dimColor: true, children: `v${manifest.version}` }),
+      manifest.repository === null ? null : Link({ key: 'repo', href: manifest.repository, label: manifest.repository.replace(/^https:\/\//, '') }),
+    ],
+  });
+}
+
 /** Draws the pane from the session as it is now. */
 export async function drawPanel($: PanelEngine, e: PaneRenderEvent): Promise<Element> {
   const el = $.ui.resolve(e);
@@ -769,16 +869,25 @@ export async function drawPanel($: PanelEngine, e: PaneRenderEvent): Promise<Ele
   const atEnd = modes.sendAtEnd === 'true';
   const agents = await agentsOf($);
   const body =
-    ui.view === 'agents'
+    ui.view === 'settings'
+      ? drawModes(el, $, modes)
+      : ui.view === 'agents'
       ? drawAgents(el, $, agents, entries, ui.selected === null ? [] : parseConversation(await sessionFile($, `agents/${ui.selected}/conversation.jsonl`)))
       : ui.view === 'activity'
         ? drawActivity(el, ACTIVITY_KEPT)
         : drawMessages(el, $, entries, working, atEnd, modes.holdTarget ?? 'main');
-  const footer =
+  const recent =
     ui.view === 'activity' || ui.activity.length === 0
       ? null
-      : Box({ flexDirection: 'column', children: [Text({ dimColor: true, children: '─ Activity' }), drawActivity(el, ACTIVITY_SHOWN)] });
-  return Box({ flexDirection: 'column', gap: 1, children: [drawHeader(el, $, working, atEnd, entries.length, agents), drawModes(el, $, modes), body, footer] });
+      : Box({ flexDirection: 'column', children: [Text({ dimColor: true, children: '─ Latest' }), drawActivity(el, ACTIVITY_SHOWN)] });
+  const help = Box({
+    flexDirection: 'column',
+    children: [
+      Text({ dimColor: true, wrap: 'wrap', children: VIEW_HELP[ui.view] }),
+      ui.view === 'settings' ? null : Text({ dimColor: true, italic: true, wrap: 'wrap', children: modesSummary(modes) }),
+    ],
+  });
+  return Box({ flexDirection: 'column', gap: 1, children: [drawHeader(el, $, working, atEnd, entries.length, agents), help, body, recent, drawFooter(el)] });
 }
 
 export const register = (on: PanelOn): void => {

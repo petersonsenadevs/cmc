@@ -17,6 +17,8 @@ import {
   firstSentence,
   isWorking,
   MARK,
+  MODES,
+  modesSummary,
   noteActivity,
   openPanel,
   PANE_ID,
@@ -24,6 +26,8 @@ import {
   parseAgents,
   parseConversation,
   parseQueue,
+  PICKERS,
+  readManifest,
   readModes,
   register,
   resetPanelState,
@@ -32,6 +36,7 @@ import {
   startPanel,
   stateMark,
   statusLine,
+  VIEW_HELP,
   type PanelEngine,
 } from '../plugins/cmc/hooks/panel.ts';
 import { sessionDir } from '../plugins/cmc/lib/paths.ts';
@@ -271,17 +276,43 @@ describe('panel: header, tabs and modes', () => {
     assert.ok(ofType(brand.props.children, 'Text').slice(0, 2).every((node) => node.props.color === COLORS.accent));
     assert.equal(AUTHOR, 'by r3v3rs3');
     assert.deepEqual(
-      ['tab-messages', 'tab-agents', 'tab-activity'].map((key) => find(tree, key).props.label),
-      ['Messages 1', 'Subagents 0', 'Activity'],
+      ['tab-messages', 'tab-agents', 'tab-activity', 'tab-settings'].map((key) => find(tree, key).props.label),
+      ['Messages 1', 'Subagents 0', 'Activity', 'Settings'],
     );
     assert.equal(find(tree, 'tab-messages').props.variant, 'primary');
-    assert.equal(find(tree, 'mode-sendAtEnd-true').props.variant, 'primary');
-    assert.equal(find(tree, 'mode-holdTarget-subagent').props.dimColor, true);
+    // Each view says what it is, and how the modes are set.
+    assert.ok(texts(tree).includes(VIEW_HELP.messages));
+    assert.ok(texts(tree).includes('Messages delivered when the turn ends · ;; holds for the agent · subagents get the whole conversation'));
+    assert.ok(!keys(tree).includes('mode-sendAtEnd-true'), 'the modes live in Settings, not in every view');
+    await press(tree, 'tab-settings');
+    const settings = await w.draw();
+    assert.equal(find(settings, 'mode-sendAtEnd-true').props.variant, 'primary');
+    assert.equal(find(settings, 'mode-holdTarget-subagent').props.dimColor, true);
+    // Every mode and selector says what it does.
+    for (const mode of [...MODES, ...PICKERS]) assert.ok(texts(settings).includes(mode.help), mode.key);
+  });
+
+  it('shows the version at the bottom right, and the repository once the manifest names one', () => {
+    assert.deepEqual(readManifest('{"version":"1.0.0"}'), { version: '1.0.0', repository: null });
+    assert.deepEqual(readManifest('{"version":"1.1.0","repository":"https://github.com/petersonsenadevs/cmc"}'), {
+      version: '1.1.0',
+      repository: 'https://github.com/petersonsenadevs/cmc',
+    });
+    assert.equal(readManifest('{"repository":"javascript:alert(1)"}').repository, null, 'only https links');
+    assert.deepEqual(readManifest('broken'), { version: null, repository: null });
+  });
+
+  it('words the modes in one line', () => {
+    assert.equal(
+      modesSummary({ sendAtEnd: 'false', holdTarget: 'subagent', 'dispatch.context': 'pack', 'dispatch.model': 'haiku', 'dispatch.effort': 'low' }),
+      'Messages held until you send · ;; starts a subagent · subagents get the summary, haiku, effort low',
+    );
   });
 
   it('switches a mode with one click, into the settings file', async () => {
     const w = world();
     await w.start();
+    await press(await w.draw(), 'tab-settings');
     await press(await w.draw(), 'mode-holdTarget-subagent');
     assert.deepEqual(JSON.parse(readFileSync(join(w.data, 'config.json'), 'utf8')), { holdTarget: 'subagent' });
     const tree = await w.draw();
@@ -482,7 +513,7 @@ describe('panel: subagents', () => {
   /** The chat bubbles of a drawing: who speaks, on which side, and what they say. */
   function bubbles(tree: unknown): string[] {
     return nodes(tree)
-      .filter((node) => node.type === 'Box' && (node.props.justifyContent === 'flex-end' || node.props.justifyContent === 'flex-start'))
+      .filter((node) => node.type === 'Box' && String(node.props.key).startsWith('chat-') && (node.props.justifyContent === 'flex-end' || node.props.justifyContent === 'flex-start'))
       .map((node) => {
         const words = texts(node.props.children);
         return `${node.props.justifyContent === 'flex-end' ? 'right' : 'left'} ${(words[0] ?? '').split('  ')[0]}: ${words[1] ?? ''}`;

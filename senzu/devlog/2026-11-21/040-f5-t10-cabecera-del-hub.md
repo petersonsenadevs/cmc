@@ -24,3 +24,9 @@ $ npx tsc --noEmit → 0 · npm run lint → 57 modules checked, 0 failed · cla
 
 ## Pendiente
 - Peterson genera el logotipo con los prompts del brief; se copia a `senzu/design-system/cmc/logos/final/` y `plugins/cmc/assets/`, y se activa el `<picture>` del README.
+
+## Logotipo final (2026-11-22)
+- Ronda 1 (4 propuestas, `logos/propuestas/ronda-1/`): Peterson eligió la B y la D, más el icono de terminal de la C.
+- Ronda 2 (`logos/propuestas/ronda-2/`): B+D (la «m» como hub con pausa), versiones clara y oscura con el texto convertido a contornos (sin fuentes), icono 512 y 32 px. Codex corrigió a petición que las letras no se tocaran y que el texto fuera trazado.
+- Integrado: `logos/final/` y `plugins/cmc/assets/` (logo-light/dark.png, icon.png/svg); el README muestra la versión según el tema de GitHub (`<picture>`); el aviso de icono que faltaba en `claude plugin validate` desapareció.
+- La terminal sigue usando la marca de medios bloques en el hub.

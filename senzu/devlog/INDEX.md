@@ -36,3 +36,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 030 | 2026-11-21 | X-T5: menú /held y aviso de fin de turno   | feature  | 029      | X-T5 |
 | 031 | 2026-11-21 | X-T6: lo retenido llega al acabar el turno | feature  | 006, 029, 030 | X-T6 |
 | 032 | 2026-11-21 | F5-T1: primer panel de control             | feature  | 030, 031 | F5-T1 |
+| 033 | 2026-11-21 | F5-T1: estado, avisos y To agent en el panel | fix    | 032      | F5-T1 |

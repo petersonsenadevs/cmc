@@ -33,6 +33,8 @@ export interface AgentRecord {
   cwd: string;
   /** Name of its git worktree, if it has one. */
   worktree: string | null;
+  /** Pack mode only: why the summary of the session could not be built, if it could not. */
+  contextWarning?: string | null;
   /** Commit the repository was on when the agent started (agents with a worktree). */
   baseCommit?: string | null;
   /** Branch of the worktree; set once the agent has ended. */
@@ -61,7 +63,7 @@ export interface AgentRecord {
 }
 
 /** What the caller decides about a new agent; the rest of the record starts empty. */
-export type NewAgentFields = Pick<AgentRecord, 'task' | 'mode' | 'cwd' | 'worktree' | 'command' | 'baseCommit'>;
+export type NewAgentFields = Pick<AgentRecord, 'task' | 'mode' | 'cwd' | 'worktree' | 'command' | 'baseCommit' | 'contextWarning'>;
 
 /** Whether a process with this pid exists. */
 export function isAlive(pid: unknown): boolean {

@@ -20,6 +20,7 @@ import {
   type AgentMode,
   type AgentRecord,
 } from './agents-registry.ts';
+import { buildContextPack, packPrompt } from './context-pack.ts';
 import { CmcError, errorCode } from './errors.ts';
 import { MAX_TEXT_LENGTH } from './queue.ts';
 import { headCommit, isGitRepo, settleWorktree, worktreeName } from './worktree.ts';
@@ -52,8 +53,10 @@ export interface DispatchOptions {
   /** Folder the agent starts in. */
   cwd: string;
   mode?: AgentMode;
-  /** Full prompt; by default the fork prompt for the task. */
+  /** Full prompt; by default the fork prompt for the task, or the pack prompt in pack mode. */
   prompt?: string;
+  /** Transcript of the session (`transcript_path` of the hook input); read in pack mode. */
+  transcriptPath?: string;
   /**
    * Git worktree the agent runs in. Left out, the agent gets its own worktree
    * (`cmc-<id>`) when the folder is a git repository, and works in the folder
@@ -112,6 +115,7 @@ export function dispatch({
   cwd,
   mode = 'fork',
   prompt,
+  transcriptPath,
   worktree,
   permissionMode = DEFAULT_PERMISSION_MODE,
   tools = DEFAULT_TOOLS,
@@ -129,8 +133,16 @@ export function dispatch({
   const worktreeOfAgent = repository ? chosen : null;
   const command = buildCommand({ claude, mode, sessionId, worktree: worktreeOfAgent, permissionMode, tools });
   const baseCommit = worktreeOfAgent === null ? null : headCommit(cwd);
-  const record = createAgent(sessionDir, { task: task.trim(), mode, cwd, worktree: worktreeOfAgent, baseCommit, command }, id);
-  writeFileSync(join(record.dir, PROMPT_FILE), prompt ?? forkPrompt(task.trim()));
+  // A pack is a summary read from the transcript; when it cannot be read the
+  // agent still starts, knowing only the task and the folder, and the record says why.
+  const pack = mode === 'pack' && prompt === undefined ? buildContextPack(transcriptPath, cwd) : null;
+  const text = prompt ?? (pack === null ? forkPrompt(task.trim()) : packPrompt(task.trim(), pack));
+  const record = createAgent(
+    sessionDir,
+    { task: task.trim(), mode, cwd, worktree: worktreeOfAgent, baseCommit, command, contextWarning: pack?.warning ?? null },
+    id,
+  );
+  writeFileSync(join(record.dir, PROMPT_FILE), text);
 
   // The supervisor outlives this process (a hook that must return at once).
   const runner = spawn(process.execPath, [RUNNER, record.dir], { cwd, env, detached: true, stdio: 'ignore', windowsHide: true });

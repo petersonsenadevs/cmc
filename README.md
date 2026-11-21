@@ -3,7 +3,8 @@
 A Claude Code plugin that lets you decide **when** your messages reach the agent: hold what you type while it
 works, and release it when you want, without interrupting the turn.
 
-> Status: work in progress. Phase 1 (hold and release) is being built.
+> Status: work in progress. Phase 1 (hold and release) works; queue management, the external CLI and
+> dispatching to a second agent are next.
 
 ## Requirements
 
@@ -13,8 +14,32 @@ works, and release it when you want, without interrupting the turn.
 ## Try it from a checkout
 
 ```
-claude --plugin-dir .
+claude --plugin-dir /path/to/this/repository
 ```
+
+## Use
+
+| You type | What happens |
+|---|---|
+| `;; also update the README` | The message is **held**. The agent does not see it and keeps working. You get the receipt `Held (1 queued)`. |
+| `/cmc:release` | Every held message is handed to the agent, in the order you wrote them. |
+| `;;end` | The held messages are handed over automatically when the current turn ends. One-shot. |
+
+Things worth knowing:
+
+- A message is held when it **starts** with `;;`. Anything else goes to the agent as usual.
+- `;;end` is a control word only when written without a space. `;; end` holds the message "end".
+- Claude Code prints a three-line notice ("UserPromptSubmit operation blocked by hook…") for every held
+  message. That notice is the receipt: the agent does not see it.
+- While the agent is busy, Claude Code hands your message to the plugin when the tool that is running
+  finishes, so the receipt shows up a moment after you press Enter.
+- `/cmc:release` typed while the agent is busy takes effect when the turn ends, because Claude Code does not
+  run slash commands in the middle of a turn. To get the same result without waiting at the keyboard, type
+  `;;end`.
+- Held messages belong to the session they were typed in and are stored on your machine, under the plugin
+  data directory (`~/.claude/plugins/data/…/sessions/<session id>/queue.jsonl`).
+- If the plugin itself fails, your prompt goes to the agent as if the plugin were not installed, and the
+  error is written to `cmc.log` in the data directory. A message is never dropped silently.
 
 ## Development
 
@@ -23,6 +48,11 @@ npm test        # node --test
 npm run lint    # syntax check of every module
 claude plugin validate .
 ```
+
+`node scripts/e2e.mjs` drives a real headless Claude Code session with this checkout loaded and types
+messages into it while it works (it spends tokens, so it is not part of `npm test`). See
+[docs/manual-test.md](docs/manual-test.md) for the scenarios and for the checks that need the interactive
+terminal.
 
 ## Author
 

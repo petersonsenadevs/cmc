@@ -265,7 +265,7 @@ describe('panel: header, tabs and modes', () => {
     assert.deepEqual(texts(brand.props.children), [...MARK, PRODUCT_NAME]);
     const author = find(brand.props.children, 'author');
     assert.equal(author.type, 'Link');
-    assert.equal(author.props.text, 'by r3v3rs3');
+    assert.equal(author.props.label, 'by r3v3rs3', 'the text drawn; without it the terminal draws the URL');
     assert.equal(author.props.href, AUTHOR_URL);
     assert.equal(AUTHOR_URL, 'https://github.com/petersonsenadevs');
     assert.ok(ofType(brand.props.children, 'Text').slice(0, 2).every((node) => node.props.color === COLORS.accent));

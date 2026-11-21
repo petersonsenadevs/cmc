@@ -64,7 +64,8 @@ export interface PanelElements {
     hotkey?: string;
   }>;
   Select: Make<{ key: string; label?: string; value?: string; options: readonly { value: string; label?: string }[]; onSelect: (value: string) => void | Promise<unknown> }>;
-  Link: Make<{ key?: string; href: string; text: string; dimColor?: boolean }>;
+  /** Its text is `label` (or its children); with neither, the terminal draws the URL itself. */
+  Link: Make<{ key?: string; href: string; label?: string }>;
   Input: Make<{
     key: string;
     placeholder?: string;
@@ -522,7 +523,7 @@ function drawHeader(el: PanelElements, $: PanelEngine, working: boolean, atEnd: 
         columnGap: 3,
         children: [
           Box({ flexDirection: 'column', children: MARK.map((line) => Text({ bold: true, color: COLORS.accent, children: line })) }),
-          Box({ flexDirection: 'column', children: [Text({ bold: true, children: PRODUCT_NAME }), Link({ key: 'author', href: AUTHOR_URL, text: AUTHOR, dimColor: true })] }),
+          Box({ flexDirection: 'column', children: [Text({ bold: true, children: PRODUCT_NAME }), Link({ key: 'author', href: AUTHOR_URL, label: AUTHOR })] }),
         ],
       }),
       Text({ color: working ? COLORS.working : COLORS.done, children: statusLine(working, atEnd) }),
@@ -555,7 +556,7 @@ function drawModes(el: PanelElements, $: PanelEngine, modes: Record<string, stri
     const values: readonly string[] = (picker.values as readonly string[]).includes(current) ? picker.values : [...picker.values, current];
     return Select({
       key: `pick-${picker.key}`,
-      label: `${picker.label}:`,
+      label: picker.label,
       value: current,
       options: values.map((value) => ({ value, label: pickerLabel(value) })),
       onSelect: (value) => act($, () => setModeTo($, picker.key, value, `${picker.label} ${pickerLabel(value)}`)),

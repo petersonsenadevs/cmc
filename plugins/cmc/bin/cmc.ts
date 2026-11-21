@@ -5,7 +5,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { parseAgentControl, parseDispatch, runAgentControl, startAgent, type DispatchOrigin } from '../lib/agent-control.ts';
-import { CONFIG_FILE, loadConfig, writeDefaultConfig, type LoadedConfig } from '../lib/config.ts';
+import { CONFIG_FILE, loadConfig, writeDefaultConfig, type LoadedConfig, setMode } from '../lib/config.ts';
 import { parseControl, runControl } from '../lib/control.ts';
 import { CmcError, errorCode } from '../lib/errors.ts';
 import { describeError, logEvent } from '../lib/log.ts';
@@ -23,6 +23,7 @@ The session is the one started in the current folder; name it with --session
 (an id or the start of one) when there are several.
 
   hold <text>          hold a message for the agent, as ";; text" does in the session
+                       (--typed: as typed in the session, so the subagent mode applies)
   list [--format json] show the held messages, in delivery order
   edit <N> <text>      replace the text of message N
   rm <N> [<N>…]        delete messages
@@ -51,12 +52,15 @@ The session is the one started in the current folder; name it with --session
   sessions [--all]     show the open sessions started in this folder (--all: every session)
   config [init]        show the settings in force and where the file is (init: write a file
                        with every setting at its default, to edit)
+  config set <mode> <value>
+                       switch a mode: sendAtEnd true|false, holdTarget main|subagent,
+                       dispatch.context fork|pack, dispatch.return held|auto
   drain [--format prompt|json]
                        take every held message out of the queue and print it
 `;
 
 type ValueFlag = 'session' | 'data-dir' | 'format' | 'message';
-type BooleanFlag = 'all' | 'pack' | 'fork' | 'auto' | 'held' | 'stdin' | 'now';
+type BooleanFlag = 'all' | 'pack' | 'fork' | 'auto' | 'held' | 'stdin' | 'now' | 'typed';
 type Flags = Partial<Record<ValueFlag, string> & Record<BooleanFlag, boolean>>;
 
 interface ParsedArgs {
@@ -79,6 +83,7 @@ const BOOLEAN_FLAGS: ReadonlyMap<string, BooleanFlag> = new Map([
   ['--held', 'held'],
   ['--stdin', 'stdin'],
   ['--now', 'now'],
+  ['--typed', 'typed'],
 ]);
 const QUEUE_COMMANDS: ReadonlySet<string> = new Set(['list', 'edit', 'rm', 'clear', 'move', 'up', 'down', 'top', 'bottom']);
 const POSITION = /^[1-9]\d{0,5}$/;
@@ -136,8 +141,14 @@ function hold({ flags, positional }: ParsedArgs): string {
   // so; no length limit of the command line, nothing to quote).
   const text = flags.stdin ? readFileSync(0, 'utf8') : positional.join(' ');
   const dir = targetDir(flags);
+  const { config } = settingsOf(dir);
+  // --typed: the plugin's interface holding what the user typed after the prefix,
+  // so the subagent mode applies, as it does to the prompt hook.
+  if (flags.typed && config.holdTarget === 'subagent') {
+    return startAgent(originFor(flags), text.trim(), { mode: config.dispatch.context, returnMode: config.dispatch.return });
+  }
   const { messages, warning } = addMessage(dir, { text });
-  const receipt = holdReceipt(messages.length, settingsOf(dir).config.sendAtEnd && readState(dir).turnActive);
+  const receipt = holdReceipt(messages.length, config.sendAtEnd && readState(dir).turnActive);
   return warning ? `${receipt}\n${warning}` : receipt;
 }
 
@@ -244,11 +255,20 @@ function agentCommand(name: string, { flags, positional }: ParsedArgs): string {
  */
 function configCommand({ flags, positional }: ParsedArgs): string {
   const [action, ...extra] = positional;
-  if (extra.length > 0 || (action !== undefined && action !== 'init')) throw new CmcError('BAD_USAGE', `Wrong arguments for "config".\n\n${USAGE}`);
+  const isSet = action === 'set' && extra.length === 2;
+  if (!isSet && (extra.length > 0 || (action !== undefined && action !== 'init'))) throw new CmcError('BAD_USAGE', `Wrong arguments for "config".\n\n${USAGE}`);
   const dataDirs = candidateDataDirs(flags['data-dir']);
   const [dataDir, ...others] = dataDirs;
   if (dataDir === undefined) throw new CmcError('NO_DATA_DIR', 'cmc has no data directory yet: start a Claude Code session with cmc once, or pass --data-dir.');
   if (others.length > 0) throw new CmcError('AMBIGUOUS_DATA_DIR', `cmc found several data directories; pick one with --data-dir:\n${dataDirs.map((dir) => `  ${dir}`).join('\n')}`);
+  if (isSet) {
+    const [key = '', value = ''] = extra;
+    try {
+      return `${key} is now ${value} (${setMode(dataDir, key, value)}).`;
+    } catch (error) {
+      throw new CmcError('BAD_USAGE', error instanceof Error ? error.message : String(error));
+    }
+  }
   if (action === 'init') {
     // Never over a file that exists, valid or not: it holds what the user wrote.
     const loaded = loadConfig(dataDir);

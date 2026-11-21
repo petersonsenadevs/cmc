@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { findAgent, isAlive, listAgents } from '../plugins/cmc/lib/agents-registry.ts';
 import { handlePrompt, type PromptBlock, type PromptContext } from '../plugins/cmc/lib/capture.ts';
-import { DEFAULT_CONFIG, loadConfig, validateConfig, withPrefixes } from '../plugins/cmc/lib/config.ts';
+import { DEFAULT_CONFIG, loadConfig, setMode, validateConfig, withPrefixes } from '../plugins/cmc/lib/config.ts';
 import { sessionDir } from '../plugins/cmc/lib/paths.ts';
 import { listMessages } from '../plugins/cmc/lib/queue.ts';
 import { handleStop } from '../plugins/cmc/lib/release.ts';
@@ -44,6 +44,7 @@ describe('validateConfig', () => {
       holdPrefix: '%%',
       dispatchPrefix: '=>',
       sendAtEnd: false,
+      holdTarget: 'subagent',
       retentionDays: 0,
       dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'], restrictTools: false },
     });
@@ -52,6 +53,7 @@ describe('validateConfig', () => {
       holdPrefix: '%%',
       dispatchPrefix: '=>',
       sendAtEnd: false,
+      holdTarget: 'subagent',
       retentionDays: 0,
       dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'], restrictTools: false },
     });
@@ -192,5 +194,44 @@ describe('cmc config', () => {
 
   it('rejects anything else', () => {
     assert.equal(cmc('config', 'set', 'x').status, 1);
+  });
+});
+
+describe('setMode (the modes of the panel)', () => {
+  it('switches each mode and keeps the rest of the file as the user wrote it', () => {
+    writeFileSync(join(dataDir, 'config.json'), JSON.stringify({ holdPrefix: '%%', dispatch: { tools: ['Read'] } }));
+    setMode(dataDir, 'holdTarget', 'subagent');
+    setMode(dataDir, 'sendAtEnd', 'false');
+    setMode(dataDir, 'dispatch.context', 'pack');
+    setMode(dataDir, 'dispatch.return', 'auto');
+    assert.deepEqual(JSON.parse(readFileSync(join(dataDir, 'config.json'), 'utf8')), {
+      holdPrefix: '%%',
+      dispatch: { tools: ['Read'], context: 'pack', return: 'auto' },
+      holdTarget: 'subagent',
+      sendAtEnd: false,
+    });
+    const { config, warnings } = loadConfig(dataDir);
+    assert.deepEqual(warnings, []);
+    assert.equal(config.holdTarget, 'subagent');
+    assert.equal(config.sendAtEnd, false);
+  });
+
+  it('creates the file when there is none, and refuses unknown modes, wrong values and a broken file', () => {
+    setMode(dataDir, 'holdTarget', 'main');
+    assert.deepEqual(JSON.parse(readFileSync(join(dataDir, 'config.json'), 'utf8')), { holdTarget: 'main' });
+    assert.throws(() => setMode(dataDir, 'retentionDays', '1'), /is not a mode/);
+    assert.throws(() => setMode(dataDir, 'holdTarget', 'both'), /takes "main" or "subagent"/);
+    writeFileSync(join(dataDir, 'config.json'), '{ broken');
+    assert.throws(() => setMode(dataDir, 'holdTarget', 'main'));
+    assert.equal(readFileSync(join(dataDir, 'config.json'), 'utf8'), '{ broken', 'never overwritten');
+  });
+});
+
+describe('holdTarget "subagent"', () => {
+  it('starts a subagent on what the user types, instead of holding it', () => {
+    writeFileSync(join(dataDir, 'config.json'), JSON.stringify({ holdTarget: 'subagent', dispatch: { context: 'pack' } }));
+    assert.match(reply(type(';; summarise the plan')), /Dispatched to agent [0-9a-f]{8}: it gets a short summary/);
+    assert.deepEqual(listMessages(dir).messages, []);
+    assert.equal(listAgents(dir).length, 1);
   });
 });

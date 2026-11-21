@@ -11,6 +11,9 @@ import { isRecord } from './types.ts';
 
 export const CONFIG_FILE = 'config.json';
 
+/** Where a typed held message goes. */
+export type HoldTarget = 'main' | 'subagent';
+
 /** Permission modes a dispatched agent may run with; `bypassPermissions` is never one of them. */
 export const PERMISSION_MODES: readonly string[] = Object.freeze(['default', 'acceptEdits', 'plan']);
 /** A tool name as Claude Code's `--allowedTools` takes it, optionally with a rule: `Bash(npm test:*)`. */
@@ -44,6 +47,12 @@ export interface CmcConfig {
    * ends. `false`: they stay held until the user sends them.
    */
   sendAtEnd: boolean;
+  /**
+   * Where "<holdPrefix> message" goes: held for the main agent ("main"), or
+   * to a new subagent that works on it apart ("subagent"), keeping the main
+   * conversation clean.
+   */
+  holdTarget: HoldTarget;
   /** Sessions inactive for longer are deleted with their queue; 0 keeps them forever. */
   retentionDays: number;
 }
@@ -52,6 +61,7 @@ export const DEFAULT_CONFIG: CmcConfig = Object.freeze({
   holdPrefix: ';;',
   dispatchPrefix: '>>',
   sendAtEnd: true,
+  holdTarget: 'main',
   dispatch: Object.freeze({
     context: 'fork',
     return: 'held',
@@ -89,7 +99,7 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
   if (!isRecord(raw) || Array.isArray(raw)) return { config, warnings: ['the file must hold a JSON object; using the defaults'] };
 
   const ignored = (key: string, why: string) => warnings.push(`"${key}" ignored: ${why}; using the default`);
-  const known = new Set(['holdPrefix', 'dispatchPrefix', 'sendAtEnd', 'dispatch', 'retentionDays']);
+  const known = new Set(['holdPrefix', 'dispatchPrefix', 'sendAtEnd', 'holdTarget', 'dispatch', 'retentionDays']);
   for (const key of Object.keys(raw)) if (!known.has(key) && !key.startsWith('$')) warnings.push(`unknown setting "${key}" ignored`);
 
   for (const key of ['holdPrefix', 'dispatchPrefix'] as const) {
@@ -108,6 +118,11 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
   if (raw.sendAtEnd !== undefined) {
     if (typeof raw.sendAtEnd === 'boolean') config.sendAtEnd = raw.sendAtEnd;
     else ignored('sendAtEnd', 'it must be true or false');
+  }
+
+  if (raw.holdTarget !== undefined) {
+    if (raw.holdTarget === 'main' || raw.holdTarget === 'subagent') config.holdTarget = raw.holdTarget;
+    else ignored('holdTarget', 'it must be "main" or "subagent"');
   }
 
   if (raw.retentionDays !== undefined) {
@@ -165,6 +180,42 @@ export function loadConfig(dataDir: string | undefined): LoadedConfig {
     return { config: DEFAULT_CONFIG, warnings: [`${CONFIG_FILE} ignored: ${why}; using the defaults`], path };
   }
   return { ...validateConfig(raw), path };
+}
+
+/** The settings the panel's modes switch, and the values each one takes. */
+export const MODES: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  sendAtEnd: Object.freeze(['true', 'false']),
+  holdTarget: Object.freeze(['main', 'subagent']),
+  'dispatch.context': Object.freeze(['fork', 'pack']),
+  'dispatch.return': Object.freeze(['held', 'auto']),
+});
+
+/**
+ * Switches one mode in the settings file, keeping everything else in it as the
+ * user wrote it. Refuses a file that is not valid JSON rather than overwrite it.
+ * @returns The path of the file.
+ */
+export function setMode(dataDir: string, key: string, value: string): string {
+  const allowed = MODES[key];
+  if (allowed === undefined) throw new Error(`"${key}" is not a mode; modes: ${Object.keys(MODES).join(', ')}`);
+  if (!allowed.includes(value)) throw new Error(`"${key}" takes ${allowed.map((one) => `"${one}"`).join(' or ')}`);
+  const path = join(dataDir, CONFIG_FILE);
+  let raw: Record<string, unknown> = {};
+  if (existsSync(path)) {
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+    if (!isRecord(parsed) || Array.isArray(parsed)) throw new Error(`${CONFIG_FILE} does not hold a JSON object; fix it first`);
+    raw = { ...parsed };
+  }
+  const typed = value === 'true' ? true : value === 'false' ? false : value;
+  if (key.startsWith('dispatch.')) {
+    const dispatch = isRecord(raw.dispatch) && !Array.isArray(raw.dispatch) ? { ...raw.dispatch } : {};
+    dispatch[key.slice('dispatch.'.length)] = typed;
+    raw.dispatch = dispatch;
+  } else {
+    raw[key] = typed;
+  }
+  writeFileAtomic(path, `${JSON.stringify(raw, null, 2)}\n`);
+  return path;
 }
 
 /** Writes a settings file with every value at its default, for the user to edit. */

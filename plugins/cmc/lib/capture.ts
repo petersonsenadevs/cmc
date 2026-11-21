@@ -99,6 +99,9 @@ function answer(
   const agentControl = parseAgentControl(rest, defaults);
   if (agentControl) return block(runAgentControl(originOf(input, dir, options, config), agentControl));
 
+  // Subagent mode: what the user types goes to a new subagent, not to the main agent.
+  if (config.holdTarget === 'subagent') return block(startAgent(originOf(input, dir, options, config), text, defaults));
+
   const { messages, warning } = addMessage(dir, { text });
   const receipt = holdReceipt(messages.length, config.sendAtEnd && readState(dir).turnActive);
   return block(warning ? `${receipt}\n${warning}` : receipt);

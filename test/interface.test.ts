@@ -137,6 +137,7 @@ describe('interface: what counts as a message to hold', () => {
   it('says in the notice whether the message goes by itself when the turn ends', () => {
     assert.equal(noticeFor('Held (2 queued). It goes to the agent when its turn ends; /held to change or delete it.'), 'cmc: held (2) · goes to the agent when its turn ends · /held to change it');
     assert.equal(noticeFor('Held (1 queued). /held or /send to send it.'), 'cmc: held (1) · /held or /send to send it');
+    assert.equal(noticeFor('Dispatched to agent ab12cd34: it inherits this conversation.'), 'cmc: sent to subagent ab12cd34 · it works apart; its result comes back to /cmc');
   });
 
   it('takes the hold prefix from the settings only when it is a valid one', () => {

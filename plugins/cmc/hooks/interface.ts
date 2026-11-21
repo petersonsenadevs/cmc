@@ -166,6 +166,8 @@ export function readPick(answer: string, entries: readonly HeldEntry[]): number 
 
 /** The one-line notice for a held message, from the receipt of `cmc hold`. */
 export function noticeFor(receipt: string): string {
+  const agent = receipt.match(/Dispatched to agent ([0-9a-f]+)/)?.[1];
+  if (agent !== undefined) return `cmc: sent to subagent ${agent} · it works apart; its result comes back to /cmc`;
   const count = receipt.match(/Held \((\d+) queued\)/)?.[1] ?? '?';
   return /when its turn ends/.test(receipt)
     ? `cmc: held (${count}) · goes to the agent when its turn ends · /held to change it`
@@ -360,7 +362,7 @@ export const register = (on: InterfaceOn): void => {
     const text = messageToHold(e.text, await prefix($));
     if (text === null) return next(e);
 
-    const held = await cli($, ['hold', '--stdin'], text).catch(() => null);
+    const held = await cli($, ['hold', '--stdin', '--typed'], text).catch(() => null);
     // Not held here: the command hooks beneath hold it the old way.
     if (held === null || held.exitCode !== 0) return next(e);
 

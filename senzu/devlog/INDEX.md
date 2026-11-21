@@ -10,3 +10,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 004 | 2026-11-21 | F1-T3: cola por sesión en el core          | feature  | —        | F1-T3 |
 | 005 | 2026-11-21 | F1-T4: captura de mensajes con prefijo     | feature  | —        | F1-T4 |
 | 006 | 2026-11-21 | F1-T5: soltar la cola (manual y fin de turno) | feature | —       | F1-T5 |
+| 007 | 2026-11-21 | F1-T6: cierre de la fase 1                 | docs     | —        | F1-T6 |

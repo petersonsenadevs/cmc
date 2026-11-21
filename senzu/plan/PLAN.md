@@ -92,16 +92,29 @@
 - Devlog: senzu/devlog/2026-11-21/006-f1-t5-soltar-la-cola.md
 - Notas: el modo «al terminar» se activa con `;;end` (D-010), adelantado de F2-T2. Archivos extra: lib/release.mjs, lib/session-state.mjs.
 
-### F1-T6 · Cerrar la fase con prueba de extremo a extremo  [S] [doing]
+### F1-T6 · Cerrar la fase con prueba de extremo a extremo  [S] [done]
 - Para qué: confirmar que el esqueleto cumple lo pedido antes de ampliarlo.
 - Skill: sin skill: cierre de fase (resumen en devlog)
 - Archivos: senzu/devlog/<fecha>/NNN-cierre-f1.md, README.md (uso básico)
 - Hecho cuando: guion de prueba manual documentado y pasado (retener a mitad de turno → no interrumpe → soltar manual → soltar al terminar); desviaciones respecto al ADR 001 anotadas.
 - Verificar: guion ejecutado en sesión real con su resultado pegado en el devlog.
 - Depende de: F1-T5
+- Verificado: guion parte A de `docs/manual-test.md` ejecutado en sesiones reales headless: A1 (retener a mitad de turno, no interrumpe, `QUEUE 1 held`), A2 (`/cmc:release` → `pineapple mango`), A3 (`;;end` → `Stop hook feedback: [cmc] The user released…` → `papaya`), más `/cmc:release` a mitad de turno (actúa al terminar → `mango`); `npm test` → 48 pass
+- Cumple: el esqueleto hace lo pedido de extremo a extremo (retener sin interrumpir, soltar a mano, soltar al terminar) antes de ampliarlo, que era el «Para qué»; queda sin comprobar solo cómo se ve en la interfaz interactiva (F1-T6b)
+- Devlog: senzu/devlog/2026-11-21/007-f1-t6-cierre-fase-1.md
+- Notas: dividida: la parte B del guion (interfaz interactiva) pasa a F1-T6b porque el agente no puede conducir el terminal. Archivo extra: docs/manual-test.md.
+
+### F1-T6b · Pasar el guion en la interfaz interactiva  [S] [blocked]
+- Para qué: confirmar que en el terminal real retener no interrumpe y que el aviso no molesta, que es lo único que el modo headless no demuestra.
+- Skill: sin skill: prueba manual
+- Archivos: senzu/devlog/<fecha>/NNN-guion-interactivo.md
+- Hecho cuando: las cinco filas de la parte B de `docs/manual-test.md` (B1–B5) están ejecutadas con su resultado y con cómo se ve el aviso en pantalla; si alguna falla, hay tarjeta de arreglo.
+- Verificar: `claude --plugin-dir .` en una carpeta de pruebas, siguiendo `docs/manual-test.md`.
+- Depende de: F1-T6
 - Verificado: —
 - Cumple: —
 - Devlog: —
+- Notas: bloqueada. Necesito: que Peterson ejecute la parte B (unos cinco minutos); el agente no puede escribir en la interfaz interactiva. No bloquea F2.
 
 ## F2 — Control completo de la cola
 
@@ -287,6 +300,8 @@
 | 2026-11-21 | Q2 resuelta: el derivado edita solo en su worktree, sin permisos sin límite. Q3 resuelta: retorno retenido primero; se añade F3-T7 (retorno automático como ajuste) | Decisión de Peterson |
 | 2026-11-21 | `git init` adelantado de F1-T2 al inicio de la sesión | Petición de Peterson: «inicia el repo» |
 | 2026-11-21 | ADR 001: `/cmc:release` a mitad de turno actúa al terminar el turno; el modo «ya» de F2-T2 se hace con el prompt `;;now` y `additionalContext` de `UserPromptSubmit` | Evidencia de F1-T1 |
+| 2026-11-21 | F1-T6 dividida: la parte interactiva del guion pasa a F1-T6b (bloqueada, la ejecuta Peterson) | El agente no puede conducir la interfaz interactiva |
+| 2026-11-21 | `;;end` adelantado de F2-T2 a F1-T5 (D-010) | Sin él no había forma de activar la entrega al terminar a mitad de turno |
 | 2026-11-21 | Q1 resuelta: el plugin se llama `cmc` (Claude Message Control); prefijos `;;` y `>>` por defecto, configurables en F4-T1 | Decisión de Peterson |
 
 ## Riesgos y bloqueos

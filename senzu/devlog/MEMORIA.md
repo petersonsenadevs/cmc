@@ -35,4 +35,4 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 
 ## Pendientes abiertos
 - [desde 2026-11-21] Ok de Peterson para sellar `senzu/conventions.md` (borrador de /adoptar)
-- [desde 2026-11-21] Repetir (a), (b) y (c) del ADR 001 en la interfaz interactiva (guion de F1-T6)
+- [desde 2026-11-21] F1-T6b: Peterson pasa la parte B de `docs/manual-test.md` en la interfaz interactiva

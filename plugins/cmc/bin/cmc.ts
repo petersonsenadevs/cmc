@@ -30,9 +30,10 @@ The session is the one started in the current folder; name it with --session
   release [<N>…] [--now|--end]
                        hand messages to the agent from outside the session: at its next
                        step (--now, the default) or when its turn ends (--end)
-  dispatch [--pack] <task>
+  dispatch [--pack] [--auto] <task>
                        start a second agent on a task, as ">> task" does in the session
-                       (--pack: it gets a short summary instead of the whole conversation)
+                       (--pack: it gets a short summary instead of the whole conversation;
+                       --auto: its result goes to the session by itself when a turn ends)
   agents               show the agents dispatched from the session
   log <id>             show what an agent was asked and its latest steps or final answer
   cancel <id>          stop an agent
@@ -42,7 +43,7 @@ The session is the one started in the current folder; name it with --session
 `;
 
 type ValueFlag = 'session' | 'data-dir' | 'format';
-type BooleanFlag = 'now' | 'end' | 'all' | 'pack';
+type BooleanFlag = 'now' | 'end' | 'all' | 'pack' | 'auto';
 type Flags = Partial<Record<ValueFlag, string> & Record<BooleanFlag, boolean>>;
 
 interface ParsedArgs {
@@ -61,6 +62,7 @@ const BOOLEAN_FLAGS: ReadonlyMap<string, BooleanFlag> = new Map([
   ['--end', 'end'],
   ['--all', 'all'],
   ['--pack', 'pack'],
+  ['--auto', 'auto'],
 ]);
 const QUEUE_COMMANDS: ReadonlySet<string> = new Set(['list', 'edit', 'rm', 'clear', 'move', 'up', 'down', 'top', 'bottom']);
 const POSITION = /^[1-9]\d{0,5}$/;
@@ -159,9 +161,9 @@ function originFor(flags: Flags): DispatchOrigin {
 }
 
 function dispatchCommand({ flags, positional }: ParsedArgs): string {
-  const { task, mode } = parseDispatch(positional.join(' '));
+  const { task, mode, returnMode } = parseDispatch(positional.join(' '));
   if (task === '') throw new CmcError('BAD_USAGE', 'dispatch needs a task: cmc dispatch [--pack] <task>.');
-  return startAgent(originFor(flags), task, flags.pack ? 'pack' : mode);
+  return startAgent(originFor(flags), task, { mode: flags.pack ? 'pack' : mode, returnMode: flags.auto ? 'auto' : returnMode });
 }
 
 /** `agents`, `log <id>` and `cancel <id>` share their grammar with the control words. */

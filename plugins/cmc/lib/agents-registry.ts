@@ -23,6 +23,9 @@ export type AgentState = 'starting' | 'running' | 'finished' | 'failed' | 'cance
 /** How a dispatched agent got its context. */
 export type AgentMode = 'fork' | 'pack';
 
+/** How the result of a dispatched agent comes back to the session. */
+export type ReturnMode = 'held' | 'auto';
+
 export interface AgentRecord {
   id: string;
   /** What the user asked for. */
@@ -34,6 +37,13 @@ export interface AgentRecord {
   cwd: string;
   /** Name of its git worktree, if it has one. */
   worktree: string | null;
+  /**
+   * How its result comes back to the session: held in the queue until the user
+   * releases it (the default), or handed over by itself when a turn ends.
+   */
+  returnMode?: ReturnMode;
+  /** Id of the held message that carries its result, once it has ended. */
+  resultMessageId?: string;
   /** Pack mode only: why the summary of the session could not be built, if it could not. */
   contextWarning?: string | null;
   /** Commit the repository was on when the agent started (agents with a worktree). */
@@ -64,7 +74,7 @@ export interface AgentRecord {
 }
 
 /** What the caller decides about a new agent; the rest of the record starts empty. */
-export type NewAgentFields = Pick<AgentRecord, 'task' | 'mode' | 'cwd' | 'worktree' | 'command' | 'baseCommit' | 'contextWarning'>;
+export type NewAgentFields = Pick<AgentRecord, 'task' | 'mode' | 'cwd' | 'worktree' | 'command' | 'baseCommit' | 'contextWarning' | 'returnMode'>;
 
 /** Whether a process with this pid exists. */
 export function isAlive(pid: unknown): boolean {

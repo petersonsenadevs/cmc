@@ -8,6 +8,7 @@
 import { spawn } from 'node:child_process';
 import { closeSync, openSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { returnResult } from './agent-return.ts';
 import { OUTPUT_FILE, PROMPT_FILE, readAgentAt, STDERR_FILE, updateAgentAt } from './agents-registry.ts';
 import { recordWorktree } from './dispatch.ts';
 import { errorCode } from './errors.ts';
@@ -99,7 +100,14 @@ function finish(dir: string, exitCode: number | null, failure: string | null): v
     costUsd: typeof result?.total_cost_usd === 'number' ? result.total_cost_usd : null,
   });
   // The agent is gone: its worktree can be removed if it is clean, or described if it holds work.
-  if (current.worktree !== null) recordWorktree(dir, current.cwd, current.worktree, current.baseCommit ?? null);
+  const settled = current.worktree === null ? readAgentAt(dir) : recordWorktree(dir, current.cwd, current.worktree, current.baseCommit ?? null);
+  // Its result goes back to the session. A failure here must not take the record
+  // down with it: the agent's state is already saved, and the error is logged.
+  try {
+    if (settled) returnResult(settled);
+  } catch (error) {
+    logEvent(dir, 'error', 'agent result could not be returned to the queue', describeError(error));
+  }
 }
 
 function main(dir: string): void {

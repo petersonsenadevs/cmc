@@ -3,7 +3,7 @@
 // (";;agents", ";;log 1a2b", ";;cancel 1a2b", ";;dispatch 2"). Like the queue
 // control words, they are answered by the plugin: the agent of the session
 // sees none of it.
-import { findAgent, listAgents, type AgentMode } from './agents-registry.ts';
+import { findAgent, listAgents, type AgentMode, type ReturnMode } from './agents-registry.ts';
 import { dispatchReceipt, formatAgentLog, formatAgents } from './agents-view.ts';
 import { cancelAgent, dispatch } from './dispatch.ts';
 import { CmcError } from './errors.ts';
@@ -12,6 +12,13 @@ import { drainMessages, listMessages } from './queue.ts';
 const POSITION = /^[1-9]\d{0,5}$/;
 const AGENT_ID = /^[a-f0-9]{2,8}$/;
 const PACK_FLAG = '--pack';
+const AUTO_FLAG = '--auto';
+
+/** How a dispatch was asked for: the context the agent gets and how its result comes back. */
+export interface DispatchChoice {
+  mode: AgentMode;
+  returnMode: ReturnMode;
+}
 
 /** The session a dispatch starts from. */
 export interface DispatchOrigin {
@@ -29,7 +36,7 @@ export interface DispatchOrigin {
 export type AgentControl =
   | { name: 'agents' }
   | { name: 'log' | 'cancel'; id: string }
-  | { name: 'dispatch'; position: number; mode: AgentMode };
+  | ({ name: 'dispatch'; position: number } & DispatchChoice);
 
 /**
  * Recognises a control word about agents. As with the queue words the grammar
@@ -46,9 +53,11 @@ export function parseAgentControl(rest: string): AgentControl | null {
     return first !== undefined && second === undefined && AGENT_ID.test(first) ? { name, id: first } : null;
   }
   if (name === 'dispatch') {
-    if (first === undefined || !POSITION.test(first) || more.length > 0) return null;
-    if (second !== undefined && second !== PACK_FLAG) return null;
-    return { name, position: Number(first), mode: second === PACK_FLAG ? 'pack' : 'fork' };
+    if (first === undefined || !POSITION.test(first)) return null;
+    const flags = [second, ...more].filter((word): word is string => word !== undefined);
+    const known = flags.every((flag) => flag === PACK_FLAG || flag === AUTO_FLAG) && new Set(flags).size === flags.length;
+    if (!known) return null;
+    return { name, position: Number(first), mode: flags.includes(PACK_FLAG) ? 'pack' : 'fork', returnMode: flags.includes(AUTO_FLAG) ? 'auto' : 'held' };
   }
   return null;
 }
@@ -57,22 +66,32 @@ export function parseAgentControl(rest: string): AgentControl | null {
  * Splits what follows the dispatch prefix into the task and how the agent
  * gets its context: `>> --pack task` asks for the short summary.
  */
-export function parseDispatch(rest: string): { task: string; mode: AgentMode } {
-  const text = rest.trim();
-  if (text === PACK_FLAG || text.startsWith(`${PACK_FLAG} `)) return { task: text.slice(PACK_FLAG.length).trim(), mode: 'pack' };
-  return { task: text, mode: 'fork' };
+export function parseDispatch(rest: string): { task: string } & DispatchChoice {
+  let text = rest.trim();
+  let mode: AgentMode = 'fork';
+  let returnMode: ReturnMode = 'held';
+  // Flags come first, in any order: ">> --auto --pack task".
+  for (;;) {
+    const flag = [PACK_FLAG, AUTO_FLAG].find((candidate) => text === candidate || text.startsWith(`${candidate} `));
+    if (flag === undefined) break;
+    if (flag === PACK_FLAG) mode = 'pack';
+    else returnMode = 'auto';
+    text = text.slice(flag.length).trim();
+  }
+  return { task: text, mode, returnMode };
 }
 
 /**
  * Dispatches a task and returns what to tell the user.
  */
-export function startAgent(origin: DispatchOrigin, task: string, mode: AgentMode): string {
+export function startAgent(origin: DispatchOrigin, task: string, { mode, returnMode }: DispatchChoice): string {
   const agent = dispatch({
     sessionDir: origin.dir,
     sessionId: origin.sessionId,
     task,
     cwd: origin.cwd,
     mode,
+    returnMode,
     transcriptPath: origin.transcriptPath,
     ...(origin.claude === undefined ? {} : { claude: origin.claude }),
     ...(origin.env === undefined ? {} : { env: origin.env }),
@@ -102,7 +121,7 @@ export function runAgentControl(origin: DispatchOrigin, control: AgentControl): 
         const size = messages.length === 0 ? 'nothing is held' : `the queue has ${messages.length}`;
         throw new CmcError('NO_SUCH_MESSAGE', `There is no held message ${control.position} (${size}).`);
       }
-      const receipt = startAgent(origin, message.text, control.mode);
+      const receipt = startAgent(origin, message.text, control);
       drainMessages(origin.dir, [message.id]);
       return `Held message ${control.position} left the queue. ${receipt}`;
     }

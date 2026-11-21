@@ -47,6 +47,11 @@ export function dispatchReceipt(agent: AgentRecord): string {
       ? 'This folder is not a git repository, so the agent works in this same folder, next to the session.'
       : `It works in its own git worktree (branch worktree-${agent.worktree}).`,
   );
+  lines.push(
+    agent.returnMode === 'auto'
+      ? 'When it ends, its result goes to this session by itself, at the end of a turn.'
+      : 'When it ends, its result waits in the queue: ";;list" shows it, "/cmc:release" hands it over.',
+  );
   if (agent.contextWarning) lines.push(`It starts knowing only the task: ${agent.contextWarning}`);
   return lines.join('\n');
 }

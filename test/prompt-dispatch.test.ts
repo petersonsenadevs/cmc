@@ -79,20 +79,25 @@ async function ended(id: string): Promise<AgentRecord> {
 }
 
 describe('parsing', () => {
-  it('splits the task from the --pack flag', () => {
-    assert.deepEqual(parseDispatch(' review the tests '), { task: 'review the tests', mode: 'fork' });
-    assert.deepEqual(parseDispatch('--pack review the tests'), { task: 'review the tests', mode: 'pack' });
-    assert.deepEqual(parseDispatch('--pack'), { task: '', mode: 'pack' });
-    assert.deepEqual(parseDispatch('--package the release'), { task: '--package the release', mode: 'fork' });
+  it('splits the task from the --pack and --auto flags, in any order', () => {
+    assert.deepEqual(parseDispatch(' review the tests '), { task: 'review the tests', mode: 'fork', returnMode: 'held' });
+    assert.deepEqual(parseDispatch('--pack review the tests'), { task: 'review the tests', mode: 'pack', returnMode: 'held' });
+    assert.deepEqual(parseDispatch('--auto review the tests'), { task: 'review the tests', mode: 'fork', returnMode: 'auto' });
+    assert.deepEqual(parseDispatch('--auto --pack review'), { task: 'review', mode: 'pack', returnMode: 'auto' });
+    assert.deepEqual(parseDispatch('--pack --auto review'), { task: 'review', mode: 'pack', returnMode: 'auto' });
+    assert.deepEqual(parseDispatch('--pack'), { task: '', mode: 'pack', returnMode: 'held' });
+    assert.deepEqual(parseDispatch('--package the release'), { task: '--package the release', mode: 'fork', returnMode: 'held' });
+    assert.deepEqual(parseDispatch('fix it --auto'), { task: 'fix it --auto', mode: 'fork', returnMode: 'held' }, 'flags only count at the start');
   });
 
   it('recognises only the exact agent control words', () => {
     assert.deepEqual(parseAgentControl('agents'), { name: 'agents' });
     assert.deepEqual(parseAgentControl('log 1a2b'), { name: 'log', id: '1a2b' });
     assert.deepEqual(parseAgentControl('cancel 1a2b3c4d'), { name: 'cancel', id: '1a2b3c4d' });
-    assert.deepEqual(parseAgentControl('dispatch 2'), { name: 'dispatch', position: 2, mode: 'fork' });
-    assert.deepEqual(parseAgentControl('dispatch 2 --pack'), { name: 'dispatch', position: 2, mode: 'pack' });
-    for (const text of [' agents', 'agents please', 'log', 'log XYZ', 'log a', 'cancel 1a2b extra', 'dispatch', 'dispatch two', 'dispatch 2 --fast', 'dispatch 2 --pack x']) {
+    assert.deepEqual(parseAgentControl('dispatch 2'), { name: 'dispatch', position: 2, mode: 'fork', returnMode: 'held' });
+    assert.deepEqual(parseAgentControl('dispatch 2 --pack'), { name: 'dispatch', position: 2, mode: 'pack', returnMode: 'held' });
+    assert.deepEqual(parseAgentControl('dispatch 2 --auto --pack'), { name: 'dispatch', position: 2, mode: 'pack', returnMode: 'auto' });
+    for (const text of [' agents', 'agents please', 'log', 'log XYZ', 'log a', 'cancel 1a2b extra', 'dispatch', 'dispatch two', 'dispatch 2 --fast', 'dispatch 2 --pack x', 'dispatch 2 --auto --auto']) {
       assert.equal(parseAgentControl(text), null, text);
     }
   });

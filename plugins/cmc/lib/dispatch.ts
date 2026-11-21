@@ -9,6 +9,7 @@ import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  type ReturnMode,
   agentDir,
   createAgent,
   findAgent,
@@ -53,6 +54,8 @@ export interface DispatchOptions {
   /** Folder the agent starts in. */
   cwd: string;
   mode?: AgentMode;
+  /** How its result comes back: held in the queue (default) or handed over when a turn ends. */
+  returnMode?: ReturnMode;
   /** Full prompt; by default the fork prompt for the task, or the pack prompt in pack mode. */
   prompt?: string;
   /** Transcript of the session (`transcript_path` of the hook input); read in pack mode. */
@@ -114,6 +117,7 @@ export function dispatch({
   task,
   cwd,
   mode = 'fork',
+  returnMode = 'held',
   prompt,
   transcriptPath,
   worktree,
@@ -139,7 +143,7 @@ export function dispatch({
   const text = prompt ?? (pack === null ? forkPrompt(task.trim()) : packPrompt(task.trim(), pack));
   const record = createAgent(
     sessionDir,
-    { task: task.trim(), mode, cwd, worktree: worktreeOfAgent, baseCommit, command, contextWarning: pack?.warning ?? null },
+    { task: task.trim(), mode, returnMode, cwd, worktree: worktreeOfAgent, baseCommit, command, contextWarning: pack?.warning ?? null },
     id,
   );
   writeFileSync(join(record.dir, PROMPT_FILE), text);

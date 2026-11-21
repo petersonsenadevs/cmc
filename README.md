@@ -3,8 +3,8 @@
 A Claude Code plugin that lets you decide **when** your messages reach the agent: hold what you type while it
 works, and release it when you want, without interrupting the turn.
 
-> Status: work in progress. Holding, releasing, managing the queue, the command line and dispatching to a
-> second agent work; returning the agent's result to the queue, configuration and packaging are next.
+> Status: work in progress. Holding, releasing, managing the queue, the command line, dispatching to a second
+> agent and getting its result back work; configuration, a security review and packaging are next.
 
 ## Requirements
 
@@ -105,7 +105,15 @@ see it and is not interrupted.
 | `;;log 1a2b` | What agent `1a2b…` was asked and its latest steps, or its final answer once it has ended. |
 | `;;cancel 1a2b` | Stops it. |
 
-The command line has the same: `cmc dispatch [--pack] <task>`, `cmc agents`, `cmc log <id>`, `cmc cancel <id>`.
+When the agent ends, **its result comes back to the queue** as a held message, listed as `(from agent 1a2b…)`: what it
+was asked, where its changes are and its final answer, or why it failed and where its log is. You decide when the
+session sees it, like any held message (`/cmc:release`, `;;end`, `;;rm`…). When released, it is labelled as the other
+agent's report, not as something you typed. A cancelled agent leaves nothing.
+
+Add `--auto` (`>> --auto task`, `;;dispatch 2 --auto`) to have the result handed to the session by itself when one of
+its turns ends. If the session is idle when the agent finishes, the result arrives at the end of the next turn.
+
+The command line has the same: `cmc dispatch [--pack] [--auto] <task>`, `cmc agents`, `cmc log <id>`, `cmc cancel <id>`.
 `/cmc:agents` shows the list through the agent of the session; `;;agents` keeps it to yourself.
 
 Where it works:

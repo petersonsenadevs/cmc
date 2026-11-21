@@ -18,6 +18,8 @@ export interface SessionState {
   atEnd: Selection;
   /** Deliver at the agent's next step (armed from outside the session). */
   atNextStep: Selection;
+  /** Results of agents dispatched with `--auto`: delivered when a turn ends. */
+  autoReturn: Selection;
 }
 
 function selection(value: unknown): Selection {
@@ -43,15 +45,15 @@ export function mergeSelection(current: Selection, added: Selection): Selection 
  */
 export function readState(dir: string): SessionState {
   const file = join(dir, STATE_FILE);
-  if (!existsSync(file)) return { atEnd: null, atNextStep: null };
+  if (!existsSync(file)) return { atEnd: null, atNextStep: null, autoReturn: null };
   try {
     const stored: unknown = JSON.parse(readFileSync(file, 'utf8'));
     const fields = isRecord(stored) ? stored : {};
-    return { atEnd: selection(fields.atEnd), atNextStep: selection(fields.atNextStep) };
+    return { atEnd: selection(fields.atEnd), atNextStep: selection(fields.atNextStep), autoReturn: selection(fields.autoReturn) };
   } catch (error) {
     // An unreadable state file only means "no release pending": the queue
     // itself is untouched, so falling back to the defaults loses nothing.
-    if (error instanceof SyntaxError) return { atEnd: null, atNextStep: null };
+    if (error instanceof SyntaxError) return { atEnd: null, atNextStep: null, autoReturn: null };
     throw error;
   }
 }

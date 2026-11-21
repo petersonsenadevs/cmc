@@ -53,9 +53,9 @@ function answer(input: HookInput, prompt: string, dataDir: string, options: Requ
   const { prefix, dispatchPrefix } = options;
 
   if (prompt.startsWith(dispatchPrefix)) {
-    const { task, mode } = parseDispatch(prompt.slice(dispatchPrefix.length));
+    const { task, ...choice } = parseDispatch(prompt.slice(dispatchPrefix.length));
     if (task === '') return block(`Nothing to dispatch. Type "${dispatchPrefix} your task" to hand it to a second agent.`);
-    return block(startAgent(originOf(input, sessionDir(dataDir, input.session_id), options), task, mode));
+    return block(startAgent(originOf(input, sessionDir(dataDir, input.session_id), options), task, choice));
   }
 
   const rest = prompt.slice(prefix.length);

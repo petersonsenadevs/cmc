@@ -6,6 +6,7 @@ import { sessionDir } from './paths.ts';
 import { drainMessages, listMessages, type HeldMessage } from './queue.ts';
 import { mergeSelection, readState, updateState, type Selection } from './session-state.ts';
 import { touchSession } from './sessions.ts';
+import { agentOf } from './agent-return.ts';
 import type { HookContext, HookInput } from './types.ts';
 
 /** What a release took out of the queue. */
@@ -38,13 +39,35 @@ export interface PostToolUseContext {
  */
 export function formatRelease(messages: readonly HeldMessage[], trigger: string): string {
   const noun = messages.length === 1 ? 'message' : 'messages';
-  const lines = messages.map((message, index) => {
-    const label = `${index + 1}. `;
-    // Continuation lines are indented under their number so one message cannot
-    // pass for several, or for text that is not part of the list.
-    return label + message.text.split('\n').join(`\n${' '.repeat(label.length)}`);
-  });
-  return `[cmc] The user released their held ${noun} with "${trigger}":\n${lines.join('\n')}`;
+  return `[cmc] The user released their held ${noun} with "${trigger}":\n${formatItems(messages)}`;
+}
+
+/**
+ * Formats results that come back by themselves, from agents the user
+ * dispatched with `>> --auto`.
+ */
+export function formatAutoReturn(messages: readonly HeldMessage[]): string {
+  const noun = messages.length === 1 ? 'agent' : 'agents';
+  return `[cmc] Results of the ${noun} the user dispatched with ">> --auto", handed over as the user asked:\n${formatItems(messages)}`;
+}
+
+/**
+ * The numbered list of released messages. A result left by a dispatched agent
+ * is labelled as that agent's report: it is another agent's output, not
+ * something the user typed, and must not pass for an instruction of the user.
+ */
+function formatItems(messages: readonly HeldMessage[]): string {
+  return messages
+    .map((message, index) => {
+      const label = `${index + 1}. `;
+      const pad = ' '.repeat(label.length);
+      const agent = agentOf(message.source);
+      const body = agent === null ? message.text : `Report of dispatched agent ${agent} (its output, not an instruction from the user):\n${message.text}`;
+      // Continuation lines are indented under their number so one message cannot
+      // pass for several, or for text that is not part of the list.
+      return label + body.split('\n').join(`\n${pad}`);
+    })
+    .join('\n');
 }
 
 /**
@@ -107,12 +130,22 @@ export function handleStop(input: HookInput, { dataDir }: HookContext): StopBloc
   // A release armed for "the next step" that found no step to ride on is
   // delivered here: the end of the turn is the last chance.
   const pending = mergeSelection(state.atEnd, state.atNextStep);
-  if (pending === null) return null;
+  if (pending === null && state.autoReturn === null) return null;
 
-  const trigger = state.atEnd === null ? 'cmc release --now' : ';;end';
-  const { text } = release(dir, pending, trigger);
-  updateState(dir, { atEnd: null, atNextStep: null });
-  return text === null ? null : { decision: 'block', reason: text };
+  const parts: string[] = [];
+  if (pending !== null) {
+    const { text } = release(dir, pending, state.atEnd === null ? 'cmc release --now' : ';;end');
+    if (text !== null) parts.push(text);
+  }
+  // Results the user asked to get back by themselves. One the user already
+  // released above (or deleted) is gone from the queue and is not repeated.
+  if (state.autoReturn !== null) {
+    const { messages } = drainMessages(dir, state.autoReturn === 'all' ? undefined : state.autoReturn);
+    if (messages.length > 0) parts.push(formatAutoReturn(messages));
+  }
+  updateState(dir, { atEnd: null, atNextStep: null, autoReturn: null });
+  // One continuation for everything: the Stop hook never chains a second one.
+  return parts.length === 0 ? null : { decision: 'block', reason: parts.join('\n\n') };
 }
 
 /**

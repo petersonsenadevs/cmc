@@ -290,6 +290,9 @@ export function cancelAgent(sessionDir: string, id: string): AgentRecord {
   const cancelled = updateAgentAt(record.dir, { state: 'cancelled', endedAt: new Date().toISOString() });
   killTree(record.runnerPid);
   killTree(record.pid);
+  // The supervisor may have been saving an answer while it was marked: with
+  // its processes gone nothing writes any more, so the mark is made to stand.
+  updateAgentAt(record.dir, { state: 'cancelled' });
   // The supervisor was killed with the agent, so its worktree is settled here.
   if (record.worktree !== null) recordWorktree(record.dir, record.cwd, record.worktree, record.baseCommit ?? null);
   // Read again for what the supervisor wrote meanwhile; if the record is gone, what was just saved stands.

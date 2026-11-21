@@ -54,6 +54,7 @@ describe('validateConfig', () => {
       dispatchPrefix: '=>',
       sendAtEnd: false,
       holdTarget: 'subagent',
+      panelAutoOpen: true,
       retentionDays: 0,
       dispatch: { context: 'pack', return: 'auto', permissionMode: 'plan', tools: ['Read', 'Bash(npm test:*)'], restrictTools: false, ignoreChanges: [], keepOpenMinutes: 10, model: 'inherit', effort: 'inherit' },
     });

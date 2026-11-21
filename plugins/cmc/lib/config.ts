@@ -72,6 +72,8 @@ export interface CmcConfig {
    * conversation clean.
    */
   holdTarget: HoldTarget;
+  /** The hub (the cmc panel) opens by itself when a message is held or a subagent starts. */
+  panelAutoOpen: boolean;
   /** Sessions inactive for longer are deleted with their queue; 0 keeps them forever. */
   retentionDays: number;
 }
@@ -81,6 +83,7 @@ export const DEFAULT_CONFIG: CmcConfig = Object.freeze({
   dispatchPrefix: '>>',
   sendAtEnd: true,
   holdTarget: 'main',
+  panelAutoOpen: true,
   dispatch: Object.freeze({
     context: 'fork',
     return: 'held',
@@ -129,7 +132,7 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
   if (!isRecord(raw) || Array.isArray(raw)) return { config, warnings: ['the file must hold a JSON object; using the defaults'] };
 
   const ignored = (key: string, why: string) => warnings.push(`"${key}" ignored: ${why}; using the default`);
-  const known = new Set(['holdPrefix', 'dispatchPrefix', 'sendAtEnd', 'holdTarget', 'dispatch', 'retentionDays']);
+  const known = new Set(['holdPrefix', 'dispatchPrefix', 'sendAtEnd', 'holdTarget', 'panelAutoOpen', 'dispatch', 'retentionDays']);
   for (const key of Object.keys(raw)) if (!known.has(key) && !key.startsWith('$')) warnings.push(`unknown setting "${key}" ignored`);
 
   for (const key of ['holdPrefix', 'dispatchPrefix'] as const) {
@@ -148,6 +151,11 @@ export function validateConfig(raw: unknown): { config: CmcConfig; warnings: str
   if (raw.sendAtEnd !== undefined) {
     if (typeof raw.sendAtEnd === 'boolean') config.sendAtEnd = raw.sendAtEnd;
     else ignored('sendAtEnd', 'it must be true or false');
+  }
+
+  if (raw.panelAutoOpen !== undefined) {
+    if (typeof raw.panelAutoOpen === 'boolean') config.panelAutoOpen = raw.panelAutoOpen;
+    else ignored('panelAutoOpen', 'it must be true or false');
   }
 
   if (raw.holdTarget !== undefined) {
@@ -241,6 +249,7 @@ export function keepOpenMsOf(config: CmcConfig, env: NodeJS.ProcessEnv = process
 export const MODES: Readonly<Record<string, readonly string[]>> = Object.freeze({
   sendAtEnd: Object.freeze(['true', 'false']),
   holdTarget: Object.freeze(['main', 'subagent']),
+  panelAutoOpen: Object.freeze(['true', 'false']),
   'dispatch.context': Object.freeze(['fork', 'pack']),
   'dispatch.return': Object.freeze(['held', 'auto']),
   'dispatch.model': MODEL_ALIASES,

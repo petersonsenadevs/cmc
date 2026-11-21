@@ -89,6 +89,8 @@ export interface PanelEngine extends InterfaceEngine {
   ui: InterfaceEngine['ui'] & {
     toast(text: string, options?: { timeoutMs?: number }): void;
     open(pane: { id: string; title?: string; closeOnEscape?: true }): Promise<{ isPlaced?: boolean }>;
+    close(pane: { id: string }): Promise<void>;
+    panes(): Promise<readonly { id: string; isShown?: boolean }[]>;
     invalidate(event: 'ui.render'): void;
     resolve(e: PaneRenderEvent): PanelElements;
   };
@@ -107,7 +109,7 @@ export type PanelOn = {
   ): void;
 };
 
-export const PANEL_COMMAND = Object.freeze({ name: 'cmc', description: 'cmc: open the control panel (messages, subagents, modes)', immediate: true } as const);
+export const PANEL_COMMAND = Object.freeze({ name: 'cmc', description: 'cmc: open or close the hub (messages, subagents, settings)', immediate: true } as const);
 
 /** A subagent as `cmc agents --format json` gives it. */
 export interface AgentEntry {
@@ -127,6 +129,12 @@ export interface AgentEntry {
 
 /** The modes (ADR 003 §7): the setting, how the panel names it, and its two values. */
 export const MODES = Object.freeze([
+  {
+    key: 'panelAutoOpen',
+    label: 'Open the hub',
+    values: [['true', 'Automatically'], ['false', 'Only with /cmc']],
+    help: 'Whether this hub opens by itself when you hold a message or a subagent starts. /cmc opens and closes it either way.',
+  },
   {
     key: 'sendAtEnd',
     label: 'Deliver',
@@ -274,6 +282,7 @@ export function isWorking(stateText: string): boolean {
 /** The settings as the panel reads them (defaults when the file is missing or wrong). */
 export function readModes(configText: string): Record<string, string> {
   const modes: Record<string, string> = {
+    panelAutoOpen: 'true',
     sendAtEnd: 'true',
     holdTarget: 'main',
     'dispatch.context': 'fork',
@@ -286,6 +295,7 @@ export function readModes(configText: string): Record<string, string> {
     if (typeof value !== 'object' || value === null) return modes;
     const raw = value as Record<string, unknown>;
     if (raw.sendAtEnd === false) modes.sendAtEnd = 'false';
+    if (raw.panelAutoOpen === false) modes.panelAutoOpen = 'false';
     if (raw.holdTarget === 'subagent') modes.holdTarget = 'subagent';
     const dispatch = typeof raw.dispatch === 'object' && raw.dispatch !== null ? (raw.dispatch as Record<string, unknown>) : {};
     if (dispatch.context === 'pack') modes['dispatch.context'] = 'pack';
@@ -415,6 +425,43 @@ async function agentsOf($: InterfaceEngine): Promise<AgentEntry[]> {
   return parseAgents((await cli($, ['agents', '--format', 'json'])).stdout);
 }
 
+/** Whether the hub is open now. */
+async function isOpen($: PanelEngine): Promise<boolean> {
+  try {
+    return (await $.ui.panes()).some((pane) => pane.id === PANE_ID);
+  } catch {
+    return false;
+  }
+}
+
+/** /cmc: opens the hub, or closes it when it is open. */
+export async function togglePanel($: PanelEngine): Promise<string> {
+  if (await isOpen($)) {
+    await $.ui.close({ id: PANE_ID });
+    return 'cmc hub closed. /cmc opens it again.';
+  }
+  return openPanel($);
+}
+
+/**
+ * Whether the hub should open by itself: something new to look at (one more
+ * message held, or one more subagent working) and the setting on.
+ */
+export function shouldAutoOpen(before: { held: number; working: number }, now: { held: number; working: number }, autoOpen: boolean): boolean {
+  return autoOpen && (now.held > before.held || now.working > before.working);
+}
+
+/** How many subagents are working, from `agents/active.json`. */
+export function activeCount(text: string): number {
+  try {
+    const value: unknown = JSON.parse(text);
+    const active = typeof value === 'object' && value !== null && 'active' in value ? (value as { active: unknown }).active : 0;
+    return typeof active === 'number' && active > 0 ? Math.floor(active) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** Opens the pane (or brings it forward); says so when the terminal has no room for it. */
 export async function openPanel($: PanelEngine): Promise<string> {
   const placed = await $.ui.open({ id: PANE_ID, title: PANE_TITLE, closeOnEscape: true });
@@ -438,9 +485,17 @@ export async function startPanel($: PanelEngine): Promise<void> {
   });
   const snapshot = async () =>
     [await queueText($), await sessionFile($, 'state.json'), await sessionFile($, 'agents/active.json'), await settingsText($)].join('\n');
+  const counts = async () => ({ held: parseQueue(await queueText($)).length, working: activeCount(await sessionFile($, 'agents/active.json')) });
+  let lastCounts = await counts();
   let last = await snapshot();
   $.clock.every(REFRESH_MS, async () => {
     const now = await snapshot();
+    // Something new to look at: the hub opens by itself (panelAutoOpen), unless it is open already.
+    const nowCounts = await counts();
+    if (shouldAutoOpen(lastCounts, nowCounts, readModes(await settingsText($)).panelAutoOpen !== 'false') && !(await isOpen($))) {
+      await openPanel($).catch(() => undefined);
+    }
+    lastCounts = nowCounts;
     // A working subagent's clock moves every second, so a pane showing one redraws anyway.
     if (now !== last || ui.view === 'agents') {
       last = now;
@@ -891,6 +946,6 @@ export async function drawPanel($: PanelEngine, e: PaneRenderEvent): Promise<Ele
 }
 
 export const register = (on: PanelOn): void => {
-  on('command.run', { command: PANEL_COMMAND.name }, async ($) => ({ text: await openPanel($), isTextDisplayOnly: true }));
+  on('command.run', { command: PANEL_COMMAND.name }, async ($) => ({ text: await togglePanel($), isTextDisplayOnly: true }));
   on('ui.render', { component: 'Pane', requestId: PANE_ID }, async ($, e) => drawPanel($, e));
 };

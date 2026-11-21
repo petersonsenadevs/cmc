@@ -8,6 +8,7 @@ import { after, beforeEach, describe, it } from 'node:test';
 import { clearPendingInBox, pendingIn, register as registerInterface, startInterface } from '../plugins/cmc/hooks/interface.ts';
 import {
   AUTHOR,
+  activeCount,
   AUTHOR_URL,
   COLORS,
   dispatchToast,
@@ -33,9 +34,11 @@ import {
   resetPanelState,
   rowText,
   sendsAtEnd,
+  shouldAutoOpen,
   startPanel,
   stateMark,
   statusLine,
+  togglePanel,
   VIEW_HELP,
   type PanelEngine,
 } from '../plugins/cmc/hooks/panel.ts';
@@ -90,6 +93,7 @@ function world() {
   const data = mkdtempSync(join(tmpdir(), 'cmc-panel-'));
   made.push(data);
   const opened: unknown[] = [];
+  const openPanes = new Set<string>();
   const registered: string[] = [];
   const submitted: string[] = [];
   const box = { text: '' };
@@ -135,8 +139,13 @@ function world() {
       toast: () => undefined,
       open: async (pane) => {
         opened.push(pane);
+        openPanes.add(pane.id);
         return { isPlaced: true };
       },
+      close: async ({ id }) => {
+        openPanes.delete(id);
+      },
+      panes: async () => [...openPanes].map((id) => ({ id, isShown: true })),
       invalidate: () => {
         invalidations += 1;
       },
@@ -154,6 +163,7 @@ function world() {
     box,
     ids,
     opened,
+    openPanes,
     registered,
     submitted,
     held: () => listMessages(dir).messages.map((message) => message.text),
@@ -188,8 +198,9 @@ describe('panel: what it reads and says', () => {
   it('reads the agent state, the modes, and words the status and what happens to each message', () => {
     assert.equal(isWorking('{"turnActive":true}'), true);
     assert.equal(isWorking(''), false);
-    assert.deepEqual(readModes(''), { sendAtEnd: 'true', holdTarget: 'main', 'dispatch.context': 'fork', 'dispatch.return': 'held', 'dispatch.model': 'inherit', 'dispatch.effort': 'inherit' });
+    assert.deepEqual(readModes(''), { panelAutoOpen: 'true', sendAtEnd: 'true', holdTarget: 'main', 'dispatch.context': 'fork', 'dispatch.return': 'held', 'dispatch.model': 'inherit', 'dispatch.effort': 'inherit' });
     assert.deepEqual(readModes('{"sendAtEnd":false,"holdTarget":"subagent","dispatch":{"context":"pack","return":"auto"}}'), {
+      panelAutoOpen: 'true',
       sendAtEnd: 'false',
       holdTarget: 'subagent',
       'dispatch.context': 'pack',
@@ -241,6 +252,42 @@ describe('panel: opening', () => {
     assert.ok(w.registered.includes('cmc'));
     assert.equal(await openPanel(w.$), 'cmc panel opened. Escape closes it.');
     assert.deepEqual(w.opened, [{ id: PANE_ID, title: 'cmc hub', closeOnEscape: true }]);
+  });
+
+  it('/cmc opens the hub when it is closed and closes it when it is open', async () => {
+    const w = world();
+    await w.start();
+    assert.equal(await togglePanel(w.$), 'cmc panel opened. Escape closes it.');
+    assert.ok(w.openPanes.has(PANE_ID));
+    assert.equal(await togglePanel(w.$), 'cmc hub closed. /cmc opens it again.');
+    assert.ok(!w.openPanes.has(PANE_ID));
+  });
+
+  it('opens by itself when a message is held or a subagent starts, unless it is open or the setting is off', async () => {
+    assert.equal(shouldAutoOpen({ held: 0, working: 0 }, { held: 1, working: 0 }, true), true);
+    assert.equal(shouldAutoOpen({ held: 0, working: 0 }, { held: 0, working: 1 }, true), true);
+    assert.equal(shouldAutoOpen({ held: 2, working: 1 }, { held: 1, working: 1 }, true), false, 'fewer is nothing new');
+    assert.equal(shouldAutoOpen({ held: 0, working: 0 }, { held: 1, working: 0 }, false), false);
+    assert.equal(activeCount('{"active":2}'), 2);
+    assert.equal(activeCount('broken'), 0);
+
+    const w = world();
+    await w.start();
+    await w.tick();
+    assert.equal(w.opened.length, 0, 'nothing new: it stays closed');
+    addMessage(w.dir, { text: 'held while it works' });
+    await w.tick();
+    assert.equal(w.opened.length, 1, 'a message held: it opens');
+    addMessage(w.dir, { text: 'another' });
+    await w.tick();
+    assert.equal(w.opened.length, 1, 'already open: not opened again');
+
+    const off = world();
+    await off.start();
+    writeFileSync(join(off.data, 'config.json'), JSON.stringify({ panelAutoOpen: false }));
+    addMessage(off.dir, { text: 'held' });
+    await off.tick();
+    assert.equal(off.opened.length, 0, 'setting off: only /cmc opens it');
   });
 
   it('says so when the terminal has no room for the pane', async () => {

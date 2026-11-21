@@ -18,7 +18,7 @@
 - `2c09371` feat(plugin): add cmc plugin skeleton
 
 ## Decisiones (resumen; detalle en DECISIONES.md)
-- Ninguna nueva.
+- D-019 lint con `node --check`, sin ESLint ni `tsc` (ver MEMORIA.md).
 
 ## Verificación
 ```

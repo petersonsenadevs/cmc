@@ -33,6 +33,8 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-016 · Derivar: por defecto fork de la sesión (`--resume <id> --fork-session`), paquete de contexto como alternativa y respaldo · ver 013
 - D-017 · El worktree del derivado lo crea `--worktree cmc-<id>` de Claude Code; sin git, misma carpeta con aviso · ver 013
 - D-018 · Cada agente derivado corre bajo un supervisor desacoplado; el prompt entra por stdin, nunca por la línea de comandos · ver 015
+- D-019 · Lint del proyecto = `node --check` sobre cada `.mjs` (`scripts/lint.mjs`); sin ESLint ni `tsc`: no hay dependencias ni TypeScript · ver 003
+- D-020 · Lo que solo se ve en la interfaz interactiva (aviso de retención, indicador) lo comprueba Peterson con `docs/manual-test.md` parte B; el agente verifica en headless con `scripts/e2e.mjs` · ver 007
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012

@@ -25,7 +25,7 @@
 - `be13490` docs: document basic use and the phase 1 test script
 
 ## Decisiones (resumen; detalle en DECISIONES.md)
-- Ninguna nueva.
+- D-020 lo interactivo lo comprueba Peterson con el guion; el agente verifica en headless (ver MEMORIA.md).
 
 ## Verificación
 Guion, parte A (sesiones reales, `claude -p`, Claude Code 2.1.330, Windows 11):

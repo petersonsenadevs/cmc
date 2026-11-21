@@ -230,16 +230,17 @@
 - Devlog: senzu/devlog/2026-11-21/022-f3-t4-paquete-de-contexto.md
 - Notas: sin agente real en modo paquete todavía (F3-T5). El respaldo automático fork→paquete no está hecho: el modo se elige.
 
-### F3-T5 · Derivar desde el prompt y ver los agentes  [M] [doing]
+### F3-T5 · Derivar desde el prompt y ver los agentes  [M] [done]
 - Para qué: mandar una tarea al segundo agente con un gesto y saber cómo va.
 - Skill: `code-quality §references/errors-logging "Mensajes accionables"`
 - Archivos: hooks/prompt-capture.mjs, commands/dispatch.md, commands/agents.md, bin/cmc.mjs (`dispatch`, `agents`, `log`, `cancel`), test/prompt-dispatch.test.mjs
 - Hecho cuando: `>> tarea` a mitad de turno lanza el agente sin que el principal lo vea ni se interrumpa; `/cmc:dispatch 2` deriva un mensaje ya retenido; `/cmc:agents` lista estado, duración y rama; `cmc log <id>` muestra su salida y `cmc cancel <id>` lo detiene; el indicador de F2-T4 muestra los agentes activos.
 - Verificar: `npm test` y sesión real: el principal y el derivado trabajando a la vez, con captura del listado.
 - Depende de: F3-T3, F3-T4
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 192 pass, 0 fail (tres veces); `npx tsc --noEmit` → 0; sesión real: `>>` a mitad del paso 1 → recibo «Dispatched to agent df6a6755…», el principal sigue con los pasos 2 y 3, `;;agents` lo lista `running 15s same folder`; el derivado responde «heron»; `>> --pack` real responde correctamente desde el resumen; `active.json` vuelve a 0
+- Cumple: una tarea se manda al segundo agente con un gesto, sin que el principal la vea ni se interrumpa, y se ve cómo va (`;;agents`, `;;log`, indicador), que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/023-f3-t5-derivar-desde-el-prompt.md
+- Notas: `;;dispatch N` en lugar de `/cmc:dispatch N` (D-028). Corregido además: la respuesta del derivado se perdía si los hooks Stop del usuario lo hacían seguir. Pendiente: las sesiones de los derivados aparecen como abiertas para la CLI. Indicador con agentes sin ver en pantalla (B6).
 
 ### F3-T6 · Devolver el resultado del agente derivado a la cola  [M] [todo]
 - Para qué: que el trabajo del segundo agente vuelva a la conversación cuando tú quieras.

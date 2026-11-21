@@ -26,3 +26,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 020 | 2026-11-21 | TypeScript frente a JavaScript: comparación | fix      | 019      | X-T3  |
 | 021 | 2026-11-21 | F3-T3: worktree del agente derivado        | feature  | 015      | F3-T3 |
 | 022 | 2026-11-21 | F3-T4: paquete de contexto ligero          | feature  | —        | F3-T4 |
+| 023 | 2026-11-21 | F3-T5: derivar desde el prompt (>>)        | feature  | 015, 021, 022 | F3-T5 |

@@ -118,3 +118,10 @@
 - **Elección:** D-027 se desbloquea únicamente cuando el motivo es la sesión de ese mismo agente y su proceso ya no existe; después se retira sin forzar si no hay cambios. Un worktree con cambios se conserva, ya desbloqueado.
 - **Motivo:** nunca se pierde trabajo (git sigue negándose si hay cambios) y no se toca un bloqueo ajeno o de una sesión viva.
 - **Consecuencias:** depende del texto del motivo que escribe Claude Code; si cambiara, el worktree limpio se quedaría (bloqueado) y se informaría como conservado.
+
+## dev-022 — Derivar un mensaje retenido
+- **Contexto:** la tarjeta pedía `/cmc:dispatch 2`.
+- **Opciones:** comando con argumento; palabra de control.
+- **Elección:** D-028 `;;dispatch N [--pack]`, contestada por el plugin; el mensaje sale de la cola solo cuando el agente ha arrancado.
+- **Motivo:** el mismo de D-011: los argumentos de un comando acaban en su línea de shell, y el comando no se procesa a mitad de turno.
+- **Consecuencias:** `/cmc:agents` existe solo para ver, sin argumentos.

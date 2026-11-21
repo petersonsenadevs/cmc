@@ -13,6 +13,14 @@
 ```
 by [r3v3rs3](https://github.com/petersonsenadevs)
 
+[![Version](https://img.shields.io/badge/version-1.1.0-7C5CFF)](CHANGELOG.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2BB673)](LICENSE)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5%202.1.330-555)](https://code.claude.com/docs)
+[![Node.js](https://img.shields.io/badge/node-%E2%89%A5%2022.18-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-no%20build-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-555)](#known-limits)
+[![Plugin](https://img.shields.io/badge/Claude%20Code%20plugin-hub-7C5CFF)](#the-cmc-hub)
+
 A Claude Code plugin that puts you in control of the conversation with the agent: **hold** what you type while it works
 and it reaches the agent when its turn ends, without interrupting it; change, reorder or delete it before then; and hand
 tasks to **subagents** that work in parallel, in their own git worktree, and talk back to you. Everything from one panel

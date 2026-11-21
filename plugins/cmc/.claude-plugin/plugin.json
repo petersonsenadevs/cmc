@@ -6,6 +6,8 @@
     "name": "Peterson Sena (r3v3rs3)",
     "url": "https://github.com/petersonsenadevs"
   },
+  "homepage": "https://github.com/petersonsenadevs/cmc",
+  "repository": "https://github.com/petersonsenadevs/cmc",
   "license": "MIT",
   "keywords": [
     "queue",

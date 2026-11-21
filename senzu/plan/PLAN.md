@@ -429,6 +429,17 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 
 ## Tareas ad hoc (fuera del plan original)
 
+### X-T7 · «by r3v3rs3» enlaza al GitHub del autor  [S] [done]
+- Para qué: Peterson: que la autoría sea un enlace a su GitHub (petersonsenadevs) con el texto «by r3v3rs3».
+- Skill: `plugin-authoring` (`Link` de la terminal)
+- Archivos: plugins/cmc/hooks/panel.ts, plugins/cmc/.claude-plugin/plugin.json, README.md, test/panel.test.ts
+- Hecho cuando: en el panel y en el README «by r3v3rs3» lleva a https://github.com/petersonsenadevs; el manifiesto lo lleva como `author.url`.
+- Verificar: `npm test`; `claude plugin validate .`
+- Depende de: F5-T10
+- Verificado: npm test 338; validate ✔
+- Cumple: la autoría lleva a su perfil, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/041-x-t7-enlace-del-autor.md
+
 ### X-T6 · Lo retenido llega solo al acabar el turno  [S] [done]
 - Para qué: Peterson retuvo «di también piña» mientras el agente trabajaba y, al acabar, no llegó: esperaba a un `/send`. «Debería enviarse al final, ya es obvio.» Además, con otro hook Stop continuando el turno (Senzu), cmc no entregaba nada.
 - Skill: `code-quality §references/typescript` + experimento con `scripts/e2e.ts`

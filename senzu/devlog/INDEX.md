@@ -44,3 +44,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 038 | 2026-11-21 | F5-T6: hablar con subagentes (chat)        | feature  | 015, 024, 036 | F5-T6 |
 | 039 | 2026-11-21 | F5-T11: modelo y esfuerzo de subagentes    | feature  | 036, 038 | F5-T11 |
 | 040 | 2026-11-21 | F5-T10: cabecera del hub y brief del logo  | feature  | 036      | F5-T10 |
+| 041 | 2026-11-21 | X-T7: «by r3v3rs3» enlaza a su GitHub       | feature  | 040      | X-T7 |

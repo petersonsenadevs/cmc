@@ -21,6 +21,7 @@ import {
   type AgentMode,
   type AgentRecord,
 } from './agents-registry.ts';
+import { DEFAULT_CONFIG, PERMISSION_MODES, TOOL_NAME } from './config.ts';
 import { buildContextPack, packPrompt } from './context-pack.ts';
 import { CmcError, errorCode } from './errors.ts';
 import { MAX_TEXT_LENGTH } from './queue.ts';
@@ -28,12 +29,10 @@ import { headCommit, isGitRepo, settleWorktree, worktreeName } from './worktree.
 
 const RUNNER = join(dirname(fileURLToPath(import.meta.url)), 'agent-runner.ts');
 
-export const DEFAULT_PERMISSION_MODE = 'acceptEdits';
+export const DEFAULT_PERMISSION_MODE = DEFAULT_CONFIG.dispatch.permissionMode;
 // Read and edit files; no shell, no network, unless the user configures more.
-export const DEFAULT_TOOLS: readonly string[] = Object.freeze(['Read', 'Glob', 'Grep', 'Edit', 'Write']);
+export const DEFAULT_TOOLS: readonly string[] = DEFAULT_CONFIG.dispatch.tools;
 // What a dispatched agent may run with. `bypassPermissions` is never accepted.
-const PERMISSION_MODES: ReadonlySet<string> = new Set(['default', 'acceptEdits', 'plan']);
-const TOOL_NAME = /^[A-Za-z][A-Za-z0-9_]*(\([^()]*\))?$/;
 
 export interface BuildCommandOptions {
   /** Executable (and fixed leading arguments, in tests). */
@@ -94,7 +93,7 @@ export function forkPrompt(task: string): string {
  * of the array; nothing is joined into a shell string.
  */
 export function buildCommand({ claude, mode, sessionId, worktree, permissionMode, tools }: BuildCommandOptions): string[] {
-  if (!PERMISSION_MODES.has(permissionMode)) {
+  if (!PERMISSION_MODES.includes(permissionMode)) {
     throw new CmcError('BAD_PERMISSION_MODE', `A dispatched agent cannot run with permission mode "${permissionMode}".`);
   }
   const badTool = tools.find((tool) => typeof tool !== 'string' || !TOOL_NAME.test(tool));

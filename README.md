@@ -121,6 +121,42 @@ Where it works:
 Its permissions are limited: `acceptEdits` and the tools `Read`, `Glob`, `Grep`, `Edit`, `Write` (no shell, no network).
 It runs with your own Claude Code setup, so your other plugins and hooks run in it too.
 
+### Settings
+
+Everything works without settings. To change something, write the file with every setting at its default and edit
+it; changes apply from the next prompt:
+
+```
+cmc config init      # writes config.json in the plugin data directory, and says where
+cmc config           # shows the settings in force, and any problem in the file
+```
+
+```json
+{
+  "holdPrefix": ";;",
+  "dispatchPrefix": ">>",
+  "dispatch": {
+    "context": "fork",
+    "return": "held",
+    "permissionMode": "acceptEdits",
+    "tools": ["Read", "Glob", "Grep", "Edit", "Write"]
+  },
+  "retentionDays": 30
+}
+```
+
+| Setting | Values |
+|---|---|
+| `holdPrefix`, `dispatchPrefix` | 1 to 4 symbols, no letters, digits, spaces or `/`; one cannot start the other. |
+| `dispatch.context` | `fork` (the whole conversation) or `pack` (a short summary). `--pack` / `--fork` override it per dispatch. |
+| `dispatch.return` | `held` (the result waits in the queue) or `auto` (handed over at the end of a turn). `--auto` / `--held` override it. |
+| `dispatch.permissionMode` | `acceptEdits`, `default` or `plan`. `bypassPermissions` is never accepted. |
+| `dispatch.tools` | Tools the dispatched agent may use, as `--allowedTools` takes them, e.g. `"Bash(npm test:*)"`. |
+| `retentionDays` | Sessions inactive for longer are deleted with their queue. `0` keeps them forever. |
+
+A wrong value never stops the plugin: that setting falls back to its default, and the problem is shown when the next
+session starts and in `cmc config`.
+
 ### Indicator
 
 While something is held or a dispatched agent is working, `✉ 2 held · ⚙ 1 agent` is pinned under the prompt. It follows the queue within about a second,

@@ -46,6 +46,7 @@ export const CONTROL_HELP = [
   'To hold a message, put a space after the prefix: ";; your message".',
   'To dispatch a task to a second agent: ">> your task". Add --pack for a short summary instead of the whole conversation,',
   'and --auto to get its result back by itself at the end of a turn instead of held in the queue.',
+  '(--fork and --held do the opposite, for when your settings make --pack or --auto the default.)',
 ].join('\n');
 
 const positions = (words: readonly string[]): number[] | null =>
@@ -105,12 +106,12 @@ function relative(dir: string, from: number, offset: number): QueueResult {
  * Runs a control word against the queue of one session.
  * @param dir Session folder.
  */
-export function runControl(dir: string, control: Control): ControlAnswer {
-  const answer = answerControl(dir, control);
+export function runControl(dir: string, control: Control, prefix = ';;'): ControlAnswer {
+  const answer = answerControl(dir, control, prefix);
   return typeof answer === 'string' ? { reply: answer } : answer;
 }
 
-function answerControl(dir: string, control: Control): string | { context: string } {
+function answerControl(dir: string, control: Control, prefix: string): string | { context: string } {
   switch (control.name) {
     case 'help':
       return CONTROL_HELP;
@@ -128,7 +129,7 @@ function answerControl(dir: string, control: Control): string | { context: strin
         armAtEnd(dir, selection);
         return `The agent is working: ${count} held message(s) will be released when this turn ends.`;
       }
-      const result = release(dir, selection, ';;now');
+      const result = release(dir, selection, `${prefix}now`);
       // Someone else (the CLI, another hook) took the messages between the two steps.
       if (result.text === null) {
         const reply = 'Nothing is held, so there is nothing to release.';

@@ -12,7 +12,25 @@ import { drainMessages, listMessages } from './queue.ts';
 const POSITION = /^[1-9]\d{0,5}$/;
 const AGENT_ID = /^[a-f0-9]{2,8}$/;
 const PACK_FLAG = '--pack';
+const FORK_FLAG = '--fork';
 const AUTO_FLAG = '--auto';
+const HELD_FLAG = '--held';
+const FLAGS: readonly string[] = [PACK_FLAG, FORK_FLAG, AUTO_FLAG, HELD_FLAG];
+
+/** What a dispatch does when the user names no flag. */
+export const DEFAULT_CHOICE: DispatchChoice = Object.freeze({ mode: 'fork', returnMode: 'held' });
+
+/** Applies flags to the defaults; a later flag wins over an earlier one. */
+function choose(flags: readonly string[], defaults: DispatchChoice): DispatchChoice {
+  let { mode, returnMode } = defaults;
+  for (const flag of flags) {
+    if (flag === PACK_FLAG) mode = 'pack';
+    else if (flag === FORK_FLAG) mode = 'fork';
+    else if (flag === AUTO_FLAG) returnMode = 'auto';
+    else if (flag === HELD_FLAG) returnMode = 'held';
+  }
+  return { mode, returnMode };
+}
 
 /** How a dispatch was asked for: the context the agent gets and how its result comes back. */
 export interface DispatchChoice {
@@ -31,6 +49,9 @@ export interface DispatchOrigin {
   /** Executable of Claude Code (and fixed leading arguments, in tests). */
   claude?: readonly string[];
   env?: NodeJS.ProcessEnv;
+  /** From the settings: what the agent may do. */
+  permissionMode?: string;
+  tools?: readonly string[];
 }
 
 export type AgentControl =
@@ -43,7 +64,7 @@ export type AgentControl =
  * is strict: what does not match exactly is held as a message.
  * @param rest The prompt without the hold prefix.
  */
-export function parseAgentControl(rest: string): AgentControl | null {
+export function parseAgentControl(rest: string, defaults: DispatchChoice = DEFAULT_CHOICE): AgentControl | null {
   if (rest === '' || /^\s/.test(rest)) return null;
   const [name, ...words] = rest.trimEnd().split(/\s+/);
   const [first, second, ...more] = words;
@@ -55,9 +76,9 @@ export function parseAgentControl(rest: string): AgentControl | null {
   if (name === 'dispatch') {
     if (first === undefined || !POSITION.test(first)) return null;
     const flags = [second, ...more].filter((word): word is string => word !== undefined);
-    const known = flags.every((flag) => flag === PACK_FLAG || flag === AUTO_FLAG) && new Set(flags).size === flags.length;
+    const known = flags.every((flag) => FLAGS.includes(flag)) && new Set(flags).size === flags.length;
     if (!known) return null;
-    return { name, position: Number(first), mode: flags.includes(PACK_FLAG) ? 'pack' : 'fork', returnMode: flags.includes(AUTO_FLAG) ? 'auto' : 'held' };
+    return { name, position: Number(first), ...choose(flags, defaults) };
   }
   return null;
 }
@@ -66,19 +87,17 @@ export function parseAgentControl(rest: string): AgentControl | null {
  * Splits what follows the dispatch prefix into the task and how the agent
  * gets its context: `>> --pack task` asks for the short summary.
  */
-export function parseDispatch(rest: string): { task: string } & DispatchChoice {
+export function parseDispatch(rest: string, defaults: DispatchChoice = DEFAULT_CHOICE): { task: string } & DispatchChoice {
   let text = rest.trim();
-  let mode: AgentMode = 'fork';
-  let returnMode: ReturnMode = 'held';
+  const flags: string[] = [];
   // Flags come first, in any order: ">> --auto --pack task".
   for (;;) {
-    const flag = [PACK_FLAG, AUTO_FLAG].find((candidate) => text === candidate || text.startsWith(`${candidate} `));
+    const flag = FLAGS.find((candidate) => text === candidate || text.startsWith(`${candidate} `));
     if (flag === undefined) break;
-    if (flag === PACK_FLAG) mode = 'pack';
-    else returnMode = 'auto';
+    flags.push(flag);
     text = text.slice(flag.length).trim();
   }
-  return { task: text, mode, returnMode };
+  return { task: text, ...choose(flags, defaults) };
 }
 
 /**
@@ -95,6 +114,8 @@ export function startAgent(origin: DispatchOrigin, task: string, { mode, returnM
     transcriptPath: origin.transcriptPath,
     ...(origin.claude === undefined ? {} : { claude: origin.claude }),
     ...(origin.env === undefined ? {} : { env: origin.env }),
+    ...(origin.permissionMode === undefined ? {} : { permissionMode: origin.permissionMode }),
+    ...(origin.tools === undefined ? {} : { tools: origin.tools }),
   });
   return dispatchReceipt(agent);
 }

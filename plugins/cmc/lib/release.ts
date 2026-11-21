@@ -6,6 +6,7 @@ import { sessionDir } from './paths.ts';
 import { drainMessages, listMessages, type HeldMessage } from './queue.ts';
 import { mergeSelection, readState, updateState, type Selection } from './session-state.ts';
 import { touchSession } from './sessions.ts';
+import { loadConfig } from './config.ts';
 import { agentOf } from './agent-return.ts';
 import type { HookContext, HookInput } from './types.ts';
 
@@ -118,13 +119,13 @@ export function armAtEnd(dir: string, selection: Selection): void {
 export function handleStop(input: HookInput, { dataDir }: HookContext): StopBlock | null {
   const dir = sessionDir(dataDir, input.session_id);
   touchSession(dir);
-  const answer = stopAnswer(dir, input.stop_hook_active === true);
+  const answer = stopAnswer(dir, input.stop_hook_active === true, loadConfig(dataDir).config.holdPrefix);
   // The turn goes on only when cmc itself continues it.
   updateState(dir, { turnActive: answer !== null });
   return answer;
 }
 
-function stopAnswer(dir: string, continuing: boolean): StopBlock | null {
+function stopAnswer(dir: string, continuing: boolean, holdPrefix: string): StopBlock | null {
   // Already continuing because of a Stop hook: never chain a second continuation.
   if (continuing) return null;
 
@@ -133,7 +134,7 @@ function stopAnswer(dir: string, continuing: boolean): StopBlock | null {
 
   const parts: string[] = [];
   if (state.atEnd !== null) {
-    const { text } = release(dir, state.atEnd, ';;end');
+    const { text } = release(dir, state.atEnd, `${holdPrefix}end`);
     if (text !== null) parts.push(text);
   }
   // Results the user asked to get back by themselves. One the user already

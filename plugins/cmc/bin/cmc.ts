@@ -2,8 +2,10 @@
 // cmc — Claude Message Control. Author: Peterson Sena (r3v3rs3).
 // Command line over the same core the hooks use. Run it from another terminal,
 // in the folder where the Claude Code session was started.
-import { basename } from 'node:path';
+import { existsSync } from 'node:fs';
+import { basename, dirname } from 'node:path';
 import { parseAgentControl, parseDispatch, runAgentControl, startAgent, type DispatchOrigin } from '../lib/agent-control.ts';
+import { CONFIG_FILE, loadConfig, writeDefaultConfig, type LoadedConfig } from '../lib/config.ts';
 import { parseControl, runControl } from '../lib/control.ts';
 import { CmcError, errorCode } from '../lib/errors.ts';
 import { describeError, logEvent } from '../lib/log.ts';
@@ -28,20 +30,23 @@ The session is the one started in the current folder; name it with --session
   up <N> | down <N>    move message N one place
   top <N> | bottom <N> make message N the first or the last to be delivered
   release [<N>…]       hand messages (all, or those) to the agent when its turn ends
-  dispatch [--pack] [--auto] <task>
+  dispatch [--pack|--fork] [--auto|--held] <task>
                        start a second agent on a task, as ">> task" does in the session
                        (--pack: it gets a short summary instead of the whole conversation;
-                       --auto: its result goes to the session by itself when a turn ends)
+                       --auto: its result goes to the session by itself when a turn ends;
+                       --fork and --held override settings that make the others the default)
   agents               show the agents dispatched from the session
   log <id>             show what an agent was asked and its latest steps or final answer
   cancel <id>          stop an agent
   sessions [--all]     show the open sessions started in this folder (--all: every session)
+  config [init]        show the settings in force and where the file is (init: write a file
+                       with every setting at its default, to edit)
   drain [--format prompt|json]
                        take every held message out of the queue and print it
 `;
 
 type ValueFlag = 'session' | 'data-dir' | 'format';
-type BooleanFlag = 'all' | 'pack' | 'auto';
+type BooleanFlag = 'all' | 'pack' | 'fork' | 'auto' | 'held';
 type Flags = Partial<Record<ValueFlag, string> & Record<BooleanFlag, boolean>>;
 
 interface ParsedArgs {
@@ -58,7 +63,9 @@ const VALUE_FLAGS: ReadonlyMap<string, ValueFlag> = new Map([
 const BOOLEAN_FLAGS: ReadonlyMap<string, BooleanFlag> = new Map([
   ['--all', 'all'],
   ['--pack', 'pack'],
+  ['--fork', 'fork'],
   ['--auto', 'auto'],
+  ['--held', 'held'],
 ]);
 const QUEUE_COMMANDS: ReadonlySet<string> = new Set(['list', 'edit', 'rm', 'clear', 'move', 'up', 'down', 'top', 'bottom']);
 const POSITION = /^[1-9]\d{0,5}$/;
@@ -141,8 +148,14 @@ function releaseCommand({ flags, positional }: ParsedArgs): string {
  * The session a dispatch starts from, found as `targetDir` finds it. The
  * transcript comes from the session registry, since no hook is there to say.
  */
+/** The settings of the data directory a session folder belongs to (<data>/sessions/<id>). */
+function settingsOf(sessionFolder: string): LoadedConfig {
+  return loadConfig(dirname(dirname(sessionFolder)));
+}
+
 function originFor(flags: Flags): DispatchOrigin {
   const dir = targetDir(flags);
+  const { config } = settingsOf(dir);
   const record = listSessions(candidateDataDirs(flags['data-dir'])).find((session) => session.dir === dir);
   const sessionId = basename(dir);
   return {
@@ -150,13 +163,21 @@ function originFor(flags: Flags): DispatchOrigin {
     sessionId,
     cwd: record?.cwd ?? process.cwd(),
     ...(record?.transcriptPath === undefined ? {} : { transcriptPath: record.transcriptPath }),
+    permissionMode: config.dispatch.permissionMode,
+    tools: config.dispatch.tools,
   };
 }
 
 function dispatchCommand({ flags, positional }: ParsedArgs): string {
-  const { task, mode, returnMode } = parseDispatch(positional.join(' '));
-  if (task === '') throw new CmcError('BAD_USAGE', 'dispatch needs a task: cmc dispatch [--pack] <task>.');
-  return startAgent(originFor(flags), task, { mode: flags.pack ? 'pack' : mode, returnMode: flags.auto ? 'auto' : returnMode });
+  if (flags.pack && flags.fork) throw new CmcError('BAD_USAGE', 'Use --pack or --fork, not both.');
+  if (flags.auto && flags.held) throw new CmcError('BAD_USAGE', 'Use --auto or --held, not both.');
+  const origin = originFor(flags);
+  const { config } = settingsOf(origin.dir);
+  const { task, mode, returnMode } = parseDispatch(positional.join(' '), { mode: config.dispatch.context, returnMode: config.dispatch.return });
+  if (task === '') throw new CmcError('BAD_USAGE', 'dispatch needs a task: cmc dispatch [--pack|--fork] [--auto|--held] <task>.');
+  const chosenMode = flags.pack ? 'pack' : flags.fork ? 'fork' : mode;
+  const chosenReturn = flags.auto ? 'auto' : flags.held ? 'held' : returnMode;
+  return startAgent(origin, task, { mode: chosenMode, returnMode: chosenReturn });
 }
 
 /** `agents`, `log <id>` and `cancel <id>` share their grammar with the control words. */
@@ -164,6 +185,31 @@ function agentCommand(name: string, { flags, positional }: ParsedArgs): string {
   const control = parseAgentControl([name, ...positional].join(' '));
   if (!control) throw new CmcError('BAD_USAGE', `Wrong arguments for "${name}".\n\n${USAGE}`);
   return runAgentControl(originFor(flags), control);
+}
+
+/**
+ * Shows the settings in force, or writes a file with the defaults. The data
+ * directory is found like a session's, but no session needs to be open.
+ */
+function configCommand({ flags, positional }: ParsedArgs): string {
+  const [action, ...extra] = positional;
+  if (extra.length > 0 || (action !== undefined && action !== 'init')) throw new CmcError('BAD_USAGE', `Wrong arguments for "config".\n\n${USAGE}`);
+  const dataDirs = candidateDataDirs(flags['data-dir']);
+  const [dataDir, ...others] = dataDirs;
+  if (dataDir === undefined) throw new CmcError('NO_DATA_DIR', 'cmc has no data directory yet: start a Claude Code session with cmc once, or pass --data-dir.');
+  if (others.length > 0) throw new CmcError('AMBIGUOUS_DATA_DIR', `cmc found several data directories; pick one with --data-dir:\n${dataDirs.map((dir) => `  ${dir}`).join('\n')}`);
+  if (action === 'init') {
+    // Never over a file that exists, valid or not: it holds what the user wrote.
+    const loaded = loadConfig(dataDir);
+    if (existsConfig(loaded.path)) {
+      throw new CmcError('CONFIG_EXISTS', `${loaded.path} already exists; edit it, or delete it first to start again from the defaults.`);
+    }
+    return `Wrote ${writeDefaultConfig(dataDir)} with every setting at its default. Edit it; the changes apply to the next prompt.`;
+  }
+  const { config, warnings, path } = loadConfig(dataDir);
+  const lines = [`Settings file: ${path}${existsConfig(path) ? '' : ' (not created; these are the defaults)'}`, JSON.stringify(config, null, 2)];
+  if (warnings.length > 0) lines.push('', `Problems in ${CONFIG_FILE}:`, ...warnings.map((warning) => `- ${warning}`));
+  return lines.join('\n');
 }
 
 function sessions({ flags }: ParsedArgs): string {
@@ -185,6 +231,10 @@ function queueCommand(name: string, { flags, positional }: ParsedArgs): string {
   return answer.reply;
 }
 
+function existsConfig(path: string): boolean {
+  return existsSync(path);
+}
+
 function main(argv: readonly string[]): string {
   const [name, ...rest] = argv;
   if (!name || name === 'help' || name === '--help') return USAGE;
@@ -193,6 +243,7 @@ function main(argv: readonly string[]): string {
   if (name === 'drain') return drain(parsed);
   if (name === 'release') return releaseCommand(parsed);
   if (name === 'sessions') return sessions(parsed);
+  if (name === 'config') return configCommand(parsed);
   if (name === 'dispatch') return dispatchCommand(parsed);
   if (name === 'agents' || name === 'log' || name === 'cancel') return agentCommand(name, parsed);
   if (QUEUE_COMMANDS.has(name)) return queueCommand(name, parsed);

@@ -3,14 +3,15 @@
 // control word, or passed on to the agent untouched.
 import { parseAgentControl, parseDispatch, runAgentControl, startAgent, type DispatchOrigin } from './agent-control.ts';
 import { parseControl, runControl } from './control.ts';
+import { DEFAULT_CONFIG, loadConfig, withPrefixes, type CmcConfig } from './config.ts';
 import { CmcError } from './errors.ts';
 import { assertSessionId, sessionDir } from './paths.ts';
 import { addMessage } from './queue.ts';
 import { updateState } from './session-state.ts';
 import type { HookContext, HookInput } from './types.ts';
 
-export const DEFAULT_HOLD_PREFIX = ';;';
-export const DEFAULT_DISPATCH_PREFIX = '>>';
+export const DEFAULT_HOLD_PREFIX = DEFAULT_CONFIG.holdPrefix;
+export const DEFAULT_DISPATCH_PREFIX = DEFAULT_CONFIG.dispatchPrefix;
 
 /** The prompt goes no further; `reason` is shown to the user. */
 export interface PromptBlock {
@@ -49,7 +50,7 @@ function markTurnActive(input: HookInput, dataDir: string): void {
 }
 
 /** The session a prompt came from, as a dispatch needs it. */
-function originOf(input: HookInput, dir: string, options: CaptureOptions): DispatchOrigin {
+function originOf(input: HookInput, dir: string, options: CaptureOptions, config: CmcConfig): DispatchOrigin {
   assertSessionId(input.session_id);
   return {
     dir,
@@ -58,17 +59,28 @@ function originOf(input: HookInput, dir: string, options: CaptureOptions): Dispa
     ...(typeof input.transcript_path === 'string' ? { transcriptPath: input.transcript_path } : {}),
     ...(options.claude === undefined ? {} : { claude: options.claude }),
     ...(options.env === undefined ? {} : { env: options.env }),
+    permissionMode: config.dispatch.permissionMode,
+    tools: config.dispatch.tools,
   };
 }
 
 /** What a prefixed prompt does; throws a `CmcError` for what cmc refuses on purpose. */
-function answer(input: HookInput, prompt: string, dataDir: string, options: Required<Pick<CaptureOptions, 'prefix' | 'dispatchPrefix'>> & CaptureOptions): PromptBlock | PromptContext {
+function answer(
+  input: HookInput,
+  prompt: string,
+  dataDir: string,
+  options: Required<Pick<CaptureOptions, 'prefix' | 'dispatchPrefix'>> & CaptureOptions,
+  config: CmcConfig,
+): PromptBlock | PromptContext {
   const { prefix, dispatchPrefix } = options;
+  const defaults = { mode: config.dispatch.context, returnMode: config.dispatch.return };
+  // cmc's own hints name the prefixes in force; text the user typed is never rewritten.
+  const hints = { ...config, holdPrefix: prefix, dispatchPrefix };
 
   if (prompt.startsWith(dispatchPrefix)) {
-    const { task, ...choice } = parseDispatch(prompt.slice(dispatchPrefix.length));
+    const { task, ...choice } = parseDispatch(prompt.slice(dispatchPrefix.length), defaults);
     if (task === '') return block(`Nothing to dispatch. Type "${dispatchPrefix} your task" to hand it to a second agent.`);
-    return block(startAgent(originOf(input, sessionDir(dataDir, input.session_id), options), task, choice));
+    return block(withPrefixes(startAgent(originOf(input, sessionDir(dataDir, input.session_id), options, config), task, choice), hints));
   }
 
   const rest = prompt.slice(prefix.length);
@@ -78,12 +90,12 @@ function answer(input: HookInput, prompt: string, dataDir: string, options: Requ
   const dir = sessionDir(dataDir, input.session_id);
   const control = parseControl(rest);
   if (control) {
-    const result = runControl(dir, control);
-    if ('reply' in result) return block(result.reply);
+    const result = runControl(dir, control, prefix);
+    if ('reply' in result) return block(control.name === 'help' ? withPrefixes(result.reply, hints) : result.reply);
     return { hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: result.context } };
   }
-  const agentControl = parseAgentControl(rest);
-  if (agentControl) return block(runAgentControl(originOf(input, dir, options), agentControl));
+  const agentControl = parseAgentControl(rest, defaults);
+  if (agentControl) return block(runAgentControl(originOf(input, dir, options, config), agentControl));
 
   const { messages, warning } = addMessage(dir, { text });
   const receipt = `Held (${messages.length} queued). Release with /cmc:release.`;
@@ -97,8 +109,11 @@ function answer(input: HookInput, prompt: string, dataDir: string, options: Requ
  */
 export function handlePrompt(
   input: HookInput,
-  { dataDir, prefix = DEFAULT_HOLD_PREFIX, dispatchPrefix = DEFAULT_DISPATCH_PREFIX, ...rest }: HookContext & CaptureOptions,
+  { dataDir, prefix: givenPrefix, dispatchPrefix: givenDispatchPrefix, ...rest }: HookContext & CaptureOptions,
 ): PromptBlock | PromptContext | null {
+  const { config } = loadConfig(dataDir);
+  const prefix = givenPrefix ?? config.holdPrefix;
+  const dispatchPrefix = givenDispatchPrefix ?? config.dispatchPrefix;
   const prompt = input.prompt;
   if (typeof prompt !== 'string') return null;
   if (!(prompt.startsWith(prefix) || prompt.startsWith(dispatchPrefix))) {
@@ -108,7 +123,7 @@ export function handlePrompt(
   }
 
   try {
-    const output = answer(input, prompt, dataDir, { ...rest, prefix, dispatchPrefix });
+    const output = answer(input, prompt, dataDir, { ...rest, prefix, dispatchPrefix }, config);
     if ('hookSpecificOutput' in output) markTurnActive(input, dataDir);
     return output;
   } catch (error) {

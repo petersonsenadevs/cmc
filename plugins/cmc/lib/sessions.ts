@@ -6,6 +6,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { writeFileAtomic } from './atomic-write.ts';
 import { CmcError, errorCode } from './errors.ts';
+import { CONFIG_FILE, DEFAULT_CONFIG, loadConfig } from './config.ts';
 import { assertSessionId, sessionDir } from './paths.ts';
 import { listMessages } from './queue.ts';
 import { isRecord, type HookContext, type HookInput } from './types.ts';
@@ -14,7 +15,7 @@ const SESSION_FILE = 'session.json';
 // Marks a plugin data directory as cmc's, whatever name Claude Code gave it.
 const MARKER_FILE = 'cmc.json';
 
-export const DEFAULT_RETENTION_DAYS = 30;
+export const DEFAULT_RETENTION_DAYS = DEFAULT_CONFIG.retentionDays;
 const DAY_MS = 24 * 60 * 60 * 1000;
 // Only folders named like a session id are ever deleted.
 const SESSION_FOLDER = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
@@ -73,10 +74,12 @@ function save(record: SessionRecord): void {
  */
 export function handleSessionStart(
   input: HookInput,
-  { dataDir, retentionDays = DEFAULT_RETENTION_DAYS }: HookContext & { retentionDays?: number },
+  { dataDir, retentionDays: givenRetention }: HookContext & { retentionDays?: number },
 ): { systemMessage: string } | null {
   const sessionId = input.session_id;
   assertSessionId(sessionId);
+  const { config, warnings } = loadConfig(dataDir);
+  const retentionDays = givenRetention ?? config.retentionDays;
   const dir = sessionDir(dataDir, sessionId);
   const now = new Date().toISOString();
   const previous = readRecord(dir);
@@ -96,9 +99,10 @@ export function handleSessionStart(
   // A compaction restarts the context, not the session: the user has not left,
   // and the indicator is still on screen, so there is nothing to remind them of.
   if (input.source === 'compact') return null;
+  const notes = warnings.map((warning) => `cmc settings (${CONFIG_FILE}): ${warning}.`);
   const held = listMessages(dir).messages.length;
-  if (held === 0) return null;
-  return { systemMessage: `cmc: ${held} held message(s) are waiting in this session. Type ;;list to see them.` };
+  if (held > 0) notes.push(`cmc: ${held} held message(s) are waiting in this session. Type ${config.holdPrefix}list to see them.`);
+  return notes.length === 0 ? null : { systemMessage: notes.join('\n') };
 }
 
 /**

@@ -395,13 +395,17 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Verificar: `npm test`; guion de Peterson.
 - Depende de: F5-T3
 
-### F5-T10 · Cabecera del hub: título, autoría y sitio para el logotipo  [S] [todo]
+### F5-T10 · Cabecera del hub: título, autoría y sitio para el logotipo  [S] [done]
 - Para qué: Peterson: «el nombre debe tener su título y decir by r3v3rs3, y espacio para el logotipo cuando lo tengamos; básicamente será un hub».
 - Skill: `plugin-authoring` (`ui.render` de `Pane`; elementos `Image`/`Raster` de la terminal para el logotipo) + `code-quality §references/typescript`
 - Archivos: plugins/cmc/hooks/panel.ts, plugins/cmc/assets/ (logotipo, cuando exista), test/panel.test.ts, senzu/arquitectura/adr/003-panel-de-control.md
 - Hecho cuando: la cabecera dice «cmc — Claude Message Control» y «by r3v3rs3», con un hueco fijo para el logotipo (marcador hasta que exista; con el fichero en `plugins/cmc/assets/logo.png` se pinta con `Image`, y si la terminal no lo dibuja, el marcador de texto); el título del panel (pestaña) es «cmc hub»; no empuja el contenido en terminales estrechas.
 - Verificar: `npm test`; `claude plugin validate ./plugins/cmc`; captura de Peterson.
 - Depende de: —
+- Verificado: npm test 338; cabecera con la marca de bloques, «Claude Message Control» y «by r3v3rs3»; pestaña «cmc hub»
+- Cumple: el hub tiene su nombre, su autoría y su marca, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/040-f5-t10-cabecera-del-hub.md
+- Notas: la terminal usa la marca de medios bloques (no la imagen); el logotipo lo genera Peterson con ChatGPT desde senzu/design-system/cmc/logos/brief.md y va al README.
 
 ### F5-T11 · Elegir el modelo y el esfuerzo de los subagentes  [M] [done]
 - Para qué: Peterson: «que podamos elegir el modelo para el subagente y el effort»; cada tarea puede pedir un modelo más barato o más capaz.

@@ -43,3 +43,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 037 | 2026-11-21 | F5-T3: cambios ajenos y envío terminado     | fix      | 021, 036 | F5-T3 |
 | 038 | 2026-11-21 | F5-T6: hablar con subagentes (chat)        | feature  | 015, 024, 036 | F5-T6 |
 | 039 | 2026-11-21 | F5-T11: modelo y esfuerzo de subagentes    | feature  | 036, 038 | F5-T11 |
+| 040 | 2026-11-21 | F5-T10: cabecera del hub y brief del logo  | feature  | 036      | F5-T10 |

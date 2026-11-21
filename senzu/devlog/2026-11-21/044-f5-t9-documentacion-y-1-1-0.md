@@ -43,3 +43,4 @@ $ MSYS_NO_PATHCONV=1 node scripts/e2e.ts --mid ";; also say the word pineapple" 
 
 ## Publicación
 - `main` en GitHub = `6c0d3f3` (igual que `feat/typescript`), subida por Peterson. Etiqueta `v1.1.0` publicada por Peterson, apuntando a `67cbc87` (el commit anterior: sin `repository`/`homepage` en plugin.json; se deja así, una etiqueta publicada no se mueve). Lo que se instala con `/plugin marketplace add petersonsenadevs/cmc` es `main`, que ya los lleva.
+- Release `v1.1.0` publicada por petersonsenadevs el 2026-11-21 (https://github.com/petersonsenadevs/cmc/releases/tag/v1.1.0): título «cmc 1.1.0 — the cmc hub», notas del CHANGELOG, no borrador. Repositorio público, rama por defecto `main`, con temas de GitHub. Comprobado con la API pública de GitHub.

@@ -109,7 +109,7 @@ describe('release at the end of the turn', () => {
   it('does nothing with an empty queue, and disarms', () => {
     assert.match(type(';;end').reason, /^Nothing is held yet\./);
     assert.equal(stop(), null);
-    assert.equal(readState(sessionDir(dataDir, SESSION)).releaseAtEnd, false);
+    assert.equal(readState(sessionDir(dataDir, SESSION)).atEnd, null);
   });
 
   it('covers messages held after ";;end" in the same turn', () => {

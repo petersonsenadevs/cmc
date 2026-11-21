@@ -5,7 +5,7 @@ import { parseControl, runControl } from '../lib/control.mjs';
 import { CmcError } from '../lib/errors.mjs';
 import { describeError, logEvent } from '../lib/log.mjs';
 import { resolveDataDir, sessionDir } from '../lib/paths.mjs';
-import { releaseAll } from '../lib/release.mjs';
+import { arm, releaseAll, select } from '../lib/release.mjs';
 
 const USAGE = `cmc — Claude Message Control (Peterson Sena · r3v3rs3)
 
@@ -18,13 +18,16 @@ Usage: cmc <command> --session <id> [--data-dir <dir>]
   move <N> <M>         move message N to position M
   up <N> | down <N>    move message N one place
   top <N> | bottom <N> make message N the first or the last to be delivered
-  end                  release everything when the current turn ends
+  release [<N>…] [--now|--end]
+                       hand messages to the agent from outside the session: at its next
+                       step (--now, the default) or when its turn ends (--end)
   drain [--format prompt|json]
                        take every held message out of the queue and print it
 `;
 
 const VALUE_FLAGS = new Set(['--session', '--data-dir', '--format']);
-const QUEUE_COMMANDS = new Set(['list', 'edit', 'rm', 'clear', 'move', 'up', 'down', 'top', 'bottom', 'end']);
+const BOOLEAN_FLAGS = new Set(['--now', '--end']);
+const QUEUE_COMMANDS = new Set(['list', 'edit', 'rm', 'clear', 'move', 'up', 'down', 'top', 'bottom']);
 
 /** Splits argv into flags with a value and positional arguments. */
 function parseArgs(argv) {
@@ -35,6 +38,8 @@ function parseArgs(argv) {
     if (VALUE_FLAGS.has(arg)) {
       if (i + 1 >= argv.length) throw new CmcError('BAD_USAGE', `${arg} needs a value.`);
       flags[arg.slice(2)] = argv[(i += 1)];
+    } else if (BOOLEAN_FLAGS.has(arg)) {
+      flags[arg.slice(2)] = true;
     } else if (arg.startsWith('--')) {
       throw new CmcError('BAD_USAGE', `Unknown option ${arg}.`);
     } else {
@@ -59,11 +64,29 @@ function drain({ flags }, dataDir) {
   return result.warning ? `${text}\n\n[cmc] ${result.warning}` : text;
 }
 
+/**
+ * Arms a release from outside the session. The CLI cannot talk to the agent,
+ * so it leaves a note that the plugin's hooks act on.
+ */
+function releaseCommand({ flags, positional }, dataDir) {
+  if (flags.now && flags.end) throw new CmcError('BAD_USAGE', 'Use --now or --end, not both.');
+  if (!positional.every((word) => /^[1-9]\d{0,5}$/.test(word))) {
+    throw new CmcError('BAD_USAGE', `Wrong arguments for "release".\n\n${USAGE}`);
+  }
+  const dir = sessionDir(dataDir, requireSession(flags));
+  const { selection, count, held } = select(dir, positional.map(Number));
+  if (held === 0) return 'Nothing is held, so there is nothing to release.';
+  arm(dir, flags.end ? 'atEnd' : 'atNextStep', selection);
+  return flags.end
+    ? `${count} held message(s) will be released when the agent's turn ends.`
+    : `${count} held message(s) will be released at the agent's next step, or when its turn ends if it takes none.`;
+}
+
 /** The queue commands share their grammar with the control words of the prompt. */
 function queueCommand(name, { flags, positional }, dataDir) {
   const control = parseControl([name, ...positional].join(' '));
   if (!control) throw new CmcError('BAD_USAGE', `Wrong arguments for "${name}".\n\n${USAGE}`);
-  return runControl(sessionDir(dataDir, requireSession(flags)), control);
+  return runControl(sessionDir(dataDir, requireSession(flags)), control).reply;
 }
 
 function main(argv) {
@@ -71,6 +94,7 @@ function main(argv) {
   if (!name || name === 'help' || name === '--help') return USAGE;
   const parsed = parseArgs(rest);
   if (name === 'drain') return drain(parsed, resolveDataDir(parsed.flags['data-dir']));
+  if (name === 'release') return releaseCommand(parsed, resolveDataDir(parsed.flags['data-dir']));
   if (QUEUE_COMMANDS.has(name)) return queueCommand(name, parsed, resolveDataDir(parsed.flags['data-dir']));
   throw new CmcError('BAD_USAGE', `Unknown command "${name}".\n\n${USAGE}`);
 }

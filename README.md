@@ -22,8 +22,11 @@ claude --plugin-dir /path/to/this/repository
 | You type | What happens |
 |---|---|
 | `;; also update the README` | The message is **held**. The agent does not see it and keeps working. You get the receipt `Held (1 queued)`. |
-| `/cmc:release` | Every held message is handed to the agent, in the order you wrote them. |
+| `/cmc:release` | Every held message is handed to the agent, in delivery order. |
+| `;;now` | Hands everything over **now**: the agent gets it at its next step, without waiting for the turn to end. If the agent is idle, it starts a turn with them. |
+| `;;now 2` · `;;now 1 3` | Same, but only those messages. The rest stay held. |
 | `;;end` | The held messages are handed over automatically when the current turn ends. One-shot. |
+| `;;end 2` | Same, but only those messages. |
 
 ### Managing what is held
 
@@ -44,7 +47,16 @@ never sees them, they cost no tokens, and they work while the agent is busy.
 The order you see in `;;list` is exactly the order of delivery. `/cmc:queue` shows the same list, but as a
 slash command it goes through the agent, which then sees your held messages (still held); prefer `;;list`.
 
-The same commands exist on the command line: `node bin/cmc.mjs list --session <id>` (see `cmc help`).
+The same commands exist on the command line: `node bin/cmc.mjs list --session <id>` (see `cmc help`). From
+there, `cmc release [N…]` hands messages to the agent at its next tool call, and `cmc release --end [N…]`
+when its turn ends.
+
+How sure each delivery is:
+
+- **End of turn** (`;;end`, `/cmc:release`) is the dependable path: the text arrives as a new instruction.
+- **Now** (`;;now`, `cmc release`) rides on the turn that is running. The agent receives the text between
+  two steps and, in every test so far, acted on it; but it is the model that weighs text arriving
+  mid-task, so treat it as best effort. Whatever happens, a message is handed over exactly once.
 
 Things worth knowing:
 

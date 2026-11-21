@@ -5,12 +5,14 @@
 // timeline of what the session saw. It spends tokens, so it is not part of
 // `npm test`.
 //
-//   node scripts/e2e.mjs [--mid <text>]... [--after <text>]... [--model <name>] [--keep]
+//   node scripts/e2e.mjs [--mid <text>]... [--cli <args>] [--after <text>]... [--model <name>] [--keep]
 //
 //   --mid    typed two seconds into the first tool call (repeatable)
+//   --cli    cmc CLI arguments, run from outside the session when the second tool call starts
+//            (for example: --cli "release --now")
 //   --after  typed once the turn has ended, one per following turn (repeatable)
 //   --keep   keep the scratch working directory
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -23,10 +25,11 @@ const TASK =
 const TIMEOUT_MS = 240000;
 
 const args = process.argv.slice(2);
-const options = { mid: [], after: [], model: 'haiku', keep: false };
+const options = { mid: [], after: [], cli: null, model: 'haiku', keep: false };
 for (let i = 0; i < args.length; i += 1) {
   if (args[i] === '--mid') options.mid.push(args[(i += 1)]);
   else if (args[i] === '--after') options.after.push(args[(i += 1)]);
+  else if (args[i] === '--cli') options.cli = args[(i += 1)];
   else if (args[i] === '--model') options.model = args[(i += 1)];
   else if (args[i] === '--keep') options.keep = true;
   else {
@@ -66,6 +69,15 @@ function type(text) {
 
 let sessionId;
 let midSent = false;
+let toolCalls = 0;
+// With --plugin-dir, Claude Code names the data directory "<plugin>-inline".
+const dataDir = join(homedir(), '.claude', 'plugins', 'data', 'cmc-inline');
+
+function runCli() {
+  const cliArgs = [...options.cli.split(' '), '--data-dir', dataDir, '--session', String(sessionId)];
+  const result = spawnSync(process.execPath, [join(pluginDir, 'bin', 'cmc.mjs'), ...cliArgs], { encoding: 'utf8' });
+  print('CLI', `cmc ${options.cli} → ${oneLine(result.stdout)}`);
+}
 let buffer = '';
 const after = [...options.after];
 
@@ -87,6 +99,8 @@ function onMessage(message) {
       if (block.type === 'text') print('AGENT', oneLine(block.text));
       if (block.type === 'tool_use') {
         print('TOOL', oneLine(block.input.command ?? JSON.stringify(block.input), 80));
+        toolCalls += 1;
+        if (toolCalls === 2 && options.cli) runCli();
         if (!midSent) {
           midSent = true;
           setTimeout(() => options.mid.forEach(type), 2000);
@@ -124,8 +138,7 @@ const timer = setTimeout(() => {
 
 child.on('exit', (code) => {
   clearTimeout(timer);
-  // With --plugin-dir, Claude Code names the data directory "<plugin>-inline".
-  const queue = join(homedir(), '.claude', 'plugins', 'data', 'cmc-inline', 'sessions', String(sessionId), 'queue.jsonl');
+  const queue = join(dataDir, 'sessions', String(sessionId), 'queue.jsonl');
   const left = existsSync(queue)
     ? readFileSync(queue, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line).text)
     : [];

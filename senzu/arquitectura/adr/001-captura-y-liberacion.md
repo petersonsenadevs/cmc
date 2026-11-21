@@ -127,6 +127,18 @@ Plan B (capture only through the external CLI) is not needed.
 - Release text is user-authored input replayed by the plugin, so it must be clearly attributed and never
   contain anything the user did not type (F1-T5, prompt-injection section).
 
+## Update — 2026-11-21, after F2-T2
+
+Measured again with the real plugin (`scripts/e2e.mjs`), one run each:
+
+- `;;now 2` typed mid-turn: the model answered with the released message at the end of its task
+  (`step1, step2, step3 — mango`). `;;now` typed while idle starts a turn and is obeyed (`papaya`).
+- `cmc release --now` from outside the session, delivered through `PostToolUse` `additionalContext` with
+  the factual header: **obeyed** (`step1, step2, step3 — guava`). Finding (e) was about the wording, not
+  the channel: the imperative text was ignored, the factual one was not.
+- Selective release is done with control words (`;;now N…`, `;;end N…`), not with `/cmc:release N`:
+  command arguments are substituted into the shell line of the command (D-011).
+
 ## How to reproduce
 
 ```

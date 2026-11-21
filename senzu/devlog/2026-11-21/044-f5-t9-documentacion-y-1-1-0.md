@@ -34,3 +34,9 @@ $ MSYS_NO_PATHCONV=1 node scripts/e2e.ts --mid ";; also say the word pineapple" 
 
 ## Subida
 - Remoto `origin` = https://github.com/petersonsenadevs/cmc (repositorio creado vacío por Peterson). `git push -u origin feat/typescript` → `* [new branch] feat/typescript -> feat/typescript` (893ef6d). 115 commits, todos con autor Peterson Sena y sin líneas de co-autor ni firmas de agente (comprobado). No se ha tocado `main`.
+
+## Historia reescrita (autoría)
+- Peterson reescribió la historia de `feat/typescript` para firmar los 116 commits con su correo personal en lugar del del trabajo (que GitHub atribuía a otra cuenta suya) y la subió con `--force-with-lease` él mismo (el agente no fuerza pushes). Copia previa en la rama local `backup/antes-de-reescribir`.
+- Comprobado: mismo árbol de ficheros antes y después (`f33bf42`); 116 de 116 commits con el correo personal como autor y committer; remoto `feat/typescript` = local `d878f91`.
+- **Los identificadores de commit citados en el devlog y el plan hasta la entrada 044 son los de antes de reescribir**: el contenido de cada commit es el mismo, el hash no. Para encontrar uno, buscar por su mensaje (`git log --grep`).
+- Pendiente: `main` en el remoto sigue apuntando a la historia vieja (`39238c3`); Peterson la actualiza con `git push --force-with-lease origin feat/typescript:main`.

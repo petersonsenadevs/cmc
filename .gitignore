@@ -8,3 +8,6 @@ node_modules/
 senzu/.estado/
 senzu/ui-verify/
 .claude/settings.local.json
+
+# Written by Claude Code when it loads the hooks module from this folder (engine types).
+plugins/cmc/tsconfig.json

@@ -1,6 +1,6 @@
 {
   "modules": [
-    "./indicator.ts"
+    "./module.ts"
   ],
   "hooks": {
     "SessionStart": [

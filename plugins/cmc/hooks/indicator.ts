@@ -70,18 +70,23 @@ async function countsIn($: Engine, dataDir: string | undefined): Promise<[number
 export const register = (on: On): void => {
   on('session.start', async ($, e, next) => {
     const result = await next(e);
-    const { CLAUDE_PLUGIN_DATA: dataDir } = await $.process.hookEnv();
-    let shown: string | undefined;
-    const refresh = async (): Promise<void> => {
-      const status = statusFor(...(await countsIn($, dataDir)));
-      // Only touch the screen when the number changes.
-      if (status !== shown) {
-        shown = status;
-        $.ui.status(status);
-      }
-    };
-    await refresh();
-    $.clock.every(REFRESH_MS, refresh);
+    await startIndicator($);
     return result;
   });
 };
+
+/** Starts the indicator for a session: called once, from the session start of the module. */
+export async function startIndicator($: Engine): Promise<void> {
+  const { CLAUDE_PLUGIN_DATA: dataDir } = await $.process.hookEnv();
+  let shown: string | undefined;
+  const refresh = async (): Promise<void> => {
+    const status = statusFor(...(await countsIn($, dataDir)));
+    // Only touch the screen when the number changes.
+    if (status !== shown) {
+      shown = status;
+      $.ui.status(status);
+    }
+  };
+  await refresh();
+  $.clock.every(REFRESH_MS, refresh);
+}

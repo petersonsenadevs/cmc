@@ -2,7 +2,7 @@
 // cmc — Claude Message Control. Author: Peterson Sena (r3v3rs3).
 // Command line over the same core the hooks use. Run it from another terminal,
 // in the folder where the Claude Code session was started.
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { parseAgentControl, parseDispatch, runAgentControl, startAgent, type DispatchOrigin } from '../lib/agent-control.ts';
 import { CONFIG_FILE, loadConfig, writeDefaultConfig, type LoadedConfig } from '../lib/config.ts';
@@ -11,7 +11,7 @@ import { CmcError, errorCode } from '../lib/errors.ts';
 import { describeError, logEvent } from '../lib/log.ts';
 import { resolveDataDir, sessionDir } from '../lib/paths.ts';
 import { addMessage } from '../lib/queue.ts';
-import { armAtEnd, release, select } from '../lib/release.ts';
+import { armAtEnd, release, select, sendMessages, takeMessages } from '../lib/release.ts';
 import { candidateDataDirs, formatSessions, listSessions, openSessionsIn, resolveSession } from '../lib/sessions.ts';
 
 const USAGE = `cmc — Claude Message Control (Peterson Sena · r3v3rs3)
@@ -30,6 +30,10 @@ The session is the one started in the current folder; name it with --session
   up <N> | down <N>    move message N one place
   top <N> | bottom <N> make message N the first or the last to be delivered
   release [<N>…]       hand messages (all, or those) to the agent when its turn ends
+  send [<N>…]          for the plugin's /send: when the agent is idle, prints (JSON) the text
+                       to submit and the ids, and takes nothing out; while it works, arms
+                       the end of the turn like release
+  take <id>…           take messages out of the queue by id (after /send's prompt was accepted)
   dispatch [--pack|--fork] [--auto|--held] <task>
                        start a second agent on a task, as ">> task" does in the session
                        (--pack: it gets a short summary instead of the whole conversation;
@@ -46,7 +50,7 @@ The session is the one started in the current folder; name it with --session
 `;
 
 type ValueFlag = 'session' | 'data-dir' | 'format';
-type BooleanFlag = 'all' | 'pack' | 'fork' | 'auto' | 'held';
+type BooleanFlag = 'all' | 'pack' | 'fork' | 'auto' | 'held' | 'stdin';
 type Flags = Partial<Record<ValueFlag, string> & Record<BooleanFlag, boolean>>;
 
 interface ParsedArgs {
@@ -66,6 +70,7 @@ const BOOLEAN_FLAGS: ReadonlyMap<string, BooleanFlag> = new Map([
   ['--fork', 'fork'],
   ['--auto', 'auto'],
   ['--held', 'held'],
+  ['--stdin', 'stdin'],
 ]);
 const QUEUE_COMMANDS: ReadonlySet<string> = new Set(['list', 'edit', 'rm', 'clear', 'move', 'up', 'down', 'top', 'bottom']);
 const POSITION = /^[1-9]\d{0,5}$/;
@@ -114,9 +119,26 @@ function targetDir(flags: Flags): string {
 }
 
 function hold({ flags, positional }: ParsedArgs): string {
-  const { messages, warning } = addMessage(targetDir(flags), { text: positional.join(' ') });
+  // --stdin: the text comes on standard input (the plugin's interface sends it
+  // so; no length limit of the command line, nothing to quote).
+  const text = flags.stdin ? readFileSync(0, 'utf8') : positional.join(' ');
+  const { messages, warning } = addMessage(targetDir(flags), { text });
   const receipt = `Held (${messages.length} queued).`;
   return warning ? `${receipt}\n${warning}` : receipt;
+}
+
+function sendCommand({ flags, positional }: ParsedArgs): string {
+  if (!positional.every((word) => POSITION.test(word))) throw new CmcError('BAD_USAGE', `Wrong arguments for "send".\n\n${USAGE}`);
+  return JSON.stringify(sendMessages(targetDir(flags), positional.map(Number)));
+}
+
+const MESSAGE_ID = /^[0-9a-f]{8}$/;
+
+function take({ flags, positional }: ParsedArgs): string {
+  if (positional.length === 0 || !positional.every((word) => MESSAGE_ID.test(word))) {
+    throw new CmcError('BAD_USAGE', `"take" needs message ids.\n\n${USAGE}`);
+  }
+  return `Took ${takeMessages(targetDir(flags), positional)} message(s).`;
 }
 
 function drain({ flags }: ParsedArgs): string {
@@ -241,6 +263,8 @@ function main(argv: readonly string[]): string {
   if (!name || name === 'help' || name === '--help') return USAGE;
   const parsed = parseArgs(rest);
   if (name === 'hold') return hold(parsed);
+  if (name === 'send') return sendCommand(parsed);
+  if (name === 'take') return take(parsed);
   if (name === 'drain') return drain(parsed);
   if (name === 'release') return releaseCommand(parsed);
   if (name === 'sessions') return sessions(parsed);

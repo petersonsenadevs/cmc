@@ -160,3 +160,41 @@ function stopAnswer(dir: string, pending: { atEnd: Selection; autoReturn: Select
   return parts.length === 0 ? null : { decision: 'block', reason: parts.join('\n\n') };
 }
 
+/** What `sendMessages` decided: hand the messages over now, at the end of the turn, or nothing to send. */
+export type SendOutcome =
+  | { mode: 'now'; count: number; text: string; ids: string[] }
+  | { mode: 'end'; count: number }
+  | { mode: 'none' };
+
+/**
+ * Sends held messages the safe way: at once when the agent is idle, or when its
+ * turn ends while it is working, since text handed over in the middle of a turn
+ * is too often set aside (D-030).
+ *
+ * "now" takes nothing out of the queue: the caller submits `text` as a prompt
+ * and calls `takeMessages(ids)` only once the prompt was accepted, so a refused
+ * prompt leaves the messages held instead of losing them.
+ * @param positions Messages to send, as the user sees them; none means all.
+ */
+export function sendMessages(dir: string, positions: number[], trigger = '/send'): SendOutcome {
+  const { selection, count, held } = select(dir, positions);
+  if (held === 0 || count === 0 || selection === null) return { mode: 'none' };
+  if (readState(dir).turnActive) {
+    armAtEnd(dir, selection);
+    return { mode: 'end', count };
+  }
+  const { messages } = listMessages(dir);
+  const chosen = selection === 'all' ? messages : messages.filter((message) => selection.includes(message.id));
+  if (chosen.length === 0) return { mode: 'none' };
+  return { mode: 'now', count: chosen.length, text: formatRelease(chosen, trigger), ids: chosen.map((message) => message.id) };
+}
+
+/**
+ * Takes sent messages out of the queue by id, after their prompt was accepted.
+ * One deleted or already sent meanwhile is simply not there any more.
+ * @returns How many were taken.
+ */
+export function takeMessages(dir: string, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  return drainMessages(dir, [...ids]).messages.length;
+}

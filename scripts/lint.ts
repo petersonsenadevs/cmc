@@ -15,6 +15,8 @@ function modulesIn(dir: string): string[] {
   return entries.flatMap((entry) => {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) return modulesIn(path);
+    // Declaration files (the engine writes its own under .claude-plugin/types) are not modules.
+    if (entry.name.endsWith('.d.ts')) return [];
     return (entry.name.endsWith('.ts') || entry.name.endsWith('.js')) ? [path] : [];
   });
 }

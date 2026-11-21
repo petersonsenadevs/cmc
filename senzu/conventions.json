@@ -1,0 +1,11 @@
+{
+  "_sello": "senzu:inmutable",
+  "_generado": "/adoptar 2026-11-21 — no editar a mano; para cambiar: borrar y re-ejecutar /adoptar",
+  "rules": [
+    { "files": "\\.mjs$", "forbid": "\\brequire\\(", "why": "ESM: se usa import, no require" },
+    { "files": "plugins[\\\\/].*\\.mjs$", "forbid": "shell:\\s*true", "why": "sin shell: los procesos se lanzan con argumentos en array" },
+    { "files": "plugins[\\\\/].*\\.mjs$", "forbid": "\\bexecSync\\(|\\bexec\\(", "why": "sin lineas de shell: spawn o spawnSync con argumentos en array" },
+    { "files": "hooks[\\\\/]indicator\\.mjs$", "forbid": "from 'node:", "why": "el modulo del indicador corre en el motor de Claude Code, sin Node" },
+    { "files": "plugins[\\\\/]cmc[\\\\/](hooks|bin|lib)[\\\\/](?!atomic-write)[\\w-]+\\.mjs$", "forbid": "\\brenameSync\\(", "why": "las escrituras atomicas van por writeFileAtomic (reintenta en Windows)" }
+  ]
+}

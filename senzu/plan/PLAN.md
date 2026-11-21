@@ -9,7 +9,7 @@
 
 ## Alcance
 - **IN:** captura por prefijo y por CLI externa; cola por sesión persistente (listar, editar, borrar, reordenar); liberación manual, «al terminar» y «ya»; indicador visible; derivación a otro agente con contexto (fork de sesión o paquete de contexto) en worktree; estado, log y cancelación; retorno del resultado a la cola; configuración, README y marketplace local.
-- **OUT (explícito):** retener lo que se envía sin prefijo por la cola nativa; canales MCP (`--channels`, en vista previa); conversación continua entre agentes; fusión automática del worktree; otros CLI y apps de escritorio/web; publicación en marketplace público.
+- **OUT (explícito):** retener lo que se envía sin prefijo por la cola nativa; canales MCP (`--channels`, en vista previa); conversación continua entre agentes; fusión automática del worktree; otros CLI (pasan a la fase F5, tras terminar Claude Code) y apps de escritorio/web; publicación en marketplace público.
 - **Supuestos:** S1 nombre `cmc`, prefijos `;;` y `>>` · S2 `UserPromptSubmit` intercepta los mensajes de mitad de turno sin interrumpir (no documentado) · S3 `/cmc:release` se expande a mitad de turno (no documentado) · S4 el fork funciona con la sesión a mitad de turno (no documentado) · S5 sin git no hay worktree.
 - **Riesgos:** ver sección final
 
@@ -28,6 +28,7 @@
 | F2 | Control completo: ver, editar, borrar y soltar de forma selectiva, modo «ya», indicador visible y CLI `cmc` desde otra terminal | done |
 | F3 | Derivar: `>> tarea` arranca un segundo agente con contexto en su worktree, en paralelo; se ve, se cancela y su resultado vuelve a la cola (retenido o automático) | doing |
 | F4 | Entrega: configuración, revisión de seguridad, README e instalación desde marketplace local | todo |
+| F5 | Adaptadores para otros agentes: núcleo sin nada de Claude Code, adaptador de Codex y los que falten (se planifica al cerrar F4) | todo |
 
 ---
 
@@ -337,6 +338,8 @@
 | 2026-11-21 | Tarjeta ad hoc X-T1: portabilidad entre sistemas operativos | Petición de Peterson: el plugin debe ser multi-OS |
 | 2026-11-21 | ADR 002: F3-T3 usa el `--worktree` de Claude Code en vez de crear el worktree a mano | Evidencia de F3-T1 |
 | 2026-11-21 | Tarjeta ad hoc X-T2: el repositorio pasa a ser un marketplace y el plugin a `plugins/cmc/`; adelanta parte de F4-T3 | Peterson: quería instalación por marketplace y luego plugin |
+| 2026-11-21 | Nueva fase F5 (adaptadores para otros agentes), sin tarjetas todavía: se planifica cuando Claude Code esté terminado | Decisión de Peterson: «primero Claude y luego, cuando esté perfecto, pasamos» |
+| 2026-11-21 | El lenguaje queda en JavaScript sobre Node, sin TypeScript (D-022) | Decisión de Peterson |
 | 2026-11-21 | Q1 resuelta: el plugin se llama `cmc` (Claude Message Control); prefijos `;;` y `>>` por defecto, configurables en F4-T1 | Decisión de Peterson |
 
 ## Riesgos y bloqueos

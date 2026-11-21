@@ -83,3 +83,10 @@
 - **Elección:** D-021 marketplace `r3v3rs3` en la raíz (`.claude-plugin/marketplace.json`) y plugin en `plugins/cmc/`; tests, scripts y documentación de desarrollo se quedan fuera.
 - **Motivo:** la instalación copia la carpeta del plugin: así solo viaja el producto. Deja sitio para más plugins del mismo autor.
 - **Consecuencias:** `--plugin-dir` apunta ahora a `plugins/cmc`; la CLI instalada queda en la caché de plugins de Claude Code (F4-T3 documentará cómo ponerla en el PATH).
+
+## dev-017 — Lenguaje y orden de los adaptadores
+- **Contexto:** Peterson preguntó por qué el plugin es JavaScript puro y planteó sacar más adaptadores (Codex y otros).
+- **Opciones:** JavaScript con JSDoc sin comprobar; JavaScript con `tsc --checkJs` en desarrollo; TypeScript ejecutado por Node. Adaptadores ahora o después.
+- **Elección:** D-022 JavaScript sobre Node, sin TypeScript ni compilación. D-023 primero se termina Claude Code; los adaptadores van después, en una fase 5.
+- **Motivo:** de Peterson: Claude Code ya usa Node para funcionar, y Senzu y Corvus están hechos así; los adaptadores, cuando lo de Claude esté perfecto.
+- **Consecuencias:** no se añade TypeScript ni como dependencia de desarrollo; el «types» de `verify-build` seguirá en rojo hasta que Senzu se reinstale con los comandos reales del proyecto. En la fase 5 habrá que separar de `lib/` lo específico de Claude Code y volver a ejecutar `/adoptar`.

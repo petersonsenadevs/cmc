@@ -1,6 +1,6 @@
 # 004 — F1-T3: cola por sesión en el core
 
-- **Fecha/hora:** 2026-11-21 01:30
+- **Fecha/hora:** 2026-11-21 01:16
 - **Tipo:** feature
 - **Mejora a:** —
 - **Tarea:** F1-T3

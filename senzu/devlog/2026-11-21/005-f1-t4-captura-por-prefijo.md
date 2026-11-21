@@ -1,6 +1,6 @@
 # 005 — F1-T4: captura de mensajes con prefijo
 
-- **Fecha/hora:** 2026-11-21 01:42
+- **Fecha/hora:** 2026-11-21 01:19
 - **Tipo:** feature
 - **Mejora a:** —
 - **Tarea:** F1-T4

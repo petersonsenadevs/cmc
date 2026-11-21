@@ -1,6 +1,6 @@
 # 007 — F1-T6: cierre de la fase 1 (retener y soltar)
 
-- **Fecha/hora:** 2026-11-21 02:05
+- **Fecha/hora:** 2026-11-21 01:23
 - **Tipo:** docs
 - **Mejora a:** —
 - **Tarea:** F1-T6

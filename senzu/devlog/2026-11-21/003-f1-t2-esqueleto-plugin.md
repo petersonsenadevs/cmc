@@ -1,6 +1,6 @@
 # 003 — F1-T2: esqueleto del plugin
 
-- **Fecha/hora:** 2026-11-21 01:20
+- **Fecha/hora:** 2026-11-21 01:14
 - **Tipo:** feature
 - **Mejora a:** —
 - **Tarea:** F1-T2

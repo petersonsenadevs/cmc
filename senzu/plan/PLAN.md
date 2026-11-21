@@ -24,7 +24,7 @@
 | Fase | Entregable verificable por el usuario | Estado |
 |---|---|---|
 | F1 | Esqueleto: escribes `;; texto` con el agente trabajando, no se interrumpe, y `/cmc:release` o el fin del turno se lo entrega | doing |
-| F2 | Control completo: ver, editar, borrar y soltar de forma selectiva, modo «ya», indicador visible y CLI `cmc` desde otra terminal | todo |
+| F2 | Control completo: ver, editar, borrar y soltar de forma selectiva, modo «ya», indicador visible y CLI `cmc` desde otra terminal | doing |
 | F3 | Derivar: `>> tarea` arranca un segundo agente con contexto en su worktree, en paralelo; se ve, se cancela y su resultado vuelve a la cola (retenido o automático) | todo |
 | F4 | Entrega: configuración, revisión de seguridad, README e instalación desde marketplace local | todo |
 
@@ -118,18 +118,19 @@
 
 ## F2 — Control completo de la cola
 
-### F2-T1 · Gestionar la cola: ver, editar, borrar y reordenar  [M] [todo]
+### F2-T1 · Gestionar la cola: ver, editar, borrar y reordenar  [M] [done]
 - Para qué: control total de lo retenido: decidir qué mensaje va primero y cuál después, y corregir o descartar cualquiera antes de enviarlo.
 - Skill: `code-quality §references/testing "Qué testear y qué no"`
 - Archivos: lib/queue.mjs, commands/queue.md, bin/cmc.mjs (`list`, `edit`, `rm`, `move`), test/queue-manage.test.mjs
 - Hecho cuando: `/cmc:queue` muestra posición, id, hora y texto de cada mensaje; se puede editar el texto, borrar uno o todos y cambiar el orden (mover a una posición, subir, bajar, poner el primero); el orden que se ve es el orden exacto en que se entregan al soltar; gestionar la cola no envía nada al agente más allá del listado.
 - Verificar: `npm test` y sesión real: editar y borrar un mensaje retenido y comprobarlo en el listado.
 - Depende de: F1-T6
-- Verificado: —
-- Cumple: —
-- Devlog: —
+- Verificado: `npm test` → 68 pass, 0 fail; `npm run lint` → 21 modules checked, 0 failed; sesión real: 3 mensajes retenidos a mitad de turno, `;;edit 1`, `;;rm 2`, `;;top 2` y `;;list` responden con el listado nuevo sin interrumpir, y `/cmc:release` entrega `guava papaya`, el orden del último listado
+- Cumple: control total de lo retenido: se ve, se corrige, se descarta y se decide qué va primero antes de enviarlo, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-21/008-f2-t1-gestionar-la-cola.md
+- Notas: la gestión va por palabras de control (`;;list`, `;;edit`, `;;rm`, `;;move`…), no por argumentos de `/cmc:queue` (D-011); `/cmc:queue` solo lista. Archivos extra: lib/control.mjs, lib/queue-view.mjs.
 
-### F2-T2 · Soltar de forma selectiva y en modo «ya»  [M] [todo]
+### F2-T2 · Soltar de forma selectiva y en modo «ya»  [M] [doing]
 - Para qué: enviar solo un mensaje, o hacerlo llegar en el siguiente paso sin esperar al final.
 - Skill: `code-quality §references/errors-logging "No tragar errores"`
 - Archivos: hooks/tool-release.mjs, hooks/hooks.json, lib/release.mjs, commands/release.md, test/release.test.mjs

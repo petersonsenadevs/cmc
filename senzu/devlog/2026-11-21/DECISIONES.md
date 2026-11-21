@@ -27,3 +27,10 @@
 - **Elección:** D-010 la palabra de control `;;end` (pegada al prefijo, sin espacio) arma una entrega de un solo uso que ejecuta el hook `Stop`. `;; end` con espacio es un mensaje normal.
 - **Motivo:** `UserPromptSubmit` sí se dispara a mitad de turno, y es el mismo gesto que retener.
 - **Consecuencias:** el modo por defecto configurable queda para F4-T1; `;;now` (F2-T2) seguirá el mismo patrón.
+
+## dev-008 — Cómo se gestiona la cola desde la sesión
+- **Contexto:** editar, borrar y reordenar necesitan argumentos (posición, texto nuevo).
+- **Opciones:** argumentos de `/cmc:queue`; o palabras de control tras el prefijo, atendidas por el hook `UserPromptSubmit`.
+- **Elección:** D-011 palabras de control (`;;list`, `;;edit N texto`, `;;rm N`, `;;move N M`, `;;up`, `;;down`, `;;top`, `;;bottom`, `;;clear`), con gramática estricta; `/cmc:queue` solo muestra el listado.
+- **Motivo:** los argumentos de un comando se sustituyen dentro de la línea de shell (texto del usuario en shell, prohibido por el brief), el comando no se procesa a mitad de turno y todo lo que hace pasa por el agente y gasta tokens. Las palabras de control las contesta el plugin: el agente no ve nada.
+- **Consecuencias:** un mensaje que empiece exactamente como una palabra de control necesita el espacio tras el prefijo (`;; clear` retiene «clear»); F2-T2 sigue el mismo patrón para soltar.

@@ -1,6 +1,6 @@
 # 006 — F1-T5: soltar la cola con `/cmc:release` y al terminar el turno
 
-- **Fecha/hora:** 2026-11-21 01:55
+- **Fecha/hora:** 2026-11-21 01:21
 - **Tipo:** feature
 - **Mejora a:** —
 - **Tarea:** F1-T5

@@ -1,0 +1,15 @@
+# Decisiones — 2026-11-21
+
+## dev-001 — Alcance y forma del producto
+- **Contexto:** arranque del proyecto; tres preguntas abiertas en el brief.
+- **Opciones:** nombres y prefijos varios; derivado con o sin permisos amplios; retorno automático o retenido.
+- **Elección:** D-001 el plugin se llama `cmc`, prefijos `;;` (retener) y `>>` (derivar), configurables. D-002 el derivado edita solo en su worktree con `acceptEdits` como máximo, nunca `bypassPermissions`. D-003 el resultado del derivado vuelve retenido; el retorno automático es un ajuste. D-004 producto en inglés (código, comandos, README, ADR); devlog y plan en castellano.
+- **Motivo:** decisiones de Peterson al planificar.
+- **Consecuencias:** fijan F1-T2, F3-T2, F3-T6 y F3-T7.
+
+## dev-002 — Captura y liberación (ADR 001)
+- **Contexto:** nada de lo que hace falta estaba documentado para mensajes de mitad de turno.
+- **Opciones:** captura por hook `UserPromptSubmit` o solo por CLI externa; liberación por comando, por `Stop` o por contexto inyectado.
+- **Elección:** D-005 captura con `UserPromptSubmit` bloqueando los prompts con prefijo. D-006 liberación manual con `/cmc:release` (a mitad de turno actúa al terminar) y al final del turno con `Stop` + `decision: block` en una sola continuación. D-007 modo «ya» con el prompt de control `;;now` y `additionalContext` de `UserPromptSubmit`, con cabecera «[cmc] The user released their held messages…»; `PostToolUse` solo para la CLI externa y como mejor esfuerzo. D-008 el comando recibe `${CLAUDE_PLUGIN_DATA}` y `${CLAUDE_SESSION_ID}` como argumentos (no hay variables de entorno en `!`) y lleva `disable-model-invocation: true`.
+- **Motivo:** evidencia de ocho ejecuciones (entrada 002).
+- **Consecuencias:** el plan B (captura solo por CLI) no hace falta; el modo «ya» depende de la redacción y se vuelve a probar en F2-T2.

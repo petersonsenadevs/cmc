@@ -41,13 +41,13 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-023 · Primero Claude Code; los adaptadores para otros agentes (Codex y los que falten) van después, en la fase 5 · ver 017
 - D-025 · Tipado estricto sin escapes (`strict`, sin `any` ni `@ts-ignore`; entradas como `unknown`; solo sintaxis borrable); `npm run types` en cada verificación · ver 019
 - D-026 · Los hooks arrancan por `hooks/run.js` (único fichero JavaScript, sin lógica), que activa la caché de compilación de Node y carga el núcleo en TypeScript: 45 ms por hook frente a 95 ms sin ella · ver 020
-- D-026 · Los hooks arrancan por `hooks/run.js` (único fichero JavaScript, sin lógica), que activa la caché de compilación de Node y carga el núcleo en TypeScript: 45 ms por hook frente a 95 ms sin ella · ver 020
 - D-027 · Al acabar un derivado se levanta solo el bloqueo de worktree de su propia sesión ya terminada; sin cambios se retira sin forzar, con cambios se conserva · ver 021
 - D-028 · Derivar un retenido es `;;dispatch N [--pack]`, no `/cmc:dispatch N` · ver 023
 - D-029 · El resultado de un derivado vuelve a la cola como mensaje «de agente»; con `--auto` lo entrega `Stop` al terminar un turno, nunca a mitad de turno · ver 024
 - D-030 · Nada se entrega a mitad de turno: `;;now` es inmediato solo con el agente parado y si trabaja espera al final del turno; `cmc release` siempre al final; sin hook `PostToolUse` · ver 025
 - D-031 · Los ajustes están en `config.json` del directorio de datos, validados; un valor malo cae a su defecto con aviso; nunca `bypassPermissions` · ver 026
 - D-032 · El derivado tiene solo las herramientas integradas configuradas (`--tools`); `dispatch.restrictTools: false` lo quita a cambio de coste (el fork pierde la caché) · ver 027
+- D-033 · Licencia MIT (elegida por el agente; cambiable) y versión 1.0.0 · ver 028
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012

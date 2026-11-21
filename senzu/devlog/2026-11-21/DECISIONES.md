@@ -153,3 +153,10 @@
 - **Elección:** D-032 `--tools` con las herramientas integradas de `dispatch.tools`, y el ajuste `dispatch.restrictTools` (por defecto `true`) para quitar la restricción.
 - **Motivo:** una lista blanca no depende de conocer todas las herramientas que habría que prohibir; probado en real (el derivado no tiene Bash).
 - **Consecuencias:** el fork pierde la caché del prompt y cuesta mucho más (0,003 $ → 0,156 $ en una prueba con haiku). Las herramientas MCP no se restringen con `--tools`.
+
+## dev-027 — Licencia y versión
+- **Contexto:** la validación del plugin pedía una licencia y la entrega cerraba la versión.
+- **Opciones:** MIT, Apache-2.0, sin licencia (todos los derechos reservados).
+- **Elección:** D-033 MIT y versión 1.0.0.
+- **Motivo:** la más simple y permisiva para un plugin propio de Peterson con su autoría visible; Peterson prefiere que el agente decida y se lo diga.
+- **Consecuencias:** `LICENSE` en la raíz y en `plugins/cmc/`, campo `license` en el manifiesto; cambiarla es tocar esos ficheros.

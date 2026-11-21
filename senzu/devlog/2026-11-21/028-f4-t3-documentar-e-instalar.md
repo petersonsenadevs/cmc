@@ -16,7 +16,7 @@
 - `119fb8d` docs: document install, update, removal, limits and security
 
 ## Decisiones (resumen; detalle en DECISIONES.md)
-- Licencia MIT, elegida por el agente (Peterson prefiere que se decida y se le diga); se cambia en dos ficheros si prefiere otra.
+- D-033 licencia MIT, elegida por el agente (Peterson prefiere que se decida y se le diga); se cambia en dos ficheros si prefiere otra (ver DECISIONES.md#dev-027).
 
 ## Verificación
 ```

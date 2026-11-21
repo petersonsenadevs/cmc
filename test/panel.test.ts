@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path';
 import { after, beforeEach, describe, it } from 'node:test';
 import { clearPendingInBox, pendingIn, register as registerInterface, startInterface } from '../plugins/cmc/hooks/interface.ts';
 import {
+  AUTHOR,
   COLORS,
   dispatchToast,
   drawPanel,
@@ -14,9 +15,11 @@ import {
   fateOf,
   firstSentence,
   isWorking,
+  MARK,
   noteActivity,
   openPanel,
   PANE_ID,
+  PRODUCT_NAME,
   parseAgents,
   parseConversation,
   parseQueue,
@@ -218,6 +221,11 @@ describe('panel: what it reads and says', () => {
   it('uses the violet palette', () => {
     assert.equal(COLORS.accent, '#7C5CFF');
   });
+
+  it('has a two-line mark of equal width, where the logo goes', () => {
+    assert.equal(MARK.length, 2);
+    assert.equal(MARK[0]?.length, MARK[1]?.length);
+  });
 });
 
 describe('panel: opening', () => {
@@ -226,7 +234,7 @@ describe('panel: opening', () => {
     await w.start();
     assert.ok(w.registered.includes('cmc'));
     assert.equal(await openPanel(w.$), 'cmc panel opened. Escape closes it.');
-    assert.deepEqual(w.opened, [{ id: PANE_ID, title: 'cmc', closeOnEscape: true }]);
+    assert.deepEqual(w.opened, [{ id: PANE_ID, title: 'cmc hub', closeOnEscape: true }]);
   });
 
   it('says so when the terminal has no room for the pane', async () => {
@@ -252,6 +260,10 @@ describe('panel: header, tabs and modes', () => {
     addMessage(w.dir, { text: 'one' });
     const tree = await w.draw();
     assert.ok(texts(tree).includes('○ Agent idle · Send hands a message over now'));
+    const brand = find(tree, 'brand');
+    assert.deepEqual(texts(brand.props.children), [...MARK, PRODUCT_NAME, AUTHOR]);
+    assert.ok(ofType(brand.props.children, 'Text').slice(0, 2).every((node) => node.props.color === COLORS.accent));
+    assert.equal(AUTHOR, 'by r3v3rs3');
     assert.deepEqual(
       ['tab-messages', 'tab-agents', 'tab-activity'].map((key) => find(tree, key).props.label),
       ['Messages 1', 'Subagents 0', 'Activity'],

@@ -10,7 +10,7 @@
 import { cli, currentDataDir, markPendingInBox, onSendSettled, sendHeld, type HeldEntry, type InterfaceEngine } from './interface.ts';
 
 export const PANE_ID = 'cmc';
-const PANE_TITLE = 'cmc';
+const PANE_TITLE = 'cmc hub';
 /** How often the pane checks the session files for changes. */
 const REFRESH_MS = 1000;
 /** How much of a message a row shows. */
@@ -18,6 +18,14 @@ const ROW_LENGTH = 64;
 /** How many lines of activity are kept, and how many show under every view. */
 const ACTIVITY_KEPT = 30;
 const ACTIVITY_SHOWN = 2;
+
+/**
+ * The mark of the hub in the terminal (ADR 003 §8): "cmc" in half blocks,
+ * two lines high. It stands where the logo goes until there is one.
+ */
+export const MARK = Object.freeze(['▄▀▀ █▀▄▀█ ▄▀▀', '▀▄▄ █ ▀ █ ▀▄▄']);
+export const PRODUCT_NAME = 'Claude Message Control';
+export const AUTHOR = 'by r3v3rs3';
 
 /** The palette (ADR 003 §4): accents only, so the panel sits well on any theme. */
 export const COLORS = Object.freeze({ accent: '#7C5CFF', working: '#F5A524', done: '#2BB673', error: '#E5484D' });
@@ -504,14 +512,17 @@ function drawHeader(el: PanelElements, $: PanelEngine, working: boolean, atEnd: 
   return Box({
     flexDirection: 'column',
     children: [
+      // The mark (the logo's place), the name and the author, then the agent's state.
       Box({
+        key: 'brand',
         flexDirection: 'row',
-        columnGap: 2,
+        columnGap: 3,
         children: [
-          Text({ bold: true, color: COLORS.accent, children: 'cmc' }),
-          Text({ color: working ? COLORS.working : COLORS.done, children: statusLine(working, atEnd) }),
+          Box({ flexDirection: 'column', children: MARK.map((line) => Text({ bold: true, color: COLORS.accent, children: line })) }),
+          Box({ flexDirection: 'column', children: [Text({ bold: true, children: PRODUCT_NAME }), Text({ dimColor: true, children: AUTHOR })] }),
         ],
       }),
+      Text({ color: working ? COLORS.working : COLORS.done, children: statusLine(working, atEnd) }),
       Box({
         flexDirection: 'row',
         columnGap: 1,

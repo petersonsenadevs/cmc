@@ -1,5 +1,17 @@
 # cmc — Claude Message Control
 
+<!-- Logo: when plugins/cmc/assets/logo-dark.png and logo-light.png exist (brief in senzu/design-system/cmc/logos/brief.md),
+     replace the block below with:
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="plugins/cmc/assets/logo-dark.png">
+  <img alt="cmc — Claude Message Control" src="plugins/cmc/assets/logo-light.png" width="600">
+</picture>
+-->
+```
+▄▀▀ █▀▄▀█ ▄▀▀   Claude Message Control
+▀▄▄ █ ▀ █ ▀▄▄   by r3v3rs3
+```
+
 A Claude Code plugin that lets you decide **when** your messages reach the agent: hold what you type while it
 works, and release it when you want, without interrupting the turn. It can also hand a task to a second agent that
 works in parallel, in its own git worktree, and bring its result back to you.

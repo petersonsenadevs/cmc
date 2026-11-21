@@ -28,3 +28,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 022 | 2026-11-21 | F3-T4: paquete de contexto ligero          | feature  | —        | F3-T4 |
 | 023 | 2026-11-21 | F3-T5: derivar desde el prompt (>>)        | feature  | 015, 021, 022 | F3-T5 |
 | 024 | 2026-11-21 | F3-T6/T7: resultado del derivado a la cola | feature  | 015, 023 | F3-T6, F3-T7 |
+| 025 | 2026-11-21 | X-T4: «ya» sin entregas a mitad de turno     | fix      | 009, 020 | X-T4  |

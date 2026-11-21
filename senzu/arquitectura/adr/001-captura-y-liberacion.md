@@ -171,6 +171,20 @@ not part of its task. Delivery at the end of the turn (`;;end`, `Stop` hook) and
 obeyed in every run. Open work (plan card X-T4): measure with larger models and more runs, and decide whether
 `;;now` mid-turn should exist at all, or fall back to the end of the turn.
 
+## Update — 2026-11-21, X-T4: no delivery in the middle of a turn
+
+Decision: mid-turn delivery is removed. `;;now` hands messages over at once only when the agent is idle (the
+prompt starts a turn, which was always obeyed); while the agent is working it arms the end of the turn, like
+`;;end`. `cmc release` always arms the end of the turn. The `PostToolUse` hook is gone (one Node process less
+per tool call). Whether a turn is running is tracked in the session state: set when a prompt goes through to the
+agent, cleared by the `Stop` hook unless cmc itself continues the turn.
+
+Measured after the change (model `haiku`, real sessions): `;;now 2` while busy 3 of 3 delivered at the end of the
+turn and obeyed (`mango`); `cmc release` while busy 3 of 3 (`guava`); `;;now` while idle 1 of 1 (`lychee`).
+
+Known limit: an interrupted turn (Esc) does not run `Stop`, so cmc keeps thinking the agent is working; `;;now`
+then waits for the end of the next turn. `/cmc:release` works in that case.
+
 ## How to reproduce
 
 ```

@@ -132,3 +132,10 @@
 - **Elección:** D-029 solo al terminar un turno.
 - **Motivo:** medido en la entrada 020: a mitad de turno el modelo ignora el texto más de la mitad de las veces y el mensaje ya ha salido de la cola. Al fin de turno se obedeció siempre.
 - **Consecuencias:** con el principal parado, el resultado espera al final del siguiente turno; el plugin no puede despertar una sesión en reposo.
+
+## dev-024 — Sin entregas a mitad de turno
+- **Contexto:** a mitad de turno el modelo ignoró lo entregado 7 de 12 veces y el mensaje ya había salido de la cola (entrada 020). Peterson dejó la decisión al agente.
+- **Opciones:** (a) buscar una redacción o canal fiable; (b) entregar al final del turno; (c) no sacar el mensaje de la cola hasta confirmar.
+- **Elección:** D-030 opción (b). `;;now` entrega al momento solo con el agente parado y espera al final del turno si trabaja; `cmc release` siempre al final del turno; fuera el hook `PostToolUse`.
+- **Motivo:** el final del turno y el turno nuevo se obedecieron siempre (7 de 7 tras el cambio); (a) no tiene base medida y (c) necesitaría saber qué hizo el modelo con el texto.
+- **Consecuencias:** sustituye a D-007 en su parte de mitad de turno y a D-012. El estado guarda si hay un turno en marcha; un turno interrumpido con Esc deja ese dato desfasado hasta el siguiente.

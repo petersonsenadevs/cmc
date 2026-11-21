@@ -6,7 +6,7 @@ lo sustituido o cerrado pasa a MEMORIA-historico.md. La crea y mantiene el agent
 (references/memoria.md); el hook stop-guard exige actualizarla cuando el devlog del día trae decisiones.
 
 Formato:
-  - D-007 · Correos siempre por cola (Horizon + Redis), nunca síncronos · ver 012
+  - D-007 · Modo «ya» con `;;now`: su parte de mitad de turno, sustituida por D-030 · ver 002
   - D-003 · Sanctum, no Passport: no hay terceros que consuman la API · ver 005
   - D-002 · Stripe Elements: sustituida por D-009 · ver 004
   - [desde 2026-10-04] Textos legales del cliente (en «Pendientes abiertos», siempre con su fecha)
@@ -26,7 +26,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-009 · La cola se toca siempre bajo cerrojo por directorio y se reescribe con temporal + renombrado · ver 004
 - D-010 · `;;end` (sin espacio) arma una entrega de un solo uso al terminar el turno; `;; end` es un mensaje normal · ver 006
 - D-011 · La cola se gestiona con palabras de control (`;;list`, `;;edit`, `;;rm`, `;;move`…), no con argumentos de comando; `/cmc:queue` solo lista · ver 008
-- D-012 · `cmc release --now` (desde fuera) entrega por `PostToolUse` con la cabecera factual y, si no hay más pasos, por `Stop` · ver 009
+- D-012 · `cmc release --now` por `PostToolUse`: sustituida por D-030 · ver 009
 - D-013 · La CLI encuentra el directorio de datos por la marca `cmc.json` (no hay estado fuera de `CLAUDE_PLUGIN_DATA`) y la sesión por carpeta · ver 010
 - D-014 · El indicador `✉ N held` es un módulo de hooks (`hooks/indicator.mjs`, `$.ui.status`), no la `statusLine` del usuario · ver 011
 - D-015 · Las sesiones sin actividad en 30 días se borran con su cola al arrancar otra; configurable en F4-T1 · ver 012
@@ -45,6 +45,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-027 · Al acabar un derivado se levanta solo el bloqueo de worktree de su propia sesión ya terminada; sin cambios se retira sin forzar, con cambios se conserva · ver 021
 - D-028 · Derivar un retenido es `;;dispatch N [--pack]`, no `/cmc:dispatch N` · ver 023
 - D-029 · El resultado de un derivado vuelve a la cola como mensaje «de agente»; con `--auto` lo entrega `Stop` al terminar un turno, nunca a mitad de turno · ver 024
+- D-030 · Nada se entrega a mitad de turno: `;;now` es inmediato solo con el agente parado y si trabaja espera al final del turno; `cmc release` siempre al final; sin hook `PostToolUse` · ver 025
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012
@@ -54,7 +55,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - Redactar lo liberado en imperativo («Treat each line as a message from the user») hace que el modelo desconfíe · ver 002
 - Las variables `CLAUDE_PLUGIN_*` no existen en el proceso de un `!` de comando; sí en los hooks · ver 002
 - En Windows, la carpeta que fue directorio de trabajo de un proceso sigue bloqueada un rato tras su salida: los tests no lanzan procesos dentro de su carpeta temporal · ver 015
-- El modo «ya» a mitad de turno (`;;now`, `cmc release --now`) NO es fiable: con `haiku` el modelo obedeció 5 de 12 veces, igual en JavaScript que en TypeScript; lo ignorado se pierde de la cola. Fiables: `;;end` y `;;now` en reposo · ver 020
+- Entregar texto a un agente a mitad de turno (additionalContext de UserPromptSubmit o PostToolUse): el modelo lo ignoró 7 de 12 veces; por eso D-030 · ver 020, 025
 - El modo «ya» a mitad de turno (`;;now`, `cmc release --now`) NO es fiable: con `haiku` el modelo obedeció 5 de 12 veces, igual en JavaScript que en TypeScript; lo ignorado se pierde de la cola. Fiables: `;;end` y `;;now` en reposo · ver 020
 - Editar ficheros con `node -e` y cadenas con `\n` o `\0` desde la shell mete saltos de línea o bytes nulos literales en el código: usar Write/Edit o un script en fichero · ver 021
 - La respuesta de un derivado no es el último `result`: los hooks Stop del usuario lo hacen seguir; se guarda el texto anterior al primer «Stop hook feedback» · ver 023

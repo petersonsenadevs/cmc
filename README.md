@@ -34,7 +34,7 @@ To try it from a checkout without installing: `claude --plugin-dir /path/to/this
 |---|---|
 | `;; also update the README` | The message is **held**. The agent does not see it and keeps working. You get the receipt `Held (1 queued)`. |
 | `/cmc:release` | Every held message is handed to the agent, in delivery order. |
-| `;;now` | Hands everything over **now**. If the agent is idle, it starts a turn with them. If it is busy, they arrive at its next step, but the model may set them aside (see below). |
+| `;;now` | If the agent is idle, hands everything over **now**: it starts a turn with them. If it is working, they are handed over when its turn ends, like `;;end` (see below). |
 | `;;now 2` · `;;now 1 3` | Same, but only those messages. The rest stay held. |
 | `;;end` | The held messages are handed over automatically when the current turn ends. One-shot. |
 | `;;end 2` | Same, but only those messages. |
@@ -74,22 +74,17 @@ node /path/to/this/repository/plugins/cmc/bin/cmc.ts list
 |---|---|
 | `cmc hold <text>` | Holds a message, like `;; text` in the session. |
 | `cmc list` · `edit` · `rm` · `clear` · `move` · `up` · `down` · `top` · `bottom` | The same as the control words. |
-| `cmc release [N…]` | Hands messages to the agent at its next tool call (or when its turn ends, if it makes none). |
-| `cmc release --end [N…]` | Hands them over when its turn ends. |
+| `cmc release [N…]` | Hands messages (all, or those) to the agent when its turn ends. |
 | `cmc sessions [--all]` | Shows the open sessions started in this folder, or every session cmc knows. |
 
 If no session is open in the folder, `cmc` says so and stores nothing. If several are, it lists them and you
 pick one with `--session <id>` (the first characters of the id are enough).
 
-How sure each delivery is:
-
-- **End of turn** (`;;end`, `/cmc:release`) is the dependable path: the text arrives as a new instruction.
-- **Now** (`;;now`, `cmc release`) rides on the turn that is running, and it is **unreliable while the agent
-  is busy**. The agent always receives the text between two steps, but it is the model that decides what to do
-  with text arriving mid-task: in repeated tests with a small model it acted on it in about four runs out of
-  ten and otherwise set it aside as not part of its task. A message is handed over exactly once, so one the
-  model ignores is gone from the queue. Use `;;now` when the agent is idle (it starts a turn with the
-  messages, which is dependable) and `;;end` while it is working.
+Why nothing is handed over in the middle of a turn: an earlier version did it, and the agent received the text
+between two steps, but the model set it aside as "not part of my task" more than half the time, and by then the
+message had left the queue. Handing messages over when a turn ends, or as a new turn when the agent is idle,
+worked every time. So cmc only does that: `;;now` and `cmc release` wait for the end of the turn while the agent
+is working. If you press Esc to interrupt the agent, cmc may still think it is working; type `/cmc:release`.
 
 ### Dispatching to a second agent
 

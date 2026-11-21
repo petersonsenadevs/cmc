@@ -10,7 +10,8 @@ import { parseControl, runControl } from '../lib/control.ts';
 import { CmcError, errorCode } from '../lib/errors.ts';
 import { describeError, logEvent } from '../lib/log.ts';
 import { resolveDataDir, sessionDir } from '../lib/paths.ts';
-import { addMessage } from '../lib/queue.ts';
+import { addMessage, listMessages } from '../lib/queue.ts';
+import { updateState } from '../lib/session-state.ts';
 import { armAtEnd, release, select, sendMessages, takeMessages } from '../lib/release.ts';
 import { candidateDataDirs, formatSessions, listSessions, openSessionsIn, resolveSession } from '../lib/sessions.ts';
 
@@ -22,7 +23,7 @@ The session is the one started in the current folder; name it with --session
 (an id or the start of one) when there are several.
 
   hold <text>          hold a message for the agent, as ";; text" does in the session
-  list                 show the held messages, in delivery order
+  list [--format json] show the held messages, in delivery order
   edit <N> <text>      replace the text of message N
   rm <N> [<N>…]        delete messages
   clear                delete every held message
@@ -34,11 +35,15 @@ The session is the one started in the current folder; name it with --session
                        to submit and the ids, and takes nothing out; while it works, arms
                        the end of the turn like release
   take <id>…           take messages out of the queue by id (after /send's prompt was accepted)
-  dispatch [--pack|--fork] [--auto|--held] <task>
+  idle                 note that the agent is not working (the plugin calls it when a turn
+                       is interrupted with Esc, which runs no Stop hook)
+  dispatch [--pack|--fork] [--auto|--held] <task> | --message <N>
                        start a second agent on a task, as ">> task" does in the session
                        (--pack: it gets a short summary instead of the whole conversation;
                        --auto: its result goes to the session by itself when a turn ends;
-                       --fork and --held override settings that make the others the default)
+                       --fork and --held override settings that make the others the default;
+                       --message N: the task is held message N, which leaves the queue
+                       once the agent has started)
   agents               show the agents dispatched from the session
   log <id>             show what an agent was asked and its latest steps or final answer
   cancel <id>          stop an agent
@@ -49,7 +54,7 @@ The session is the one started in the current folder; name it with --session
                        take every held message out of the queue and print it
 `;
 
-type ValueFlag = 'session' | 'data-dir' | 'format';
+type ValueFlag = 'session' | 'data-dir' | 'format' | 'message';
 type BooleanFlag = 'all' | 'pack' | 'fork' | 'auto' | 'held' | 'stdin';
 type Flags = Partial<Record<ValueFlag, string> & Record<BooleanFlag, boolean>>;
 
@@ -63,6 +68,7 @@ const VALUE_FLAGS: ReadonlyMap<string, ValueFlag> = new Map([
   ['--session', 'session'],
   ['--data-dir', 'data-dir'],
   ['--format', 'format'],
+  ['--message', 'message'],
 ]);
 const BOOLEAN_FLAGS: ReadonlyMap<string, BooleanFlag> = new Map([
   ['--all', 'all'],
@@ -82,6 +88,11 @@ function parseArgs(argv: readonly string[]): ParsedArgs {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === undefined) continue;
+    // "--" ends the options: what follows is text, even if it starts with "--".
+    if (arg === '--') {
+      positional.push(...argv.slice(i + 1));
+      break;
+    }
     const valueFlag = VALUE_FLAGS.get(arg);
     const booleanFlag = BOOLEAN_FLAGS.get(arg);
     if (valueFlag) {
@@ -130,6 +141,12 @@ function hold({ flags, positional }: ParsedArgs): string {
 function sendCommand({ flags, positional }: ParsedArgs): string {
   if (!positional.every((word) => POSITION.test(word))) throw new CmcError('BAD_USAGE', `Wrong arguments for "send".\n\n${USAGE}`);
   return JSON.stringify(sendMessages(targetDir(flags), positional.map(Number)));
+}
+
+function idle({ flags, positional }: ParsedArgs): string {
+  if (positional.length > 0) throw new CmcError('BAD_USAGE', `"idle" takes no arguments.\n\n${USAGE}`);
+  updateState(targetDir(flags), { turnActive: false });
+  return 'The agent is idle.';
 }
 
 const MESSAGE_ID = /^[0-9a-f]{8}$/;
@@ -196,6 +213,12 @@ function dispatchCommand({ flags, positional }: ParsedArgs): string {
   if (flags.auto && flags.held) throw new CmcError('BAD_USAGE', 'Use --auto or --held, not both.');
   const origin = originFor(flags);
   const { config } = settingsOf(origin.dir);
+  if (flags.message !== undefined) {
+    if (!POSITION.test(flags.message) || positional.length > 0) throw new CmcError('BAD_USAGE', 'Use dispatch --message <N> with no task text.');
+    const mode = flags.pack ? 'pack' : flags.fork ? 'fork' : config.dispatch.context;
+    const returnMode = flags.auto ? 'auto' : flags.held ? 'held' : config.dispatch.return;
+    return runAgentControl(origin, { name: 'dispatch', position: Number(flags.message), mode, returnMode });
+  }
   const { task, mode, returnMode } = parseDispatch(positional.join(' '), { mode: config.dispatch.context, returnMode: config.dispatch.return });
   if (task === '') throw new CmcError('BAD_USAGE', 'dispatch needs a task: cmc dispatch [--pack|--fork] [--auto|--held] <task>.');
   const chosenMode = flags.pack ? 'pack' : flags.fork ? 'fork' : mode;
@@ -246,6 +269,11 @@ function sessions({ flags }: ParsedArgs): string {
 
 /** The queue commands share their grammar with the control words of the prompt. */
 function queueCommand(name: string, { flags, positional }: ParsedArgs): string {
+  if (name === 'list' && flags.format === 'json') {
+    if (positional.length > 0) throw new CmcError('BAD_USAGE', `Wrong arguments for "list".\n\n${USAGE}`);
+    const { messages } = listMessages(targetDir(flags));
+    return JSON.stringify(messages.map(({ id, text, source }) => ({ id, text, source })));
+  }
   const control = parseControl([name, ...positional].join(' '));
   if (!control) throw new CmcError('BAD_USAGE', `Wrong arguments for "${name}".\n\n${USAGE}`);
   const answer = runControl(targetDir(flags), control);
@@ -265,6 +293,7 @@ function main(argv: readonly string[]): string {
   if (name === 'hold') return hold(parsed);
   if (name === 'send') return sendCommand(parsed);
   if (name === 'take') return take(parsed);
+  if (name === 'idle') return idle(parsed);
   if (name === 'drain') return drain(parsed);
   if (name === 'release') return releaseCommand(parsed);
   if (name === 'sessions') return sessions(parsed);

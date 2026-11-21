@@ -2,8 +2,10 @@
 // The interactive interface, inside Claude Code's plugin engine:
 //  - a prompt that starts with the hold prefix and a space is held the moment
 //    Enter is pressed, and leaves the prompt box with a short notice;
-//  - /held and /send are the plugin's own commands: they run at once, even
-//    while the agent works, and the agent never sees them.
+//  - /held opens a menu: pick a message, then send, edit, delete it or hand it
+//    to an agent; /send sends them. Both run at once, even while the agent
+//    works, and the agent never sees them;
+//  - when a turn ends with messages still held, one line says so.
 //
 // This file runs in the engine, not in Node: no `node:` imports. Everything that
 // touches the queue goes through the cmc command line (`bin/cmc.ts`), so the
@@ -11,7 +13,11 @@
 // If anything here fails, the prompt goes on to the command hooks beneath,
 // which hold it the old way: a message is never lost because of this layer.
 
+import { countHeld } from './indicator.ts';
+
 const DEFAULT_HOLD_PREFIX = ';;';
+/** How much of a message a menu option shows. */
+const LABEL_LENGTH = 48;
 
 /** The result of a command run through `$.process.run`. */
 export interface RunResult {
@@ -30,6 +36,10 @@ export interface InterfaceEngine {
   };
   fs: { read(path: string): string | Promise<string> };
   clock: { sleep(ms: number): Promise<void> };
+  ui: {
+    ask(question: string, options: { options: readonly string[]; header?: string }): Promise<string>;
+    log(text: string): void;
+  };
   prompt: {
     read(): Promise<{ text: string; cursor: number }>;
     fill(args: { text: string }): Promise<unknown>;
@@ -43,6 +53,11 @@ export interface PromptSubmitEvent {
   text: string;
   command?: unknown;
   isMeta?: true;
+}
+
+/** What `turn.complete` hands a hook: why the turn ended. */
+export interface TurnCompleteEvent {
+  reason: string;
 }
 
 /** What `command.run` hands a hook. */
@@ -62,10 +77,11 @@ type Next<E, R> = (event: E) => Promise<R>;
 export type InterfaceOn = {
   (event: 'prompt.submit', handler: ($: InterfaceEngine, e: PromptSubmitEvent, next: Next<PromptSubmitEvent, unknown>) => Promise<unknown>): void;
   (event: 'command.run', handler: ($: InterfaceEngine, e: CommandRunEvent, next: Next<CommandRunEvent, unknown>) => Promise<unknown>): void;
+  (event: 'turn.complete', handler: ($: InterfaceEngine, e: TurnCompleteEvent, next: Next<TurnCompleteEvent, unknown>) => Promise<unknown>): void;
 };
 
 export const COMMANDS = Object.freeze([
-  { name: 'held', description: 'cmc: show the messages you are holding (the agent does not see this)', immediate: true },
+  { name: 'held', description: 'cmc: your held messages: send, edit, delete or hand one to an agent', immediate: true },
   {
     name: 'send',
     description: 'cmc: send held messages now if the agent is idle, or when its turn ends',
@@ -107,6 +123,49 @@ export function positionsFrom(args: string): string[] | null {
 
 const display = (text: string): CommandAnswer => ({ text, isTextDisplayOnly: true });
 
+/** A held message as `cmc list --format json` gives it. */
+export interface HeldEntry {
+  id: string;
+  text: string;
+  source: string;
+}
+
+/** One line of a message, short enough for a menu option. */
+export function labelFor(position: number, text: string): string {
+  const line = text.replace(/\s+/g, ' ').trim();
+  return `${position} · ${line.length > LABEL_LENGTH ? `${line.slice(0, LABEL_LENGTH - 1)}…` : line}`;
+}
+
+export const ACTIONS = Object.freeze(['Send', 'Edit', 'Delete', 'Hand to an agent'] as const);
+
+/** The options of the first menu: up to three messages, and "Send all" when there are several. */
+export function pickOptions(entries: readonly HeldEntry[]): string[] {
+  const shown = entries.slice(0, 3).map((entry, index) => labelFor(index + 1, entry.text));
+  return entries.length > 1 ? [...shown, `Send all ${entries.length}`] : shown;
+}
+
+/**
+ * What the person chose in the first menu: a position, every message, or
+ * nothing usable. A number typed under "Other" picks a message the menu could
+ * not show.
+ */
+export function readPick(answer: string, entries: readonly HeldEntry[]): number | 'all' | null {
+  if (answer.startsWith('Send all ')) return 'all';
+  const options = pickOptions(entries);
+  const index = options.indexOf(answer);
+  if (index >= 0 && index < Math.min(3, entries.length)) return index + 1;
+  const typed = answer.trim().match(/^#?(\d{1,6})$/);
+  const position = typed ? Number(typed[1]) : NaN;
+  return position >= 1 && position <= entries.length ? position : null;
+}
+
+/** The reminder shown when a turn ends with messages still held. */
+export function reminderFor(held: number): string | null {
+  if (held <= 0) return null;
+  const noun = held === 1 ? 'message is' : 'messages are';
+  return `cmc: ${held} ${noun} still held. /held to send, edit or delete, /send to send all.`;
+}
+
 /** The plugin data folder, known once the session has started. */
 let dataDir: string | undefined;
 
@@ -117,9 +176,10 @@ export async function startInterface($: InterfaceEngine): Promise<void> {
 }
 
 /** Runs the cmc command line for this session; `stdin` is written to its standard input. */
-async function cli($: InterfaceEngine, args: readonly string[], stdin?: string): Promise<RunResult> {
+async function cli($: InterfaceEngine, args: readonly string[], stdin?: string, text?: string): Promise<RunResult> {
   const sessionId = await $.session.id();
-  const argv = ['node', `${$.plugin.root}/bin/cmc.ts`, ...args, '--data-dir', dataDir ?? '', '--session', sessionId];
+  // Options first, so a text that starts with "--" is not read as one.
+  const argv = ['node', `${$.plugin.root}/bin/cmc.ts`, ...args, '--data-dir', dataDir ?? '', '--session', sessionId, ...(text === undefined ? [] : ['--', text])];
   return $.process.run(argv, { timeoutMs: 15000, ...(stdin === undefined ? {} : { stdin }) });
 }
 
@@ -139,6 +199,99 @@ async function clearBoxIfStill($: InterfaceEngine, typed: string): Promise<void>
   if (box.text.trim() === typed.trim()) await $.prompt.fill({ text: '' });
 }
 
+/** The held messages, in order; none when the list cannot be read. */
+async function heldEntries($: InterfaceEngine): Promise<HeldEntry[]> {
+  const listed = await cli($, ['list', '--format', 'json']);
+  try {
+    const value: unknown = JSON.parse(listed.stdout);
+    return Array.isArray(value) ? (value as HeldEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** How many messages are held, read from the queue file (no process started). */
+async function heldCount($: InterfaceEngine): Promise<number> {
+  try {
+    return countHeld(await $.fs.read(`${dataDir}/sessions/${await $.session.id()}/queue.jsonl`));
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Sends held messages: at once when the agent is idle, at the end of its turn
+ * while it works. A message leaves the queue only once its prompt was accepted.
+ * @param positions As the person sees them; none means all.
+ */
+async function sendHeld($: InterfaceEngine, positions: readonly string[]): Promise<CommandAnswer> {
+  const sent = await cli($, ['send', ...positions]);
+  let outcome: { mode?: string; count?: number; text?: string; ids?: string[] } = {};
+  try {
+    outcome = JSON.parse(sent.stdout) as typeof outcome;
+  } catch {
+    return display(sent.stdout.trim() || 'cmc could not send the messages.');
+  }
+  if (outcome.mode === 'now' && typeof outcome.text === 'string' && Array.isArray(outcome.ids)) {
+    const accepted = await $.prompt.submit({ text: outcome.text }).then(
+      (result) => !(typeof result === 'object' && result !== null && 'drop' in result && typeof result.drop === 'string'),
+      () => false,
+    );
+    if (!accepted) return display('Could not send them now; they are still held. /cmc:release sends them as a prompt.');
+    await cli($, ['take', ...outcome.ids]);
+    return display(`${outcome.count ?? 0} held message(s) sent.`);
+  }
+  if (outcome.mode === 'end') return display(`The agent is working; ${outcome.count ?? 0} held message(s) will be sent when its turn ends.`);
+  return display('Nothing is held.');
+}
+
+/** The text shown when the menu cannot open (headless) or is closed. */
+function listFallback(entries: readonly HeldEntry[]): CommandAnswer {
+  const lines = entries.map((entry, index) => labelFor(index + 1, entry.text));
+  return display(`${entries.length} held:\n${lines.join('\n')}\n/send [N] sends · ;;edit N text edits · ;;rm N deletes`);
+}
+
+/** /held: pick a message in the engine's own dialog, then what to do with it. */
+async function heldMenu($: InterfaceEngine): Promise<CommandAnswer> {
+  const entries = await heldEntries($);
+  if (entries.length === 0) return display('Nothing is held.');
+
+  let position: number | 'all' | null = 1;
+  if (entries.length > 1) {
+    const more = entries.length > 3 ? ` (type its number for 4–${entries.length})` : '';
+    const answer = await $.ui.ask(`Which held message?${more}`, { options: pickOptions(entries), header: 'cmc' }).catch(() => null);
+    if (answer === null) return listFallback(entries);
+    position = readPick(answer, entries);
+  }
+  if (position === 'all') return sendHeld($, []);
+  if (position === null) return display('No such message: nothing changed.');
+
+  const entry = entries[position - 1];
+  if (entry === undefined) return display('No such message: nothing changed.');
+  const question = `Message ${position}: «${labelFor(position, entry.text).replace(/^\d+ · /, '')}». What now? (or type new text under Other to replace it)`;
+  const action = await $.ui.ask(question, { options: ACTIONS, header: `Message ${position}` }).catch(() => null);
+  if (action === null) return listFallback(entries);
+
+  const at = String(position);
+  if (action === 'Send') return sendHeld($, [at]);
+  if (action === 'Delete') {
+    await cli($, ['rm', at]);
+    return display(`Deleted: «${labelFor(position, entry.text).replace(/^\d+ · /, '')}».`);
+  }
+  if (action === 'Hand to an agent') {
+    const started = await cli($, ['dispatch', '--message', at]);
+    return display(started.stdout.trim());
+  }
+  if (action === 'Edit') {
+    // The text goes back to the box as a control word: change it and press Enter.
+    await $.prompt.fill({ text: `${await prefix($)}edit ${at} ${entry.text}` });
+    return display('Change the text in the prompt box and press Enter to keep it in its place.');
+  }
+  // Text typed under "Other" replaces the message.
+  const edited = await cli($, ['edit', at], undefined, action);
+  return display(edited.stdout.trim());
+}
+
 /** The interface's hooks on prompts and commands (the session start is the module's). */
 export const register = (on: InterfaceOn): void => {
   on('prompt.submit', async ($, e, next) => {
@@ -154,38 +307,25 @@ export const register = (on: InterfaceOn): void => {
     // If the box still shows what was just held, empty it.
     void clearBoxIfStill($, e.text).catch(() => undefined);
     const count = held.stdout.match(/Held \((\d+) queued\)/)?.[1] ?? '?';
-    return { drop: `cmc: held (${count}). /held shows them, /send sends them.` };
+    return { drop: `cmc: held (${count}). /held to send, edit or delete.` };
   });
 
   on('command.run', async ($, e, next) => {
     if (e.command !== 'held' && e.command !== 'send') return next(e);
     if (dataDir === undefined) return display('cmc is not ready yet: try again in a moment.');
-
-    if (e.command === 'held') {
-      const listed = await cli($, ['list']);
-      return display(listed.stdout.trim() || listed.stderr.trim());
-    }
-
+    if (e.command === 'held') return heldMenu($);
     const positions = positionsFrom(e.args);
     if (positions === null) return display('Usage: /send, or /send 2 3 for some of the held messages.');
-    const sent = await cli($, ['send', ...positions]);
-    let outcome: { mode?: string; count?: number; text?: string; ids?: string[] } = {};
-    try {
-      outcome = JSON.parse(sent.stdout) as typeof outcome;
-    } catch {
-      return display(sent.stdout.trim() || 'cmc could not send the messages.');
-    }
-    if (outcome.mode === 'now' && typeof outcome.text === 'string' && Array.isArray(outcome.ids)) {
-      // The messages leave the queue only once the prompt was accepted.
-      const accepted = await $.prompt.submit({ text: outcome.text }).then(
-        (result) => !(typeof result === 'object' && result !== null && 'drop' in result && typeof result.drop === 'string'),
-        () => false,
-      );
-      if (!accepted) return display('Could not send them now; they are still held. /cmc:release sends them as a prompt.');
-      await cli($, ['take', ...outcome.ids]);
-      return display(`${outcome.count ?? 0} held message(s) sent.`);
-    }
-    if (outcome.mode === 'end') return display(`The agent is working; ${outcome.count ?? 0} held message(s) will be sent when its turn ends.`);
-    return display('Nothing is held.');
+    return sendHeld($, positions);
+  });
+
+  on('turn.complete', async ($, e, next) => {
+    const result = await next(e);
+    if (dataDir === undefined) return result;
+    // Esc ends a turn without the Stop hook: tell the core the agent is idle.
+    if (e.reason === 'aborted') await cli($, ['idle']).catch(() => undefined);
+    const reminder = reminderFor(await heldCount($));
+    if (reminder !== null) $.ui.log(reminder);
+    return result;
   });
 };

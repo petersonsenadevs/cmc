@@ -3,12 +3,17 @@
 // against the same core, lock and files as everywhere else.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { after, describe, it } from 'node:test';
 import {
+  ACTIONS,
   COMMANDS,
+  labelFor,
+  pickOptions,
+  readPick,
+  reminderFor,
   holdPrefixFrom,
   messageToHold,
   positionsFrom,
@@ -17,6 +22,7 @@ import {
   type CommandRunEvent,
   type InterfaceEngine,
   type PromptSubmitEvent,
+  type TurnCompleteEvent,
 } from '../plugins/cmc/hooks/interface.ts';
 import { register as registerModule } from '../plugins/cmc/hooks/module.ts';
 import { sessionDir } from '../plugins/cmc/lib/paths.ts';
@@ -42,6 +48,7 @@ function dataDir(): string {
 type Hooks = {
   submit?: ($: InterfaceEngine, e: PromptSubmitEvent, next: (e: PromptSubmitEvent) => Promise<unknown>) => Promise<unknown>;
   command?: ($: InterfaceEngine, e: CommandRunEvent, next: (e: CommandRunEvent) => Promise<unknown>) => Promise<unknown>;
+  turn?: ($: InterfaceEngine, e: TurnCompleteEvent, next: (e: TurnCompleteEvent) => Promise<unknown>) => Promise<unknown>;
 };
 
 /** A `$` whose `process.run` runs the real command, plus a record of what the module did to the screen. */
@@ -49,6 +56,10 @@ function engine(data: string, box = '') {
   const submitted: string[] = [];
   const filled: string[] = [];
   const registered: string[] = [];
+  const logged: string[] = [];
+  const asked: { question: string; options: readonly string[] }[] = [];
+  /** What the person picks in each dialog, in order; `null` closes it. */
+  const answers: (string | null)[] = [];
   const state = { box };
   const $: InterfaceEngine = {
     session: { id: async () => SESSION },
@@ -61,9 +72,16 @@ function engine(data: string, box = '') {
         return { exitCode: run.status ?? 1, stdout: run.stdout, stderr: run.stderr };
       },
     },
-    fs: {
-      read: async () => {
-        throw new Error('no settings file');
+    fs: { read: async (path) => readFileSync(path, 'utf8') },
+    ui: {
+      ask: async (question, { options }) => {
+        asked.push({ question, options });
+        const answer = answers.shift();
+        if (answer === undefined || answer === null) throw new Error('dismissed');
+        return answer;
+      },
+      log: (text) => {
+        logged.push(text);
       },
     },
     clock: { sleep: async () => undefined },
@@ -83,7 +101,7 @@ function engine(data: string, box = '') {
       },
     },
   };
-  return { $, submitted, filled, registered, state };
+  return { $, submitted, filled, registered, logged, asked, answers, state };
 }
 
 async function started(world: ReturnType<typeof engine>): Promise<Required<Hooks>> {
@@ -91,9 +109,10 @@ async function started(world: ReturnType<typeof engine>): Promise<Required<Hooks
   register(((event: string, handler: never) => {
     if (event === 'prompt.submit') hooks.submit = handler;
     if (event === 'command.run') hooks.command = handler;
+    if (event === 'turn.complete') hooks.turn = handler;
   }) as never);
   await startInterface(world.$);
-  return { submit: present(hooks.submit), command: present(hooks.command) };
+  return { submit: present(hooks.submit), command: present(hooks.command), turn: present(hooks.turn) };
 }
 
 const passed = async <E>(e: E) => ({ passed: e });
@@ -140,7 +159,7 @@ describe('interface: in a session', () => {
     const world = engine(data, ';; also say mango');
     const { submit } = await started(world);
     const answer = await submit(world.$, { text: ';; also say mango' }, passed);
-    assert.deepEqual(answer, { drop: 'cmc: held (1). /held shows them, /send sends them.' });
+    assert.deepEqual(answer, { drop: 'cmc: held (1). /held to send, edit or delete.' });
     await settle();
     assert.deepEqual(world.filled, ['']);
     const { messages } = listMessages(sessionDir(data, SESSION));
@@ -182,7 +201,7 @@ describe('interface: in a session', () => {
     assert.deepEqual(await submit(world.$, e, passed), { passed: e });
   });
 
-  it('/held lists the held messages for the person only', async () => {
+  it('/held falls back to a plain list when the dialog cannot open (headless) or is closed', async () => {
     const data = dataDir();
     const world = engine(data);
     const { submit, command } = await started(world);
@@ -190,7 +209,7 @@ describe('interface: in a session', () => {
     await submit(world.$, { text: ';; two' }, passed);
     const answer = (await command(world.$, { command: 'held', args: '' }, passed)) as { text: string; isTextDisplayOnly: true };
     assert.equal(answer.isTextDisplayOnly, true);
-    assert.match(answer.text, /1\. .*one\n2\. .*two/);
+    assert.match(answer.text, /2 held:\n1 · one\n2 · two\n/);
   });
 
   it('/send with the agent idle submits the messages as a new prompt at once', async () => {
@@ -250,6 +269,154 @@ describe('interface: in a session', () => {
     });
     const other = { command: 'compact', args: '' };
     assert.deepEqual(await command(world.$, other, passed), { passed: other });
+  });
+});
+
+
+describe('interface: the /held menu', () => {
+  async function withHeld(...texts: string[]) {
+    const data = dataDir();
+    const world = engine(data);
+    const hooks = await started(world);
+    for (const text of texts) await hooks.submit(world.$, { text: `;; ${text}` }, passed);
+    const held = () => listMessages(sessionDir(data, SESSION)).messages.map((message) => message.text);
+    const run = async (...answers: (string | null)[]) => {
+      world.answers.push(...answers);
+      return (await hooks.command(world.$, { command: 'held', args: '' }, passed)) as { text: string };
+    };
+    return { data, world, hooks, held, run };
+  }
+
+  it('shows short labels, and "Send all" only when there are several', () => {
+    assert.equal(labelFor(2, 'one\n  two'), '2 · one two');
+    assert.equal(labelFor(1, 'x'.repeat(80)).length, '1 · '.length + 48);
+    const entries = ['a', 'b', 'c', 'd', 'e'].map((text, index) => ({ id: String(index), text, source: 'user' }));
+    assert.deepEqual(pickOptions(entries.slice(0, 1)), ['1 · a']);
+    assert.deepEqual(pickOptions(entries), ['1 · a', '2 · b', '3 · c', 'Send all 5']);
+    assert.equal(readPick('2 · b', entries), 2);
+    assert.equal(readPick('Send all 5', entries), 'all');
+    assert.equal(readPick('5', entries), 5);
+    assert.equal(readPick('#4', entries), 4);
+    assert.equal(readPick('9', entries), null);
+    assert.equal(readPick('banana', entries), null);
+  });
+
+  it('with one message goes straight to what to do with it, and "Send" submits it', async () => {
+    const { world, held, run } = await withHeld('mango');
+    const answer = await run('Send');
+    assert.equal(world.asked.length, 1);
+    assert.deepEqual(world.asked[0]?.options, [...ACTIONS]);
+    assert.match(world.asked[0]?.question ?? '', /Message 1: «mango»/);
+    assert.equal(answer.text, '1 held message(s) sent.');
+    assert.deepEqual(world.submitted, ['[cmc] The user released their held message with "/send":\n1. mango']);
+    assert.deepEqual(held(), []);
+  });
+
+  it('picks a message, then deletes it', async () => {
+    const { world, held, run } = await withHeld('one', 'two', 'three');
+    const answer = await run('2 · two', 'Delete');
+    assert.deepEqual(world.asked[0]?.options, ['1 · one', '2 · two', '3 · three', 'Send all 3']);
+    assert.equal(answer.text, 'Deleted: «two».');
+    assert.deepEqual(held(), ['one', 'three']);
+  });
+
+  it('"Send all" sends every message', async () => {
+    const { world, held, run } = await withHeld('one', 'two');
+    await run('Send all 2');
+    assert.equal(world.submitted.length, 1);
+    assert.deepEqual(held(), []);
+  });
+
+  it('reaches a message past the third by typing its number', async () => {
+    const { world, held, run } = await withHeld('a', 'b', 'c', 'd');
+    await run('4', 'Delete');
+    assert.match(world.asked[0]?.question ?? '', /type its number for 4–4/);
+    assert.deepEqual(held(), ['a', 'b', 'c']);
+  });
+
+  it('text typed under "Other" replaces the message in its place', async () => {
+    const { held, run } = await withHeld('one', 'two');
+    const answer = await run('1 · one', '--now with dashes');
+    assert.match(answer.text, /1/);
+    assert.deepEqual(held(), ['--now with dashes', 'two']);
+  });
+
+  it('"Edit" puts the message back in the prompt box as an edit control word', async () => {
+    const { world, held, run } = await withHeld('fix the typo');
+    const answer = await run('Edit');
+    assert.deepEqual(world.filled.at(-1), ';;edit 1 fix the typo');
+    assert.match(answer.text, /press Enter/);
+    assert.deepEqual(held(), ['fix the typo']);
+  });
+
+  it('closing a dialog changes nothing and shows the list', async () => {
+    const { held, run } = await withHeld('one', 'two');
+    const answer = await run('1 · one', null);
+    assert.match(answer.text, /2 held:/);
+    assert.deepEqual(held(), ['one', 'two']);
+  });
+
+  it('a number that is not there changes nothing', async () => {
+    const { held, run } = await withHeld('one', 'two');
+    assert.equal((await run('7')).text, 'No such message: nothing changed.');
+    assert.deepEqual(held(), ['one', 'two']);
+  });
+
+  it('with nothing held says so without opening a dialog', async () => {
+    const { world, run } = await withHeld();
+    assert.equal((await run()).text, 'Nothing is held.');
+    assert.equal(world.asked.length, 0);
+  });
+});
+
+describe('interface: the end of a turn', () => {
+  it('reminds the person of what is still held, and says nothing when the queue is empty', async () => {
+    assert.equal(reminderFor(0), null);
+    assert.equal(reminderFor(1), 'cmc: 1 message is still held. /held to send, edit or delete, /send to send all.');
+    const data = dataDir();
+    const world = engine(data);
+    const { submit, turn } = await started(world);
+    await turn(world.$, { reason: 'answer' }, passed);
+    assert.deepEqual(world.logged, []);
+    await submit(world.$, { text: ';; piña' }, passed);
+    const result = await turn(world.$, { reason: 'answer' }, passed);
+    assert.deepEqual(result, { passed: { reason: 'answer' } });
+    assert.deepEqual(world.logged, ['cmc: 1 message is still held. /held to send, edit or delete, /send to send all.']);
+  });
+
+  it('an interrupted turn (Esc) leaves the agent idle, so /send hands messages over at once', async () => {
+    const data = dataDir();
+    const world = engine(data);
+    const { submit, command, turn } = await started(world);
+    await submit(world.$, { text: ';; piña' }, passed);
+    updateState(sessionDir(data, SESSION), { turnActive: true });
+    await turn(world.$, { reason: 'aborted' }, passed);
+    assert.equal(readState(sessionDir(data, SESSION)).turnActive, false);
+    assert.deepEqual(await command(world.$, { command: 'send', args: '' }, passed), { text: '1 held message(s) sent.', isTextDisplayOnly: true });
+  });
+});
+
+describe('command line for the interface', () => {
+  const cmc = (data: string, ...args: string[]) =>
+    spawnSync('node', [join(ROOT, 'bin/cmc.ts'), ...args, '--data-dir', data, '--session', SESSION], { encoding: 'utf8', cwd: tmpdir() });
+
+  it('lists as JSON, edits text that starts with dashes after "--", and marks the agent idle', () => {
+    const data = dataDir();
+    addMessage(sessionDir(data, SESSION), { text: 'first' });
+    const listed = JSON.parse(cmc(data, 'list', '--format', 'json').stdout) as { text: string; source: string }[];
+    assert.deepEqual(listed.map(({ text, source }) => ({ text, source })), [{ text: 'first', source: 'user' }]);
+    const edited = spawnSync('node', [join(ROOT, 'bin/cmc.ts'), 'edit', '1', '--data-dir', data, '--session', SESSION, '--', '--force it'], { encoding: 'utf8', cwd: tmpdir() });
+    assert.equal(edited.status, 0, edited.stdout);
+    assert.equal(listMessages(sessionDir(data, SESSION)).messages[0]?.text, '--force it');
+    updateState(sessionDir(data, SESSION), { turnActive: true });
+    assert.equal(cmc(data, 'idle').stdout.trim(), 'The agent is idle.');
+    assert.equal(readState(sessionDir(data, SESSION)).turnActive, false);
+  });
+
+  it('refuses dispatch --message with a task or a bad number', () => {
+    const data = dataDir();
+    assert.match(cmc(data, 'dispatch', '--message', '0').stdout, /dispatch --message <N> with no task text/);
+    assert.match(cmc(data, 'dispatch', '--message', '1', 'extra').stdout, /dispatch --message <N> with no task text/);
   });
 });
 

@@ -42,7 +42,7 @@ describe('resuming a session', () => {
     handleSessionEnd({ session_id: SESSION }, { dataDir });
 
     assert.deepEqual(start('resume'), {
-      systemMessage: 'cmc: 2 held message(s) are waiting in this session. Type ;;list to see them.',
+      systemMessage: 'cmc: 2 held message(s) are waiting in this session. /held to send, edit or delete them (or ;;list).',
     });
     assert.deepEqual(held(), ['one', 'two']);
     assert.match(present(releaseAll(dataDir, SESSION, '/cmc:release').text), /1\. one\n2\. two$/);

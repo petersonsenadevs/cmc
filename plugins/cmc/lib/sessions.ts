@@ -101,7 +101,7 @@ export function handleSessionStart(
   if (input.source === 'compact') return null;
   const notes = warnings.map((warning) => `cmc settings (${CONFIG_FILE}): ${warning}.`);
   const held = listMessages(dir).messages.length;
-  if (held > 0) notes.push(`cmc: ${held} held message(s) are waiting in this session. Type ${config.holdPrefix}list to see them.`);
+  if (held > 0) notes.push(`cmc: ${held} held message(s) are waiting in this session. /held to send, edit or delete them (or ${config.holdPrefix}list).`);
   return notes.length === 0 ? null : { systemMessage: notes.join('\n') };
 }
 

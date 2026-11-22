@@ -327,6 +327,7 @@ async function submitThenTake($: InterfaceEngine, text: string, ids: readonly st
   } catch (error) {
     refusal = error instanceof Error ? error.message : String(error);
   }
+  if (refusal !== null && (await offerInBox($, ids, refusal))) return;
   if (refusal !== null) {
     $.ui.log(`cmc: could not send them (${refusal}); they are still held. /cmc:release sends them as a prompt.`);
     sendSettled?.(`Could not send ${ids.length === 1 ? 'it' : 'them'} (${refusal}); still held.`, true);
@@ -334,6 +335,29 @@ async function submitThenTake($: InterfaceEngine, text: string, ids: readonly st
   }
   await cli($, ['take', ...ids]);
   sendSettled?.(`Sent ${ids.length} message${ids.length === 1 ? '' : 's'} to the agent.`, false);
+}
+
+/**
+ * When Claude Code does not take a plugin's prompt (after Esc it waits for the
+ * person to write first), the messages go to the prompt box: Enter sends them,
+ * and they leave the queue then. False when there is no box (headless).
+ */
+async function offerInBox($: InterfaceEngine, ids: readonly string[], refusal: string): Promise<boolean> {
+  const entries = (await heldEntries($)).filter((entry) => ids.includes(entry.id));
+  if (entries.length === 0) return false;
+  try {
+    const box = await $.prompt.read();
+    const text = entries.map((entry) => entry.text).join('\n');
+    const empty = box.text.trim() === '';
+    await $.prompt.fill({ text: empty ? text : `\n${text}`, mode: empty ? 'replace' : 'append' });
+  } catch {
+    return false;
+  }
+  for (const entry of entries) markPendingInBox(entry.id, entry.text);
+  const what = entries.length === 1 ? 'it' : 'them';
+  $.ui.log(`cmc: Claude Code did not take ${what} by itself (${refusal}): ${entries.length === 1 ? 'it is' : 'they are'} in the prompt box, press Enter to send ${what}.`);
+  sendSettled?.(`In the prompt box: press Enter to send ${what} (Claude Code did not take ${what} by itself).`, false);
+  return true;
 }
 
 /** The text shown when the menu cannot open (headless) or is closed. */

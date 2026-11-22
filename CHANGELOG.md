@@ -2,6 +2,13 @@
 
 All notable changes to cmc (Claude Message Control). Versions follow [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+- After Esc, Claude Code does not take a plugin's prompt until you write something, so Send now and `/send` failed with
+  "the session was stopped…". The messages now go to the prompt box: press Enter to send them; they stay held until
+  you do.
+
 ## 1.1.1 — 2026-11-22
 
 ### Added

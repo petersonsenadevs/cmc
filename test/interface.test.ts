@@ -276,12 +276,34 @@ describe('interface: in a session', () => {
     assert.deepEqual(left(), ['one']);
   });
 
-  it('/send keeps the messages held when the engine refuses the prompt (as it does headless)', async () => {
+  it('after Esc the engine refuses a plugin prompt: the text goes to the prompt box for Enter, still held until sent', async () => {
+    const data = dataDir();
+    const world = engine(data);
+    const { submit, command } = await started(world);
+    await submit(world.$, { text: ';; kiwi' }, passed);
+    world.$.prompt.submit = async () => {
+      throw new Error('the session was stopped and nobody has sent a message since');
+    };
+    await command(world.$, { command: 'send', args: '' }, passed);
+    await until(() => world.filled.length > 0);
+    assert.deepEqual(world.filled, ['kiwi']);
+    assert.deepEqual(world.logged, ['cmc: Claude Code did not take it by itself (the session was stopped and nobody has sent a message since): it is in the prompt box, press Enter to send it.']);
+    const left = () => listMessages(sessionDir(data, SESSION)).messages.map((message) => message.text);
+    assert.deepEqual(left(), ['kiwi'], 'still held until the person sends it');
+    // The person presses Enter: the prompt carries it, and it leaves the queue.
+    await submit(world.$, { text: 'kiwi' }, passed);
+    assert.deepEqual(left(), []);
+  });
+
+  it('/send keeps the messages held when the engine refuses the prompt and there is no prompt box (headless)', async () => {
     const data = dataDir();
     const world = engine(data);
     const { submit, command } = await started(world);
     await submit(world.$, { text: ';; mango' }, passed);
     world.$.prompt.submit = async () => {
+      throw new Error('no prompt box');
+    };
+    world.$.prompt.fill = async () => {
       throw new Error('no prompt box');
     };
     await command(world.$, { command: 'send', args: '' }, passed);

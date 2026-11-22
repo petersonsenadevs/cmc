@@ -3,7 +3,7 @@ title: "cmc: stop interrupting Claude Code. Hold your messages, hand tasks to su
 published: false
 description: "A Claude Code plugin that holds what you type while the agent works, delivers it when the turn ends, and runs subagents in their own git worktree, all from a side panel."
 tags: ai, programming, productivity, opensource
-cover_image: https://raw.githubusercontent.com/petersonsenadevs/cmc/main/plugins/cmc/assets/logo-dark.png
+cover_image: https://raw.githubusercontent.com/petersonsenadevs/cmc/feat/typescript/docs/images/cover.png
 ---
 
 You give Claude Code a task. Thirty seconds later you remember something: *"also add tests for the parser"*. Now you have two bad options:
@@ -39,6 +39,7 @@ From there you can:
 - **See** the agent's state and every held message.
 - **Send now** a held message. If the agent is busy, cmc puts the text in the prompt box and `Ctrl+Enter` sends it into the running turn.
 - **Edit, reorder or delete** a message, or hand it to a subagent.
+- **Read Help**, a short page of docs inside the hub that explains everything.
 - **Switch modes** under Settings: deliver at the end of the turn or only on demand, send `;;` messages to the main agent or to a subagent, and pick the subagent model and effort.
 
 ## Subagents in their own worktree
@@ -46,8 +47,10 @@ From there you can:
 Start a subagent with `>>`:
 
 ```
->> --model haiku --effort low write a two-line haiku about message queues
+>> -m haiku -e low write a two-line haiku about message queues
 ```
+
+The flags go first: `-m` model, `-e` effort, `-w` the whole conversation as context, `-s` a short summary instead, `-a` its result comes back by itself.
 
 The subagent runs as its own Claude Code process:
 - **Context:** by default it gets the whole conversation, or a short summary if you prefer.
@@ -75,6 +78,6 @@ The plugin is TypeScript that Node runs directly: there is no build step and the
 
 The agent is fast, but my thoughts don't arrive on its schedule. cmc keeps them in a queue I control, and I decide what reaches the agent and when.
 
-It's MIT-licensed and open source. Issues, ideas and PRs are welcome: **[github.com/petersonsenadevs/cmc](https://github.com/petersonsenadevs/cmc)**
+It's MIT-licensed and open source. Issues, ideas and PRs are welcome on **[cmc](https://github.com/petersonsenadevs/cmc)**.
 
 — **[r3v3rs3](https://github.com/petersonsenadevs)**

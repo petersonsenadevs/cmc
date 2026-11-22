@@ -421,8 +421,21 @@ async function queueText($: InterfaceEngine): Promise<string> {
   return sessionFile($, 'queue.jsonl');
 }
 
+/** The subagents read last, drawn when a newer read fails. */
+let lastAgents: AgentEntry[] = [];
+
+/**
+ * The subagents of the session. The engine aborts a running `$.process.run`
+ * when the pane is redrawn again; the draw then keeps the last list it read
+ * instead of failing, which would print an error in the chat.
+ */
 async function agentsOf($: InterfaceEngine): Promise<AgentEntry[]> {
-  return parseAgents((await cli($, ['agents', '--format', 'json'])).stdout);
+  try {
+    lastAgents = parseAgents((await cli($, ['agents', '--format', 'json'])).stdout);
+  } catch {
+    // Aborted or failed: the last list stands until the next refresh.
+  }
+  return lastAgents;
 }
 
 /** Whether the hub is open now. */

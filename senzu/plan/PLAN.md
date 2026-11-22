@@ -441,6 +441,17 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 
 ## Tareas ad hoc (fuera del plan original)
 
+### X-T9 · El hub no imprime un error cuando el motor aborta su lectura  [S] [done]
+- Para qué: en la demo para el artículo salió en el chat «ui.render hook skipped: threw … $.process.run(node) aborted».
+- Skill: `depurar` + `plugin-authoring` (`ui.render`)
+- Archivos: plugins/cmc/hooks/panel.ts, test/panel.test.ts
+- Hecho cuando: si la lectura de subagentes se aborta, el panel pinta con la última lista leída y no lanza.
+- Verificar: `npm test` (test de regresión), demo real.
+- Depende de: —
+- Verificado: npm test 344, tsc y lint en verde; recarga en caliente en la demo sin error
+- Cumple: el chat ya no muestra ese error ni el ⚠, que era el «Para qué»
+- Devlog: senzu/devlog/2026-11-22/045-x-t9-render-abortado.md
+
 ### X-T8 · El hub se explica solo; versión y repositorio abajo a la derecha  [S] [done]
 - Para qué: Peterson: «necesito que se entienda»; y abajo a la derecha el enlace al repositorio y la versión cuando existan.
 - Skill: `plugin-authoring` (`ui.render`, `Link`) + `code-quality §references/typescript`

@@ -637,6 +637,24 @@ describe('panel: subagents', () => {
     assert.ok(texts(tree).includes('Sent to agent cd34ef56.'));
   });
 
+  it('still draws when the engine aborts its call for the subagents, with the last list it read', async () => {
+    const w = world();
+    await w.start();
+    agent(w, { id: 'ab12cd34', state: 'waiting', endedAt: null, runnerPid: process.pid, pid: process.pid });
+    await press(await w.draw(), 'tab-agents');
+    assert.ok(keys(await w.draw()).includes('agent-pick-ab12cd34'));
+    const run = w.$.process.run;
+    w.$.process.run = async () => {
+      throw new Error('cmc: $.process.run(node) aborted');
+    };
+    try {
+      const tree = await w.draw();
+      assert.ok(keys(tree).includes('agent-pick-ab12cd34'), 'the subagent read before is still listed');
+    } finally {
+      w.$.process.run = run;
+    }
+  });
+
   it('a working subagent can be stopped, has no result to send yet, and says it reads messages after its step', async () => {
     const w = world();
     await w.start();

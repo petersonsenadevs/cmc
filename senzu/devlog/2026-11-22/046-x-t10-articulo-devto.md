@@ -18,3 +18,16 @@
 
 ## Próximos pasos
 - Peterson revisa el texto; llevar a `main`; con su aprobación expresa, subirlo a dev.to como borrador por la API (`DEVTO_API_KEY`, sin leerla ni mostrarla).
+
+## Subida a dev.to (aprobada por Peterson: «súbelo como borrador y usa tags suficientes para atraer público»)
+- Borrador creado por la API: id 5091026, usuario r3v3rs3, `published: false`.
+- URL (borrador): https://dev.to/r3v3rs3/cmc-stop-interrupting-claude-code-hold-your-messages-hand-tasks-to-subagents-47j2-temp-slug-4774289
+- Etiquetas (máximo 4 en dev.to): ai, programming, productivity, opensource (las de más público; Claude va en el título).
+- Imágenes del cuerpo desde `feat/typescript` (cargan ya, 200); portada = logo de `main` (200).
+
+## Verificación
+```
+$ verify-build → lint PASS · types PASS · test PASS (344) · build SKIP (no hay script)
+$ curl raw.githubusercontent.com/... → held-delivered 200 · hub-messages 200 · hub-subagent 200 · logo 200
+$ POST https://dev.to/api/articles → 201, published: false
+```

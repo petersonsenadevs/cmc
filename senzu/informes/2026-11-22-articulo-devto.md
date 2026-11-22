@@ -2,7 +2,7 @@
 title: "cmc: stop interrupting Claude Code. Hold your messages, hand tasks to subagents"
 published: false
 description: "A Claude Code plugin that holds what you type while the agent works, delivers it when the turn ends, and runs subagents in their own git worktree, all from a side panel."
-tags: claudecode, ai, productivity, opensource
+tags: ai, programming, productivity, opensource
 cover_image: https://raw.githubusercontent.com/petersonsenadevs/cmc/main/plugins/cmc/assets/logo-dark.png
 ---
 
@@ -24,7 +24,7 @@ Prefix a message with `;;` while the agent is working:
 
 Each message is **held**. You get a one-line notice, the prompt box is cleared, and the agent keeps going. When its turn ends, cmc delivers everything you held, in order, as one message from you:
 
-![Held messages delivered when the turn ends](https://raw.githubusercontent.com/petersonsenadevs/cmc/main/docs/images/held-delivered.png)
+![Held messages delivered when the turn ends](https://raw.githubusercontent.com/petersonsenadevs/cmc/feat/typescript/docs/images/held-delivered.png)
 
 No command to remember: the messages simply arrive when the agent is free. Before then you can still change your mind. `/held` lets you send, edit, reorder or delete a held message, and `/send` sends it right away.
 
@@ -32,7 +32,7 @@ No command to remember: the messages simply arrive when the agent is free. Befor
 
 `/cmc` opens a panel beside the chat. It uses Claude Code's own plugin engine, so it works with the mouse:
 
-![The cmc hub with two held messages while the agent works](https://raw.githubusercontent.com/petersonsenadevs/cmc/main/docs/images/hub-messages.png)
+![The cmc hub with two held messages while the agent works](https://raw.githubusercontent.com/petersonsenadevs/cmc/feat/typescript/docs/images/hub-messages.png)
 
 From there you can:
 
@@ -56,7 +56,7 @@ The subagent runs as its own Claude Code process:
 
 Its conversation shows up in the hub as a chat, with your messages on one side and its replies on the other:
 
-![A subagent's conversation in the hub](https://raw.githubusercontent.com/petersonsenadevs/cmc/main/docs/images/hub-subagent.png)
+![A subagent's conversation in the hub](https://raw.githubusercontent.com/petersonsenadevs/cmc/feat/typescript/docs/images/hub-subagent.png)
 
 You can keep writing to it, stop it, or send its result to the main agent with one click.
 

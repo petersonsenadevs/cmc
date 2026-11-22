@@ -36,3 +36,8 @@ $ POST https://dev.to/api/articles → 201, published: false
 - Peterson: «la imagen de portada no cabe». Portada nueva `docs/images/cover.png` a 1000×420 (el tamaño de dev.to), con el logo oscuro centrado.
 - Artículo al día con la 1.1.1: abreviaturas `-m -e -w -s -a`, la pestaña Help y el enlace al repositorio con el texto «cmc».
 - Borrador actualizado por la API: `PUT /api/articles/5091026` → 200, `published: false`, portada servida por media2.dev.to a 1000×420.
+
+## Publicado (Peterson: «publícalo»)
+- Imágenes y portada apuntando a `main` (ya con v1.1.1; las cuatro dan 200).
+- `PUT /api/articles/5091026` con `published: true` → 200. Público desde 2026-11-22T00:57:54Z: https://dev.to/r3v3rs3/cmc-stop-interrupting-claude-code-hold-your-messages-hand-tasks-to-subagents-25m6 (la página responde 200).
+- Release 1.1.1: notas en `senzu/informes/2026-11-22-release-1.1.1.md`; la crea Peterson en GitHub (aquí no hay `gh` ni se toca su token).

@@ -246,6 +246,9 @@ claude plugin validate ./plugins/cmc  # the plugin
 while it works (it spends tokens, so it is not part of `npm test`). [docs/manual-test.md](docs/manual-test.md) has the
 scenarios, including the checks of the hub that need the interactive terminal.
 
+Why cmc works the way it does is in the design records: [capture and release](docs/adr/001-capture-and-release.md),
+[dispatch and context](docs/adr/002-dispatch-and-context.md) and [the control panel](docs/adr/003-control-panel.md).
+
 ## Author
 
 Peterson Sena · [r3v3rs3](https://github.com/petersonsenadevs)

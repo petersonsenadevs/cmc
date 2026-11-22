@@ -11,3 +11,11 @@ senzu/ui-verify/
 
 # Written by Claude Code when it loads the hooks module from this folder (engine types).
 plugins/cmc/tsconfig.json
+
+# The author's own tooling, kept on the author's machine: Senzu (plan, devlog, memory,
+# brand work), its Claude Code setup, and early spikes. The plugin does not need them.
+senzu/
+.claude/
+CLAUDE.md
+AGENTS.md
+spike/

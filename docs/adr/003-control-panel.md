@@ -141,7 +141,7 @@ one click (or one key) away:
 Peterson: "the name must have its title and say by r3v3rs3, and room for the logo when we have it; it will basically be a hub". The
 panel is the hub of cmc: the header shows the mark "cmc" in two lines of half blocks (violet), then "Claude Message Control" and
 "by r3v3rs3"; the pane's tab reads "cmc hub". The terminal keeps the half-block mark (it reads at any size and on any theme); the
-logo proper, made from the brief in `senzu/design-system/cmc/logos/brief.md`, goes at the top of the README (`<picture>`, dark and
+logo proper (`plugins/cmc/assets/`) goes at the top of the README (`<picture>`, dark and
 light), where the same mark stands until it exists.
 
 The hub also chooses how subagents work: their model (`dispatch.model`: inherit, or an alias such as `opus`, `sonnet`, `haiku`,

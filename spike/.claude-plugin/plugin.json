@@ -1,6 +1,0 @@
-{
-  "name": "cmc-spike",
-  "description": "Throwaway probe for cmc (Claude Message Control): logs hook events and tests mid-turn capture and release.",
-  "version": "0.0.1",
-  "author": { "name": "Peterson Sena (r3v3rs3)" }
-}

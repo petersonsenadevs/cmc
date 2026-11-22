@@ -441,6 +441,16 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 
 ## Tareas ad hoc (fuera del plan original)
 
+### X-T10 · Artículo en inglés para dev.to con capturas reales del hub  [S] [doing]
+- Para qué: Peterson quiere publicar cmc en dev.to (en inglés, con el logo y capturas de /cmc, firmado r3v3rs3 con su GitHub).
+- Skill: — (redacción) + capturas de una demo real
+- Archivos: docs/images/*.png, senzu/informes/2026-11-22-articulo-devto.md
+- Hecho cuando: el artículo está en dev.to (borrador o publicado) con las tres capturas y el logo cargando.
+- Verificar: la API devuelve la URL del artículo; las imágenes cargan desde main.
+- Depende de: X-T9
+- Devlog: senzu/devlog/2026-11-22/046-x-t10-articulo-devto.md
+- Notas: falta llevar a main y la aprobación de Peterson para subirlo.
+
 ### X-T9 · El hub no imprime un error cuando el motor aborta su lectura  [S] [done]
 - Para qué: en la demo para el artículo salió en el chat «ui.render hook skipped: threw … $.process.run(node) aborted».
 - Skill: `depurar` + `plugin-authoring` (`ui.render`)

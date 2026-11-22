@@ -449,7 +449,8 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 - Verificar: la API devuelve la URL del artículo; las imágenes cargan desde main.
 - Depende de: X-T9
 - Devlog: senzu/devlog/2026-11-22/046-x-t10-articulo-devto.md
-- Notas: falta llevar a main y la aprobación de Peterson para subirlo.
+- Verificado (parcial): verify-build lint/types/test en verde; capturas revisadas sin datos personales; borrador listo
+- Notas: falta llevar a main y la aprobación de Peterson para subirlo; queda doing hasta que esté en dev.to.
 
 ### X-T9 · El hub no imprime un error cuando el motor aborta su lectura  [S] [done]
 - Para qué: en la demo para el artículo salió en el chat «ui.render hook skipped: threw … $.process.run(node) aborted».

@@ -54,6 +54,7 @@ Lo que vale en TODOS los proyectos del usuario no va aquí: va a su memoria pers
 - D-037 · Send por `$.session.send` a la propia sesión: sustituida por D-038 · ver 034
 - D-038 · Send con el agente trabajando pone el texto en la caja de entrada y Ctrl+Enter (`chat:sendNow`, nativo) lo envía; sale de la cola cuando se envía de verdad (ADR 003 §3) · ver 035
 - D-039 · Modelo y esfuerzo de subagentes: `dispatch.model`/`dispatch.effort`, `inherit` por defecto (manda la config del usuario); por tarea con `--model`/`--effort` · ver 039
+- D-040 · Logo final de cmc fijado en `senzu/design-system/cmc/logos/final/` (icon.svg, logo-dark, logo-light; ronda 2, B+D); no más bocetos sin que Peterson lo pida; ver gustos.md · ver 040
 
 ## Reglas del cliente y del proyecto
 - El plugin es multi-OS (Windows, macOS, Linux): rutas con `path.join`/`resolve`, carpetas comparadas por ruta real, sin separadores a mano · ver 012

@@ -16,6 +16,7 @@ import {
   elapsed,
   fateOf,
   firstSentence,
+  HELP,
   isWorking,
   MARK,
   MODES,
@@ -31,6 +32,7 @@ import {
   PICKERS,
   readManifest,
   readModes,
+  REPO_LABEL,
   register,
   resetPanelState,
   rowText,
@@ -324,8 +326,8 @@ describe('panel: header, tabs and modes', () => {
     assert.ok(ofType(brand.props.children, 'Text').slice(0, 2).every((node) => node.props.color === COLORS.accent));
     assert.equal(AUTHOR, 'by r3v3rs3');
     assert.deepEqual(
-      ['tab-messages', 'tab-agents', 'tab-activity', 'tab-settings'].map((key) => find(tree, key).props.label),
-      ['Messages 1', 'Subagents 0', 'Activity', 'Settings'],
+      ['tab-messages', 'tab-agents', 'tab-activity', 'tab-settings', 'tab-help'].map((key) => find(tree, key).props.label),
+      ['Messages 1', 'Subagents 0', 'Activity', 'Settings', 'Help'],
     );
     assert.equal(find(tree, 'tab-messages').props.variant, 'primary');
     // Each view says what it is, and how the modes are set.
@@ -338,6 +340,30 @@ describe('panel: header, tabs and modes', () => {
     assert.equal(find(settings, 'mode-holdTarget-subagent').props.dimColor, true);
     // Every mode and selector says what it does.
     for (const mode of [...MODES, ...PICKERS]) assert.ok(texts(settings).includes(mode.help), mode.key);
+  });
+
+  it('the repository link at the bottom right reads "cmc", like "by r3v3rs3", not the address', async () => {
+    const w = world();
+    await w.start();
+    const repo = find(await w.draw(), 'repo');
+    assert.equal(repo.type, 'Link');
+    assert.equal(repo.props.label, REPO_LABEL);
+    assert.equal(REPO_LABEL, 'cmc');
+    assert.equal(repo.props.href, 'https://github.com/petersonsenadevs/cmc');
+  });
+
+  it('Help explains how cmc works, section by section, with the short flags of subagents', async () => {
+    const w = world();
+    await w.start();
+    await press(await w.draw(), 'tab-help');
+    const tree = await w.draw();
+    const shown = texts(tree);
+    for (const section of HELP) {
+      assert.ok(shown.includes(section.title), section.title);
+      for (const line of section.lines) assert.ok(shown.includes(line), line);
+    }
+    assert.deepEqual(HELP.map((section) => section.title), ['Hold a message', 'Send, edit, reorder', 'Subagents', 'Settings', 'The hub']);
+    assert.ok(shown.some((line) => line.includes('-m model') && line.includes('-e effort') && line.includes('-w the whole conversation')));
   });
 
   it('shows the version at the bottom right, and the repository once the manifest names one', () => {
@@ -602,7 +628,7 @@ describe('panel: subagents', () => {
     await press(await w.draw(), 'tab-agents');
     let tree = await w.draw();
     assert.equal(find(tree, 'tab-agents').props.label, 'Subagents 1');
-    assert.ok(texts(tree).includes('· finished · 27s · whole conversation'));
+    assert.ok(texts(tree).includes('  finished · 27s · whole conversation'));
     await press(tree, 'agent-pick-ab12cd34');
     tree = await w.draw();
     assert.ok(texts(tree).some((text) => text.startsWith('Sent with the whole conversation as context')));

@@ -441,6 +441,17 @@ Entregable: `/cmc` abre un panel junto al chat con lo retenido y los agentes, qu
 
 ## Tareas ad hoc (fuera del plan original)
 
+### X-T11 · Versión 1.1.1: Help, abreviaturas de subagente, ">>" desde el módulo y detalles  [M] [done]
+- Para qué: Peterson pidió una pestaña de ayuda como una doc, -m -e -w para subagentes, el enlace al repo como «cmc», los detalles de la demo y sacar la 1.1.1 con su etiqueta.
+- Skill: `plugin-authoring` (`ui.render`, `prompt.submit`) + `code-quality §references/typescript`
+- Archivos: plugins/cmc/hooks/{panel,interface}.ts, plugins/cmc/lib/{agent-control,agents-view}.ts, plugins/cmc/bin/cmc.ts, tests, README, CHANGELOG, manifiestos, docs/manual-test.md
+- Hecho cuando: Help en el hub; -m -e -w -s -a; >> con aviso de una línea y caja vacía; fila en dos líneas; enlace «cmc»; 1.1.1 en manifiestos y CHANGELOG.
+- Verificar: npm test, tsc, lint, validate; C15 y C16 del guion.
+- Depende de: X-T9
+- Verificado: npm test 352, tsc, lint y validate en verde
+- Cumple: todo lo pedido para la 1.1.1, que era el «Para qué»; la etiqueta la sube Peterson tras llevarlo a main
+- Devlog: senzu/devlog/2026-11-22/047-x-t11-version-1-1-1.md
+
 ### X-T10 · Artículo en inglés para dev.to con capturas reales del hub  [S] [done]
 - Para qué: Peterson quiere publicar cmc en dev.to (en inglés, con el logo y capturas de /cmc, firmado r3v3rs3 con su GitHub).
 - Skill: — (redacción) + capturas de una demo real

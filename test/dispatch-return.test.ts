@@ -211,6 +211,6 @@ describe('automatic return (">> --auto")', () => {
     const reply1 = reply(handlePrompt({ session_id: SESSION, prompt: '>> --auto look', cwd: tmpdir() }, { dataDir, claude: [process.execPath, fake], env: { ...process.env, FAKE_CLAUDE: 'ok' } }));
     assert.match(reply1, /its result goes to this session by itself, at the end of a turn/);
     const reply2 = reply(handlePrompt({ session_id: SESSION, prompt: '>> look', cwd: tmpdir() }, { dataDir, claude: [process.execPath, fake], env: { ...process.env, FAKE_CLAUDE: 'ok' } }));
-    assert.match(reply2, /its result waits in the queue: ";;list" shows it, "\/cmc:release" hands it over/);
+    assert.match(reply2, /its result is held for you: send it from the hub or with \/held/);
   });
 });

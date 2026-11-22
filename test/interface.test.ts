@@ -16,6 +16,8 @@ import {
   readPick,
   reminderFor,
   holdPrefixFrom,
+  prefixesFrom,
+  messageToDispatch,
   messageToHold,
   positionsFrom,
   register,
@@ -148,6 +150,19 @@ describe('interface: what counts as a message to hold', () => {
     assert.equal(holdPrefixFrom('not json'), ';;');
   });
 
+  it('reads the dispatch prefix too, and falls back to both defaults when the two overlap', () => {
+    assert.deepEqual(prefixesFrom(null), { hold: ';;', dispatch: '>>' });
+    assert.deepEqual(prefixesFrom('{"dispatchPrefix":"=>"}'), { hold: ';;', dispatch: '=>' });
+    assert.deepEqual(prefixesFrom('{"holdPrefix":">","dispatchPrefix":">>"}'), { hold: ';;', dispatch: '>>' });
+  });
+
+  it('takes what follows the dispatch prefix as the task, flags and all', () => {
+    assert.equal(messageToDispatch('>> -m haiku review it', '>>'), '-m haiku review it');
+    assert.equal(messageToDispatch('>>review it', '>>'), 'review it');
+    assert.equal(messageToDispatch('>>   ', '>>'), null);
+    assert.equal(messageToDispatch('fix >> this', '>>'), null);
+  });
+
   it('reads positions for /send, and refuses anything else', () => {
     assert.deepEqual(positionsFrom(''), []);
     assert.deepEqual(positionsFrom(' 2  3 '), ['2', '3']);
@@ -202,6 +217,30 @@ describe('interface: in a session', () => {
       assert.deepEqual(await submit(world.$, e, passed), { passed: e });
     }
     assert.deepEqual(listMessages(sessionDir(data, SESSION)).messages, []);
+  });
+
+  it('starts a subagent on ">> task" itself: the whole text, flags included, goes to the command line, one-line notice, box emptied', async () => {
+    const world = engine(dataDir(), '>> -m haiku -e low write a haiku');
+    const { submit } = await started(world);
+    const calls: { argv: readonly string[]; stdin?: string }[] = [];
+    world.$.process.run = async (argv, init) => {
+      calls.push({ argv, ...(init?.stdin === undefined ? {} : { stdin: init.stdin }) });
+      return { exitCode: 0, stdout: 'Dispatched to agent ab12cd34: it inherits this conversation.', stderr: '' };
+    };
+    const answer = await submit(world.$, { text: '>> -m haiku -e low write a haiku' }, passed);
+    assert.deepEqual(answer, { drop: 'cmc: sent to subagent ab12cd34 · it works apart; its result comes back to /cmc' });
+    assert.deepEqual(calls[0]?.argv.slice(2, 4), ['dispatch', '--stdin']);
+    assert.equal(calls[0]?.stdin, '-m haiku -e low write a haiku');
+    await settle();
+    assert.deepEqual(world.filled, ['']);
+  });
+
+  it('hands ">> task" on when the command line refuses it, so the command hooks say why', async () => {
+    const world = engine(dataDir());
+    const { submit } = await started(world);
+    world.$.process.run = async () => ({ exitCode: 1, stdout: '', stderr: '"x y" is not a model name.' });
+    const e = { text: '>> -m "x y" task' };
+    assert.deepEqual(await submit(world.$, e, passed), { passed: e });
   });
 
   it('hands the prompt on when the command line fails, so the command hooks still hold it', async () => {

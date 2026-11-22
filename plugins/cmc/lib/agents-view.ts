@@ -41,7 +41,7 @@ function workplace(agent: AgentRecord): string {
  */
 export function dispatchReceipt(agent: AgentRecord): string {
   const context = agent.mode === 'fork' ? 'it inherits this conversation' : 'it gets a short summary of this conversation';
-  const lines = [`Dispatched to agent ${agent.id}: ${context}. ";;agents" shows how it goes.`];
+  const lines = [`Dispatched to agent ${agent.id}: ${context}. Follow it in the hub (/cmc) or with ";;agents".`];
   lines.push(
     agent.worktree === null
       ? 'This folder is not a git repository, so the agent works in this same folder, next to the session.'
@@ -50,7 +50,7 @@ export function dispatchReceipt(agent: AgentRecord): string {
   lines.push(
     agent.returnMode === 'auto'
       ? 'When it ends, its result goes to this session by itself, at the end of a turn.'
-      : 'When it ends, its result waits in the queue: ";;list" shows it, "/cmc:release" hands it over.',
+      : 'When it answers, its result is held for you: send it from the hub or with /held.',
   );
   if (agent.contextWarning) lines.push(`It starts knowing only the task: ${agent.contextWarning}`);
   return lines.join('\n');

@@ -107,7 +107,7 @@ describe('">> task" in the prompt', () => {
   it('starts an agent, blocks the prompt with a receipt and never reaches the session', async () => {
     const receipt = reply(type('>> review the tests of module X'));
     const agent = onlyAgent();
-    assert.match(receipt, new RegExp(`^Dispatched to agent ${agent.id}: it inherits this conversation\\. ";;agents" shows how it goes\\.`));
+    assert.match(receipt, new RegExp(`^Dispatched to agent ${agent.id}: it inherits this conversation\\. Follow it in the hub \\(/cmc\\) or with ";;agents"\\.`));
     assert.match(receipt, /not a git repository, so the agent works in this same folder/);
     assert.equal(agent.task, 'review the tests of module X');
     assert.equal(agent.mode, 'fork');

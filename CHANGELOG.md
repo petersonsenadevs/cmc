@@ -2,6 +2,23 @@
 
 All notable changes to cmc (Claude Message Control). Versions follow [Semantic Versioning](https://semver.org/).
 
+## 1.1.1 — 2026-11-22
+
+### Added
+- **Help** in the hub (key `5`): how cmc works, section by section, like a short page of docs.
+- Short flags for subagents: `-m` model, `-e` effort, `-w` whole conversation, `-s` summary, `-a` automatic return
+  (`>> -m haiku -e low review the tests`), also after `;;dispatch N`. `cmc dispatch --stdin` reads what followed `>>`.
+
+### Fixed
+- `>> task` is now taken by the hub's module, like `;;`: a one-line notice and the prompt box emptied, instead of the
+  old three-line notice with the task left in the box.
+- Flags typed in the task of `cmc dispatch` (`--model`, `--effort`) were ignored; they now apply.
+- The notice of a new subagent names the hub and `/held`, no longer `;;list` and `/cmc:release`.
+- A subagent's row shows its state, time, context, model and effort on a line of their own, instead of a narrow column.
+- The hub no longer prints "ui.render hook skipped … aborted" in the chat when a redraw cuts short its read of the
+  subagents.
+- Bottom right, the repository link reads **cmc**, not the whole address.
+
 ## 1.1.0 — 2026-11-21
 
 ### The cmc hub

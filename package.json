@@ -1,6 +1,6 @@
 {
   "name": "cmc",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Claude Message Control: a Claude Code plugin to hold your messages and release them when you decide.",
   "author": "Peterson Sena (r3v3rs3)",
   "private": true,

@@ -40,13 +40,15 @@ The session is the one started in the current folder; name it with --session
   take <id>…           take messages out of the queue by id (after /send's prompt was accepted)
   idle                 note that the agent is not working (the plugin calls it when a turn
                        is interrupted with Esc, which runs no Stop hook)
-  dispatch [--pack|--fork] [--auto|--held] [--model <m>] [--effort <e>] <task> | --message <N>
+  dispatch [--pack|--fork] [--auto|--held] [--model <m>] [--effort <e>] <task> | --message <N> | --stdin
                        start a second agent on a task, as ">> task" does in the session
                        (--pack: it gets a short summary instead of the whole conversation;
                        --auto: its result goes to the session by itself when a turn ends;
                        --fork and --held override settings that make the others the default;
                        --message N: the task is held message N, which leaves the queue
-                       once the agent has started)
+                       once the agent has started; --stdin: what follows ">>" on standard input,
+                       short flags included: -m model, -e effort, -w whole conversation,
+                       -s summary, -a automatic return)
   agents [--format json]
                        show the agents dispatched from the session
   log <id>             show what an agent was asked and its latest steps or final answer
@@ -246,11 +248,15 @@ function dispatchCommand({ flags, positional }: ParsedArgs): string {
     const returnMode = flags.auto ? 'auto' : flags.held ? 'held' : config.dispatch.return;
     return runAgentControl(origin, { name: 'dispatch', position: Number(flags.message), mode, returnMode, ...chosenModelAndEffort(flags) });
   }
-  const { task, mode, returnMode } = parseDispatch(positional.join(' '), { mode: config.dispatch.context, returnMode: config.dispatch.return });
+  // --stdin: what was typed after ">>", flags included, as the plugin's interface sends it.
+  const typed = flags.stdin ? readFileSync(0, 'utf8') : positional.join(' ');
+  const { task, mode, returnMode, model, effort } = parseDispatch(typed, { mode: config.dispatch.context, returnMode: config.dispatch.return });
   if (task === '') throw new CmcError('BAD_USAGE', 'dispatch needs a task: cmc dispatch [--pack|--fork] [--auto|--held] <task>.');
   const chosenMode = flags.pack ? 'pack' : flags.fork ? 'fork' : mode;
   const chosenReturn = flags.auto ? 'auto' : flags.held ? 'held' : returnMode;
-  return startAgent(origin, task, { mode: chosenMode, returnMode: chosenReturn, ...chosenModelAndEffort(flags) });
+  // The flags of the command line win over those typed in the task.
+  const typedChoice = { ...(model === undefined ? {} : { model }), ...(effort === undefined ? {} : { effort }) };
+  return startAgent(origin, task, { mode: chosenMode, returnMode: chosenReturn, ...typedChoice, ...chosenModelAndEffort(flags) });
 }
 
 /** --model and --effort of the command line, checked; absent: the settings decide. */

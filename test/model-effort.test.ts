@@ -69,6 +69,14 @@ describe('choosing for one task', () => {
     assert.throws(() => parseDispatch('--effort extreme fix it'), /not an effort/);
   });
 
+  it('short flags: -m model, -e effort, -w whole conversation, -s summary, -a automatic return', () => {
+    assert.deepEqual(parseDispatch('-m haiku -e low -s summarise'), { task: 'summarise', mode: 'pack', returnMode: 'held', model: 'haiku', effort: 'low' });
+    assert.deepEqual(parseDispatch('-w -a -m=sonnet fix it'), { task: 'fix it', mode: 'fork', returnMode: 'auto', model: 'sonnet' });
+    assert.deepEqual(parseDispatch('fix -m the parser'), { task: 'fix -m the parser', mode: 'fork', returnMode: 'held' }, 'only at the start');
+    assert.throws(() => parseDispatch('-e extreme fix it'), /not an effort/);
+    assert.deepEqual(parseAgentControl('dispatch 2 -m opus -e high -s'), { name: 'dispatch', position: 2, mode: 'pack', returnMode: 'held', model: 'opus', effort: 'high' });
+  });
+
   it('";;dispatch 2 --model opus --effort high"', () => {
     assert.deepEqual(parseAgentControl('dispatch 2 --model opus --effort high'), { name: 'dispatch', position: 2, mode: 'fork', returnMode: 'held', model: 'opus', effort: 'high' });
     assert.equal(parseAgentControl('dispatch 2 --model'), null);
@@ -82,6 +90,17 @@ describe('choosing for one task', () => {
       spawnSync('node', [join(ROOT, 'bin/cmc.ts'), 'dispatch', ...args, '--data-dir', data, '--session', SESSION], { encoding: 'utf8', cwd: tmpdir() });
     assert.match(run('--effort', 'extreme', 'task').stdout, /"extreme" is not an effort/);
     assert.match(run('--model', 'a b', 'task').stdout, /is not a model name/);
+  });
+
+  it('cmc dispatch --stdin reads what followed ">>", short flags included, and checks them the same', () => {
+    const data = mkdtempSync(join(tmpdir(), 'cmc-model-stdin-'));
+    made.push(data);
+    const run = (input: string) =>
+      spawnSync('node', [join(ROOT, 'bin/cmc.ts'), 'dispatch', '--stdin', '--data-dir', data, '--session', SESSION], { input, encoding: 'utf8', cwd: tmpdir() });
+    const bad = run('-e extreme review the tests');
+    assert.notEqual(bad.status, 0);
+    assert.match(bad.stdout + bad.stderr, /"extreme" is not an effort/);
+    assert.match(run('-m haiku').stdout + run('-m haiku').stderr, /dispatch needs a task/);
   });
 });
 

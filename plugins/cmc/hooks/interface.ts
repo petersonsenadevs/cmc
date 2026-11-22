@@ -16,6 +16,7 @@
 import { countHeld } from './indicator.ts';
 
 const DEFAULT_HOLD_PREFIX = ';;';
+const DEFAULT_DISPATCH_PREFIX = '>>';
 /** How much of a message a menu option shows. */
 const LABEL_LENGTH = 48;
 /** How long after its command answers /send submits the prompt. */
@@ -95,17 +96,35 @@ export const COMMANDS = Object.freeze([
   },
 ] as const);
 
-/** The hold prefix in force: from the settings file when it sets a valid one. */
-export function holdPrefixFrom(settingsText: string | null): string {
-  if (settingsText === null) return DEFAULT_HOLD_PREFIX;
+/** A prefix of the settings file when it sets a valid one (the rule of lib/config.ts: 1 to 4 symbols). */
+function prefixFrom(settingsText: string | null, key: 'holdPrefix' | 'dispatchPrefix'): string | null {
+  if (settingsText === null) return null;
   try {
     const value: unknown = JSON.parse(settingsText);
-    const prefix = typeof value === 'object' && value !== null && 'holdPrefix' in value ? value.holdPrefix : undefined;
-    // The same rule as lib/config.ts: 1 to 4 symbols.
-    return typeof prefix === 'string' && /^[^\sA-Za-z0-9/]{1,4}$/.test(prefix) ? prefix : DEFAULT_HOLD_PREFIX;
+    const prefix = typeof value === 'object' && value !== null && key in value ? (value as Record<string, unknown>)[key] : undefined;
+    return typeof prefix === 'string' && /^[^\sA-Za-z0-9/]{1,4}$/.test(prefix) ? prefix : null;
   } catch {
-    return DEFAULT_HOLD_PREFIX;
+    return null;
   }
+}
+
+/** The hold and dispatch prefixes in force; when they overlap, both defaults, as lib/config.ts does. */
+export function prefixesFrom(settingsText: string | null): { hold: string; dispatch: string } {
+  const hold = prefixFrom(settingsText, 'holdPrefix') ?? DEFAULT_HOLD_PREFIX;
+  const dispatch = prefixFrom(settingsText, 'dispatchPrefix') ?? DEFAULT_DISPATCH_PREFIX;
+  return hold.startsWith(dispatch) || dispatch.startsWith(hold) ? { hold: DEFAULT_HOLD_PREFIX, dispatch: DEFAULT_DISPATCH_PREFIX } : { hold, dispatch };
+}
+
+/** The hold prefix in force: from the settings file when it sets a valid one. */
+export function holdPrefixFrom(settingsText: string | null): string {
+  return prefixesFrom(settingsText).hold;
+}
+
+/** The task to hand a subagent, when a prompt starts with the dispatch prefix: what follows it, flags included. */
+export function messageToDispatch(prompt: string, prefix: string): string | null {
+  if (!prompt.startsWith(prefix)) return null;
+  const rest = prompt.slice(prefix.length).trim();
+  return rest === '' ? null : rest;
 }
 
 /**
@@ -203,12 +222,12 @@ export async function cli($: InterfaceEngine, args: readonly string[], stdin?: s
   return $.process.run(argv, { timeoutMs: 15000, ...(stdin === undefined ? {} : { stdin }) });
 }
 
-/** The hold prefix in force, read from the settings file each time (it may change). */
-async function prefix($: InterfaceEngine): Promise<string> {
+/** The hold and dispatch prefixes in force, read from the settings file each time (they may change). */
+async function prefixes($: InterfaceEngine): Promise<{ hold: string; dispatch: string }> {
   try {
-    return holdPrefixFrom(await $.fs.read(`${dataDir}/config.json`));
+    return prefixesFrom(await $.fs.read(`${dataDir}/config.json`));
   } catch {
-    return DEFAULT_HOLD_PREFIX;
+    return prefixesFrom(null);
   }
 }
 
@@ -356,7 +375,7 @@ async function heldMenu($: InterfaceEngine): Promise<CommandAnswer> {
   }
   if (action === 'Edit') {
     // The text goes back to the box as a control word: change it and press Enter.
-    await $.prompt.fill({ text: `${await prefix($)}edit ${at} ${entry.text}` });
+    await $.prompt.fill({ text: `${(await prefixes($)).hold}edit ${at} ${entry.text}` });
     return display('Change the text in the prompt box and press Enter to keep it in its place.');
   }
   // Text typed under "Other" replaces the message.
@@ -390,7 +409,16 @@ export const register = (on: InterfaceOn): void => {
   on('prompt.submit', async ($, e, next) => {
     // Slash commands and prompts the person did not type pass untouched.
     if (e.command !== undefined || e.isMeta === true || dataDir === undefined) return next(e);
-    const text = messageToHold(e.text, await prefix($));
+    const prefix = await prefixes($);
+    const task = messageToDispatch(e.text, prefix.dispatch);
+    if (task !== null) {
+      const started = await cli($, ['dispatch', '--stdin'], task).catch(() => null);
+      // Not started here (a bad flag, say): the command hooks beneath answer it, with the reason.
+      if (started === null || started.exitCode !== 0) return next(e);
+      void clearBoxIfStill($, e.text).catch(() => undefined);
+      return { drop: noticeFor(started.stdout) };
+    }
+    const text = messageToHold(e.text, prefix.hold);
     if (text === null) {
       const sent = pendingIn(e.text);
       if (sent.length === 0) return next(e);

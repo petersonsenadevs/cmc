@@ -18,6 +18,22 @@ const AUTO_FLAG = '--auto';
 const HELD_FLAG = '--held';
 const FLAGS: readonly string[] = [PACK_FLAG, FORK_FLAG, AUTO_FLAG, HELD_FLAG];
 
+/** Short forms: -m model, -e effort, -w whole conversation, -s summary, -a automatic return. */
+export const SHORT_FLAGS: Readonly<Record<string, string>> = Object.freeze({
+  '-m': '--model',
+  '-e': '--effort',
+  '-w': FORK_FLAG,
+  '-s': PACK_FLAG,
+  '-a': AUTO_FLAG,
+});
+
+/** A word with its short form spelled out: "-m" is "--model", "-m=haiku" is "--model=haiku". */
+function longForm(word: string): string {
+  const [name = '', ...value] = word.split('=');
+  const long = SHORT_FLAGS[name];
+  return long === undefined ? word : [long, ...value].join('=');
+}
+
 /** What a dispatch does when the user names no flag. */
 export const DEFAULT_CHOICE: DispatchChoice = Object.freeze({ mode: 'fork', returnMode: 'held' });
 
@@ -25,7 +41,7 @@ export const DEFAULT_CHOICE: DispatchChoice = Object.freeze({ mode: 'fork', retu
 function joinValueFlags(words: readonly string[]): string[] | null {
   const joined: string[] = [];
   for (let i = 0; i < words.length; i += 1) {
-    const word = words[i] ?? '';
+    const word = longForm(words[i] ?? '');
     if (word === '--model' || word === '--effort') {
       const value = words[i + 1];
       if (value === undefined) return null;
@@ -135,6 +151,10 @@ export function parseDispatch(rest: string, defaults: DispatchChoice = DEFAULT_C
   const flags: string[] = [];
   // Flags come first, in any order: ">> --auto --pack task".
   for (;;) {
+    // A short flag first is read as its long form: ">> -m haiku -e low task".
+    const first = text.split(/\s/, 1)[0] ?? '';
+    const long = longForm(first);
+    if (long !== first) text = long + text.slice(first.length);
     const valued = text.match(/^--(model|effort)(?:=|\s+)(\S+)(?:\s+|$)/);
     if (valued) {
       const flag = `--${valued[1]}=${valued[2]}`;

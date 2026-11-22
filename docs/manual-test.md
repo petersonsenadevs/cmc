@@ -1,4 +1,4 @@
-# Test script — cmc 1.1
+# Test script — cmc 1.1.1
 
 Three parts: scenarios a script drives against a real headless session (A), the basics in the interactive terminal (B),
 and the cmc hub (C). B and C need a person: the agent cannot see the terminal.
@@ -38,7 +38,7 @@ Make the terminal at least 110 columns wide.
 |---|---|---|
 | C1 | `/cmc`, then `/cmc` again | The hub opens beside the chat (tab "cmc hub"), then closes. |
 | C2 | Hub closed; while the agent works, `;; hello` | The hub opens by itself, with the message in Messages, "· goes when the turn ends". |
-| C3 | Header | The violet mark, "Claude Message Control", "by r3v3rs3"; a click on "by r3v3rs3" opens github.com/petersonsenadevs. Bottom right: `v1.1.0` (and the repository, once the manifest names it). |
+| C3 | Header | The violet mark, "Claude Message Control", "by r3v3rs3"; a click on "by r3v3rs3" opens github.com/petersonsenadevs. Bottom right: `v1.1.1` and **cmc**, a link to github.com/petersonsenadevs/cmc. |
 | C4 | Click a message | Its actions appear: Send now, To subagent, Edit, ↑, ↓, Delete. **Edit** changes it in the row and keeps its place; **↑**/**↓** reorder; **Delete** removes it. Activity says what happened. |
 | C5 | Agent idle: **Send now** on a message | The agent gets it at once; Activity: "Sent 1 message to the agent." |
 | C6 | Agent working: **Send now**, then Ctrl+Enter | The text appears in the prompt box; Ctrl+Enter sends it into the running turn; the message leaves the hub. |
@@ -49,6 +49,8 @@ Make the terminal at least 110 columns wide.
 | C11 | Write to it in its box: "now say mango", **Send** | Your message on the right, its answer "mango" on the left. |
 | C12 | **Send result to main** | The main agent gets the subagent's report, labelled as such. |
 | C13 | **Stop** on a waiting subagent | It shows as cancelled. |
+| C15 | **Help** (key 5) | How cmc works, in sections: hold, send, subagents with `-m -e -w -s -a`, settings, the hub. |
+| C16 | `>> -m haiku -e low reply with the word plum` | One line `cmc: sent to subagent …`, the prompt box empty; in Subagents its row says "haiku · effort low" on its own line. |
 | C14 | Settings: **Open the hub** → Only with /cmc; close the hub; `;; again` | The hub stays closed until `/cmc`. |
 
 Write down for each row: pass or fail, and anything that was unclear on screen.

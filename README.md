@@ -7,7 +7,7 @@
 
 by [r3v3rs3](https://github.com/petersonsenadevs)
 
-[![Version](https://img.shields.io/badge/version-1.1.0-7C5CFF)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.1-7C5CFF)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2BB673)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-%E2%89%A5%202.1.330-555)](https://code.claude.com/docs)
 [![Node.js](https://img.shields.io/badge/node-%E2%89%A5%2022.18-339933?logo=node.js&logoColor=white)](https://nodejs.org)
@@ -20,7 +20,7 @@ and it reaches the agent when its turn ends, without interrupting it; change, re
 tasks to **subagents** that work in parallel, in their own git worktree, and talk back to you. Everything from one panel
 beside the chat, the **cmc hub**, with the mouse or the keyboard.
 
-Version 1.1.0 · MIT license · see [CHANGELOG.md](CHANGELOG.md).
+Version 1.1.1 · MIT license · see [CHANGELOG.md](CHANGELOG.md).
 
 ## Requirements
 
@@ -68,7 +68,7 @@ terminal about 110 columns wide or more; below that, `/held` and the control wor
 ▄▀▀ █▀▄▀█ ▄▀▀   Claude Message Control
 ▀▄▄ █ ▀ █ ▀▄▄   by r3v3rs3
 ● Agent working · held messages go to it when its turn ends
-[ Messages 2 ] [ Subagents 1 ] [ Activity ] [ Settings ]
+[ Messages 2 ] [ Subagents 1 ] [ Activity ] [ Settings ] [ Help ]
 
 What you hold for the agent. Click a message for its actions; type below to hold one without ";;".
 Messages delivered when the turn ends · ;; holds for the agent · subagents get the whole conversation
@@ -80,7 +80,7 @@ Messages delivered when the turn ends · ;; holds for the agent · subagents get
 ┌───────────────────────────────────────┐
 │ Type a message to hold for the agent  │ [ Hold ]
 └───────────────────────────────────────┘
-                                                              v1.1.0  github.com/petersonsenadevs/cmc
+                                                                                     v1.1.1  cmc
 ```
 
 | View (key) | What is in it |
@@ -89,6 +89,9 @@ Messages delivered when the turn ends · ;; holds for the agent · subagents get
 | **Subagents** (`2`) | A box to start a new subagent task, and every subagent with its state, time, context, model and effort. A click opens its **conversation as a chat** — your messages on the right, its answers on the left, its steps in between — with a box to write to it, **Send result to main** and **Stop**. |
 | **Activity** (`3`) | What happened, newest first. The latest two lines also show under the other views. |
 | **Settings** (`4`) | The modes below, each with a line on what it does. A change applies at once and is kept. |
+| **Help** (`5`) | How cmc works, section by section: holding, sending, subagents and their flags, settings, the hub. |
+
+Bottom right: the version, and **cmc**, a link to this repository.
 
 ### Send now
 
@@ -134,6 +137,7 @@ resuming the session (`claude --resume <id>`) and compactions; sessions inactive
 |---|---|
 | `>> review the tests of module X` | A subagent starts on that task. It forks this conversation, so it knows everything said so far. |
 | `>> --pack --model sonnet --effort low task` | With a short summary instead, and its own model and effort (`--model=sonnet` works too). |
+| `>> -s -m sonnet -e low task` | The same, short: `-m` model, `-e` effort, `-w` whole conversation, `-s` summary, `-a` its result comes back by itself. Flags go first. |
 | `;;dispatch 2` | Hands held message 2 to a subagent instead of the main agent (flags as above). |
 | `;;tell 1a2b now list the open tasks` | Writes to subagent `1a2b…`: it reads it after its current step, or its closed session is resumed with it. |
 | `;;agents` · `;;log 1a2b` · `;;cancel 1a2b` | Lists the subagents, shows what one did, stops one. |
@@ -159,7 +163,7 @@ Run `cmc` in a second terminal **in the folder where the session was started**: 
 them all.
 
 Installed from the marketplace, the command is in Claude Code's plugin cache, under a folder named after the version:
-`node ~/.claude/plugins/cache/r3v3rs3/cmc/1.1.0/bin/cmc.ts list` (an alias helps, since the path changes with each
+`node ~/.claude/plugins/cache/r3v3rs3/cmc/1.1.1/bin/cmc.ts list` (an alias helps, since the path changes with each
 update). From a checkout: `node /path/to/the/checkout/plugins/cmc/bin/cmc.ts`, or `npm link` in the repository.
 
 ## Settings file

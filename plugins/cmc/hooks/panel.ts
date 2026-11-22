@@ -28,6 +28,49 @@ export const PRODUCT_NAME = 'Claude Message Control';
 export const AUTHOR = 'by r3v3rs3';
 /** Where "by r3v3rs3" leads: the author's GitHub. */
 export const AUTHOR_URL = 'https://github.com/petersonsenadevs';
+/** The text of the link to the repository, bottom right, like "by r3v3rs3": the name, not the address. */
+export const REPO_LABEL = 'cmc';
+
+/** The Help view: how cmc works, section by section, as short as a page of docs can be. */
+export const HELP: readonly { title: string; lines: readonly string[] }[] = Object.freeze([
+  {
+    title: 'Hold a message',
+    lines: [
+      '";; your message" while the agent works: it is held, the agent is not interrupted, and it reaches the agent when its turn ends.',
+      'While the agent is idle a held message waits for you. Type in the box of Messages to hold one without ";;".',
+    ],
+  },
+  {
+    title: 'Send, edit, reorder',
+    lines: [
+      'Messages: click a message for Send now, To subagent, Edit, ↑ ↓ and Delete. Send all hands every message over.',
+      'Send now while the agent works puts the text in the prompt box: Ctrl+Enter sends it into the running turn.',
+      'From the chat: /held (a menu), /send or /send 2, and the words ;;list ;;edit 2 text ;;rm 2 ;;move 3 1 ;;clear ;;end ;;now.',
+    ],
+  },
+  {
+    title: 'Subagents',
+    lines: [
+      '">> task" starts a subagent: it works apart, in its own git worktree, so it never touches your files.',
+      'Flags first: -m model (haiku, sonnet, opus…), -e effort (low … max), -w the whole conversation, -s a short summary, -a its result comes back by itself. ">> -m haiku -e low review the tests".',
+      'Subagents: click one for its conversation. Write to it in its box, Send result to main, or Stop it.',
+      'From the chat: ;;dispatch 2 (hand held message 2 to a subagent), ;;tell <id> text, ;;agents, ;;log <id>, ;;cancel <id>.',
+    ],
+  },
+  {
+    title: 'Settings',
+    lines: [
+      'When held messages go, where ";;" sends them, the context, model and effort of subagents, and whether the hub opens by itself. Each change applies at once.',
+    ],
+  },
+  {
+    title: 'The hub',
+    lines: [
+      '/cmc opens and closes it; Escape closes it. Keys 1 to 5 switch views. Activity lists what happened.',
+      'From another terminal, in the same folder: the cmc command (cmc help lists it all).',
+    ],
+  },
+]);
 
 /** The palette (ADR 003 §4): accents only, so the panel sits well on any theme. */
 export const COLORS = Object.freeze({ accent: '#7C5CFF', working: '#F5A524', done: '#2BB673', error: '#E5484D' });
@@ -177,7 +220,7 @@ export const PICKERS = Object.freeze([
   },
 ] as const);
 
-type View = 'messages' | 'agents' | 'activity' | 'settings';
+type View = 'messages' | 'agents' | 'activity' | 'settings' | 'help';
 
 /** One line on top of each view: what it is and what can be done in it. */
 export const VIEW_HELP: Readonly<Record<View, string>> = Object.freeze({
@@ -185,6 +228,7 @@ export const VIEW_HELP: Readonly<Record<View, string>> = Object.freeze({
   agents: 'Subagents work apart, in their own worktree. Click one to see the conversation and write to it.',
   activity: 'What happened, newest first.',
   settings: 'How cmc behaves. Each change applies at once and is kept for next time.',
+  help: 'How cmc works.',
 });
 
 /** One line that says how the modes are set, under the header of every view but Settings. */
@@ -673,7 +717,7 @@ function drawHeader(el: PanelElements, $: PanelEngine, working: boolean, atEnd: 
       Box({
         flexDirection: 'row',
         columnGap: 1,
-        children: [tab('messages', `Messages ${held}`, '1'), tab('agents', `Subagents ${agents.length}${live > 0 ? ` (${live} working)` : ''}`, '2'), tab('activity', 'Activity', '3'), tab('settings', 'Settings', '4')],
+        children: [tab('messages', `Messages ${held}`, '1'), tab('agents', `Subagents ${agents.length}${live > 0 ? ` (${live} working)` : ''}`, '2'), tab('activity', 'Activity', '3'), tab('settings', 'Settings', '4'), tab('help', 'Help', '5')],
       }),
     ],
   });
@@ -842,19 +886,25 @@ function drawAgents(el: PanelElements, $: PanelEngine, agents: AgentEntry[], hel
     const isSelected = ui.selected === agent.id;
     const line = Box({
       key: `agent-row-${agent.id}`,
-      flexDirection: 'row',
-      columnGap: 1,
+      flexDirection: 'column',
       children: [
-        Text({ color: mark.color, children: mark.icon }),
-        Button({
-          key: `agent-pick-${agent.id}`,
-          label: `${agent.id}  ${agent.task.replace(/\s+/g, ' ').slice(0, ROW_LENGTH)}`,
-          plain: true,
-          onPress: () => act($, () => select(agent.id)),
+        Box({
+          flexDirection: 'row',
+          columnGap: 1,
+          children: [
+            Text({ color: mark.color, children: mark.icon }),
+            Button({
+              key: `agent-pick-${agent.id}`,
+              label: `${agent.id}  ${agent.task.replace(/\s+/g, ' ').slice(0, ROW_LENGTH)}`,
+              plain: true,
+              onPress: () => act($, () => select(agent.id)),
+            }),
+          ],
         }),
         Text({
           dimColor: true,
-          children: `· ${agent.state} · ${elapsed(agent.startedAt, agent.endedAt)} · ${agent.mode === 'fork' ? 'whole conversation' : 'summary'}${modelAndEffort(agent.model, agent.effort)}`,
+          wrap: 'wrap',
+          children: `  ${agent.state} · ${elapsed(agent.startedAt, agent.endedAt)} · ${agent.mode === 'fork' ? 'whole conversation' : 'summary'}${modelAndEffort(agent.model, agent.effort)}`,
         }),
       ],
     });
@@ -923,6 +973,22 @@ function drawAgents(el: PanelElements, $: PanelEngine, agents: AgentEntry[], hel
   return Box({ flexDirection: 'column', gap: 1, children: [newTask, Box({ flexDirection: 'column', children: rows })] });
 }
 
+/** The Help view: each section of HELP, its title in the accent colour. */
+function drawHelp(el: PanelElements): Element {
+  const { Box, Text } = el;
+  return Box({
+    flexDirection: 'column',
+    gap: 1,
+    children: HELP.map((section) =>
+      Box({
+        key: `help-${section.title}`,
+        flexDirection: 'column',
+        children: [Text({ bold: true, color: COLORS.accent, children: section.title }), ...section.lines.map((line) => Text({ wrap: 'wrap', children: line }))],
+      }),
+    ),
+  });
+}
+
 function drawActivity(el: PanelElements, limit: number): Element {
   const { Box, Text } = el;
   const lines = ui.activity.slice(0, limit);
@@ -951,7 +1017,7 @@ function drawFooter(el: PanelElements): Element {
     columnGap: 2,
     children: [
       manifest.version === null ? null : Text({ dimColor: true, children: `v${manifest.version}` }),
-      manifest.repository === null ? null : Link({ key: 'repo', href: manifest.repository, label: manifest.repository.replace(/^https:\/\//, '') }),
+      manifest.repository === null ? null : Link({ key: 'repo', href: manifest.repository, label: REPO_LABEL }),
     ],
   });
 }
@@ -970,18 +1036,20 @@ export async function drawPanel($: PanelEngine, e: PaneRenderEvent): Promise<Ele
       ? drawModes(el, $, modes)
       : ui.view === 'agents'
       ? drawAgents(el, $, agents, entries, ui.selected === null ? [] : parseConversation(await sessionFile($, `agents/${ui.selected}/conversation.jsonl`)), modes)
+      : ui.view === 'help'
+        ? drawHelp(el)
       : ui.view === 'activity'
         ? drawActivity(el, ACTIVITY_KEPT)
         : drawMessages(el, $, entries, working, atEnd, modes.holdTarget ?? 'main');
   const recent =
-    ui.view === 'activity' || ui.activity.length === 0
+    ui.view === 'activity' || ui.view === 'help' || ui.activity.length === 0
       ? null
       : Box({ flexDirection: 'column', children: [Text({ dimColor: true, children: '─ Latest' }), drawActivity(el, ACTIVITY_SHOWN)] });
   const help = Box({
     flexDirection: 'column',
     children: [
       Text({ dimColor: true, wrap: 'wrap', children: VIEW_HELP[ui.view] }),
-      ui.view === 'settings' ? null : Text({ dimColor: true, italic: true, wrap: 'wrap', children: modesSummary(modes) }),
+      ui.view === 'settings' || ui.view === 'help' ? null : Text({ dimColor: true, italic: true, wrap: 'wrap', children: modesSummary(modes) }),
     ],
   });
   return Box({ flexDirection: 'column', gap: 1, children: [drawHeader(el, $, working, atEnd, entries.length, agents), help, body, recent, drawFooter(el)] });

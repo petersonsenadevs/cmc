@@ -50,3 +50,4 @@ Registro correlativo de todas las entradas del proyecto.
 | 044 | 2026-11-21 | F5-T9: documentación del hub y 1.1.0        | docs     | 028      | F5-T9 |
 | 045 | 2026-11-22 | X-T9: render abortado sin error en el chat  | fix      | 036      | X-T9 |
 | 046 | 2026-11-22 | X-T10: artículo para dev.to con capturas    | docs     | 044      | X-T10 |
+| 047 | 2026-11-22 | X-T11: versión 1.1.1                         | feature  | 036, 045 | X-T11 |

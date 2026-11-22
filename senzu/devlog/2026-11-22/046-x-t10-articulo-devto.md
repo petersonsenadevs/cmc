@@ -31,3 +31,8 @@ $ verify-build → lint PASS · types PASS · test PASS (344) · build SKIP (no 
 $ curl raw.githubusercontent.com/... → held-delivered 200 · hub-messages 200 · hub-subagent 200 · logo 200
 $ POST https://dev.to/api/articles → 201, published: false
 ```
+
+## Portada y 1.1.1 (2026-11-22, más tarde)
+- Peterson: «la imagen de portada no cabe». Portada nueva `docs/images/cover.png` a 1000×420 (el tamaño de dev.to), con el logo oscuro centrado.
+- Artículo al día con la 1.1.1: abreviaturas `-m -e -w -s -a`, la pestaña Help y el enlace al repositorio con el texto «cmc».
+- Borrador actualizado por la API: `PUT /api/articles/5091026` → 200, `published: false`, portada servida por media2.dev.to a 1000×420.
